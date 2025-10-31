@@ -373,7 +373,6 @@ obj/
 # Docker / environment
 .env
 appsettings.Development.json
-docker-compose.override.yml
 
 # Logs & temp
 *.log
@@ -383,3 +382,4 @@ docker-compose.override.yml
 # OS files
 .DS_Store
 Thumbs.db
+.env

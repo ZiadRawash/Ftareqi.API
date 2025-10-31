@@ -1,0 +1,57 @@
+version: '3.9'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: SQLServer-Container
+    environment:
+      SA_PASSWORD: ${DB_PASSWORD}
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserverdata:/var/opt/mssql
+    restart: unless-stopped
+    networks:
+      - ftareqi-network
+
+  ftareqi.api:
+    container_name: FtareqiAPI-container
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;
+      - Serilog__WriteTo__3__Args__serverUrl=http://seq:80
+    ports:
+      - "5342:8080"
+    depends_on:
+      - sqlserver
+      - seq
+    networks:
+      - ftareqi-network
+    restart: on-failure
+
+  seq:
+    image: datalust/seq:latest
+    container_name: Seq-Container
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=True
+    ports:
+      - "5300:80"
+    volumes:
+      - seq-data:/data
+    restart: unless-stopped
+    networks:
+      - ftareqi-network
+
+volumes:
+  sqlserverdata:
+  seq-data:
+
+networks:
+  ftareqi-network:
+    driver: bridge

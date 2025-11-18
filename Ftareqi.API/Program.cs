@@ -1,10 +1,11 @@
-using Ftareqi.Peesistance;
+using Ftareqi.Domain.Models;
+using Ftareqi.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.OpenApi.Models;
-using System.Reflection;
-
 using Serilog;
+using System.Reflection;
 namespace Ftareqi.API
 {
 	public class Program
@@ -12,6 +13,11 @@ namespace Ftareqi.API
 		public static void Main(string[] args)
 		{
 			var builder = WebApplication.CreateBuilder(args);
+
+
+			//inject GlobalErrorHandler
+			builder.Services.AddExceptionHandler<GlobalErrorHandler>();
+			builder.Services.AddProblemDetails();
 
 			// configuration for Seq 
 			builder.Host.UseSerilog((context, configuration) =>
@@ -21,7 +27,12 @@ namespace Ftareqi.API
 			builder.Services.AddDbContext<ApplicationDbContext>(options =>
 				options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+			//configuration for identity
+			builder.Services.AddIdentity<User, IdentityRole>()
+			.AddEntityFrameworkStores<ApplicationDbContext>()
+			.AddDefaultTokenProviders();
 
+			//builder.Services.AddExceptionHandler<GlobalErrorHandler>();
 			// Add services to the container.
 			builder.Services.AddControllers();
 
@@ -42,6 +53,8 @@ namespace Ftareqi.API
 
 			var app = builder.Build();
 
+			//add ExceptionHandler to pipeline 
+			app.UseExceptionHandler();
 			// Configure the HTTP request pipeline.
 			if (app.Environment.IsDevelopment())
 			{
@@ -49,9 +62,9 @@ namespace Ftareqi.API
 				app.UseSwaggerUI();
 			}
 
-			app.UseHttpsRedirection();
+			app.UseHttpsRedirection();//IApplicationBuilder
 			app.UseAuthorization();
-			app.MapControllers();
+			app.MapControllers();//EndPointBuilder
 
 			try
 			{

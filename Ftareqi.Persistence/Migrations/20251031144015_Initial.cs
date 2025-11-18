@@ -1,8 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Ftareqi.Peesistance.Migrations
+namespace Ftareqi.Persistence.Migrations
 {
     /// <inheritdoc />
     public partial class Initial : Migration

@@ -1,5 +1,7 @@
+using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Domain.Models;
 using Ftareqi.Persistence;
+using Ftareqi.Persistence.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -50,6 +52,9 @@ namespace Ftareqi.API
 				var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
 				options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 			});
+
+			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
+			builder.Services.AddScoped<IUnitOfWork,UnitOfWork>();
 
 			var app = builder.Build();
 

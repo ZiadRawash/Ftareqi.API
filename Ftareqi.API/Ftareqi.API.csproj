@@ -34,6 +34,9 @@
   </ItemGroup>
 
   <ItemGroup>
+	  <ProjectReference Include="..\Ftareqi.Application\Ftareqi.Application.csproj" />
+	  <ProjectReference Include="..\Ftareqi.Domain\Ftareqi.Domain.csproj" />
+	  <ProjectReference Include="..\Ftareqi.Infrastructure\Ftareqi.Infrastructure.csproj" />
 	  <ProjectReference Include="..\Ftareqi.Persistence\Ftareqi.Persistence.csproj" />
   </ItemGroup>
 

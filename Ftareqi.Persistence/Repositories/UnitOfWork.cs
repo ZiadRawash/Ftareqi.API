@@ -12,10 +12,12 @@ namespace Ftareqi.Persistence.Repositories
 	{
 		private readonly ApplicationDbContext _applicationDbContext;
 		public IBaseRepository<User> Users {  get; private set; }
+		public IBaseRepository<RefreshToken> RefreshTokens {  get; private set; }
 		public UnitOfWork(ApplicationDbContext applicationDbContext)
 		{
 			_applicationDbContext = applicationDbContext;
 			Users = new BaseRepository<User>(_applicationDbContext);
+			RefreshTokens = new BaseRepository<RefreshToken>(_applicationDbContext);
 		}
 
 		public ValueTask DisposeAsync()

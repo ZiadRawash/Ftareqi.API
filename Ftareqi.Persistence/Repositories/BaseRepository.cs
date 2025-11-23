@@ -54,7 +54,6 @@ namespace Ftareqi.Persistence.Repositories
 				.Where(predicate)
 				.ToListAsync();
 		}
-
 		public async Task<IEnumerable<T>> FindAllAsNoTrackingAsync(
 			Expression<Func<T, bool>> predicate,
 			params Expression<Func<T, object>>[] includes)

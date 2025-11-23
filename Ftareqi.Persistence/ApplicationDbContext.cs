@@ -16,6 +16,9 @@ namespace Ftareqi.Persistence
 			: base(options)
 		{
 		}
+		public DbSet<RefreshToken > RefreshTokens { get; set; }
+		public DbSet <OTP> OTPs { get; set; }
+
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
 			base.OnModelCreating(builder);

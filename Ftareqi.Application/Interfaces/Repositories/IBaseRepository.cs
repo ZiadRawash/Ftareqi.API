@@ -30,6 +30,9 @@ namespace Ftareqi.Application.Interfaces.Repositories
 			Expression<Func<T, bool>> predicate,
 			params Expression<Func<T, object>>[] includes);
 
+		Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
+		Task<T?> FirstOrDefaultAsNoTrackingAsync(Expression<Func<T, bool>> predicate);
+
 		Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
 			int pageNumber,
 			int pageSize,

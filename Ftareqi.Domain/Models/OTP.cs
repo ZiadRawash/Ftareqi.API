@@ -18,6 +18,7 @@ namespace Ftareqi.Domain.Models
 		public OTPPurpose Purpose { get; set; }
 		public int FailedAttempts { get; set; }
 		public bool IsUsed {  get; set; }
+		public bool IsLocked => FailedAttempts >= AuthConstants.MaxOTPAttempts;
 		public User? User { get; set; }
 		[ForeignKey("User")]
 		public required string UserId { get; set;}

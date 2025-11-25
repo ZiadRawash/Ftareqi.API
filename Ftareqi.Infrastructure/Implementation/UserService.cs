@@ -1,15 +1,17 @@
 ﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Authentication;
 using Ftareqi.Application.Interfaces.Services;
+using Ftareqi.Application.Mappers;
 using Ftareqi.Domain.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Razor.Runtime.TagHelpers;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Ftareqi.Application.Mappers;
-using Microsoft.Extensions.Logging;
 
 namespace Ftareqi.Infrastructure.Implementation
 {
@@ -24,7 +26,7 @@ namespace Ftareqi.Infrastructure.Implementation
 			ILogger<UserService> logger)
 		{
 			_userManager = userManager;
-			_signInManager = signInManager;	
+			_signInManager = signInManager;
 			_logger = logger;
 		}
 		public async Task<Result<UserDto>> CreateUserAsync(RegisterRequestDto model)
@@ -33,14 +35,14 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				var user = new User
 				{
-					UserName = model.PhoneNumber,
+					UserName = Guid.NewGuid().ToString(),
 					PhoneNumber = model.PhoneNumber,
 					FullName = model.FullName,
 					CreatedAt = DateTime.Now,
 					Gender = model.Gender,
 					PhoneNumberConfirmed = false,
 					PenaltyCount = 0,
-					DateOfBirth= model.DateOfBirth,
+					DateOfBirth = model.DateOfBirth,
 				};
 				var UserCreated = await _userManager.CreateAsync(user, model.Password);
 				if (!UserCreated.Succeeded)
@@ -90,21 +92,21 @@ namespace Ftareqi.Infrastructure.Implementation
 		{
 			try
 			{
-				if(phoneNumber == null || string.IsNullOrWhiteSpace(phoneNumber))
+				if (phoneNumber == null || string.IsNullOrWhiteSpace(phoneNumber))
 				{
 					return Result<UserDto>.Failure("Phone Number is required .");
 				}
-				var userfound= await _userManager.FindByNameAsync(phoneNumber);
-				if (userfound != null) {
+				var userfound = await _userManager.Users.FirstOrDefaultAsync(user => user.PhoneNumber == phoneNumber);
+				if (userfound is not null)
+				{
 					_logger.LogInformation("User with {phoneNumber} Is found", phoneNumber);
 					return Result<UserDto>.Success(userfound.MapTo(), "User found");
 				}
-			return Result<UserDto>.Failure( "User Does not exist");
-
+				return Result<UserDto>.Failure("User Does not exist");		
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex,"Error happened with searching for user with this {Phone number}", phoneNumber);
+				_logger.LogError(ex, "Error happened with searching for user with this {Phone number}", phoneNumber);
 				throw;
 			}
 		}
@@ -118,7 +120,9 @@ namespace Ftareqi.Infrastructure.Implementation
 					return Result.Failure(new List<string> { "Phone number and password are required." });
 				}
 
-				var user = await _userManager.FindByNameAsync(phoneNumber);
+				var user = await _userManager.Users
+				.SingleOrDefaultAsync(u => u.PhoneNumber == phoneNumber);
+
 				if (user == null || user.IsDeleted)
 				{
 					_logger.LogWarning("ValidateCredentials failed for phone {PhoneNumber}: user not found or deleted.", phoneNumber);
@@ -127,7 +131,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				if (!user.PhoneNumberConfirmed)
 				{
 					_logger.LogWarning("User {UserId} tried to login but phone is not confirmed.", user.Id);
-					return Result.Failure(new List<string> { "You must confirm your phone number before logging in." });
+					return Result.Failure(new List<string> { "Phone is Not confirmed" });
 				}
 				var signInResult = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
 
@@ -151,6 +155,27 @@ namespace Ftareqi.Infrastructure.Implementation
 				_logger.LogError(ex, "An error occurred while validating credentials for phone {PhoneNumber}.", phoneNumber);
 				throw;
 			}
+		}
+
+		public async Task<Result> ConfirmPhoneNumber(string userId)
+		{
+			if (string.IsNullOrEmpty(userId))
+				return Result.Failure("User Not Found");
+
+			var user = await _userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				_logger.LogError("there is no user with this id {userId}", userId);
+				return Result.Failure("User Not Found");
+			}
+
+			user.PhoneNumberConfirmed = true;
+			var result = await _userManager.UpdateAsync(user);
+
+			if (!result.Succeeded)
+				return Result.Failure("Failed to confirm phone number");
+			_logger.LogInformation("Phone number is Confirmed for user {userId} ", userId);
+			return Result.Success();
 		}
 	}
 }

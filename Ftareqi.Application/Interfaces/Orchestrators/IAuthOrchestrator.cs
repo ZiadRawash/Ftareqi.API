@@ -1,5 +1,6 @@
 ﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Authentication;
+using Ftareqi.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,17 +22,17 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		/// <summary>
 		/// Handles complete login workflow: validation, credential check, token generation, activity logging
 		/// </summary>
-		Task<Result> LoginAsync(LoginRequestDto request);
+		Task<Result<TokensDto>> LoginAsync(LoginRequestDto request);
 
 		/// <summary>
 		/// Handles token refresh workflow
 		/// </summary>
-		Task<Result> RefreshTokenAsync(string refreshToken);
+		Task<Result<string>> RefreshTokenAsync(string refreshToken);
 
 		/// <summary>
 		/// Handles logout workflow: token invalidation, activity logging
 		/// </summary>
-		//Task<Result> LogoutAsync(string userId);
+		Task<Result> LogoutAsync(string refreshToken);
 
 		/// <summary>
 		/// Handles password reset workflow: validation, token generation, email sending
@@ -42,5 +43,7 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		/// Handles password reset confirmation workflow
 		/// </summary>
 		//Task<Result> ResetPasswordAsync(ResetPasswordDto request);
+
+		Task<Result> ValidateOtpAsync(string userId, string code, OTPPurpose purpose);
 	}
 }

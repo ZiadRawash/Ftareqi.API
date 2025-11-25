@@ -1,5 +1,6 @@
 ﻿using DripOut.Application.Common.Settings;
 using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs.Authentication;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Constants;
 using Ftareqi.Domain.Models;
@@ -34,50 +35,50 @@ namespace Ftareqi.Infrastructure.Implementation
 			_logger = logger ?? throw new ArgumentNullException(nameof(logger), "Logger cannot be null.");
 		}
 
-		public Result<string> GenerateAccessToken(Guid userId, IEnumerable<string> roles, Dictionary<string, string> additionalClaims)
+		public Result<string> GenerateAccessToken(CreateAccessTokenDto data)
 		{
 			try
-			{
-				if (userId == Guid.Empty)
+			{	
+				if (string.IsNullOrEmpty(data.UserId))
 				{
-					_logger.LogError("Invalid userId provided for generating access token.");
+					_logger.LogError("GenerateAccessToken failed: empty userId.");
 					return Result<string>.Failure("UserId cannot be empty.");
 				}
 
-				if (roles == null || !roles.Any())
+				if (data.Roles == null || !data.Roles.Any())
 				{
-					_logger.LogWarning("No roles provided for user {UserId}.", userId);
+					_logger.LogWarning("GenerateAccessToken: no roles provided for user {UserId}.", data.UserId);
 				}
-
 				var claims = new List<Claim>
-								{
-									new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-									new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-									new(ClaimTypes.NameIdentifier, userId.ToString())
-								};
-
-				if (roles != null && roles.Any() )
 				{
-					claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+					new(JwtRegisteredClaimNames.Sub, data.UserId.ToString()),
+					new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+					new(ClaimTypes.NameIdentifier, data.UserId.ToString())
+				};
+
+				if (data.Roles != null && data.Roles.Any())
+				{
+					claims.AddRange(data.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
 				}
-
-				if (additionalClaims != null)
+				if (data.AdditionalClaims != null)
 				{
-					foreach (var claim in additionalClaims)
+					foreach (var claim in data.AdditionalClaims)
 					{
+						if (string.IsNullOrWhiteSpace(claim.Key) || claim.Value == null)
+						{
+							_logger.LogWarning("Skipping invalid additional claim for user {UserId}. Key: '{Key}'", data.UserId, claim.Key);
+							continue;
+						}
 						claims.Add(new Claim(claim.Key, claim.Value));
 					}
 				}
-
-				var creds = new SigningCredentials(_key, SecurityAlgorithms.HmacSha512Signature);
 				if (!int.TryParse(_jwtSettings.AccessTokenExpiryInMinutes, out var expiryMinutes) || expiryMinutes <= 0)
 				{
-					_logger.LogError("Invalid AccessTokenExpiryInMinutes in JWT settings.");
+					_logger.LogError("Invalid AccessTokenExpiryInMinutes in JWT settings: {Value}", _jwtSettings.AccessTokenExpiryInMinutes);
 					return Result<string>.Failure("AccessTokenExpiryInMinutes must be a positive integer.");
 				}
-
 				var tokenExpiration = DateTime.UtcNow.AddMinutes(expiryMinutes);
-
+				var creds = new SigningCredentials(_key, SecurityAlgorithms.HmacSha512Signature);
 				var descriptor = new SecurityTokenDescriptor
 				{
 					Subject = new ClaimsIdentity(claims),
@@ -86,49 +87,35 @@ namespace Ftareqi.Infrastructure.Implementation
 					Expires = tokenExpiration,
 					SigningCredentials = creds,
 				};
-
 				var tokenHandler = new JwtSecurityTokenHandler();
 				var secToken = tokenHandler.CreateToken(descriptor);
 				var token = tokenHandler.WriteToken(secToken);
-
-				_logger.LogInformation("Access token generated successfully for user {UserId}.", userId);
-				return Result<string>.Success(token);
+				_logger.LogInformation("Access token generated successfully for user {UserId}. Expires at {Expiration}.", data.UserId, tokenExpiration);
+				return Result<string>.Success(data:token);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error occurred while generating access token.");
-				return Result<string>.Failure("An error occurred while generating the access token.");
+				_logger.LogError(ex, "Error generating access token for user {UserId}.", data.UserId);
+				throw;
 			}
 		}
-
-		public Result<RefreshToken> GenerateRefreshToken(string userId)
+		public Result<string> GenerateRandomToken()
 		{
 			try
 			{
-				if (string.IsNullOrWhiteSpace(userId))
-				{
-					_logger.LogError("Invalid userId provided for generating refresh token.");
-					return Result<RefreshToken>.Failure("UserId cannot be null or empty.");
-				}
-
 				var randomBytes = new byte[AuthConstants.RefreshTokenSize];
 				using var rng = RandomNumberGenerator.Create();
 				rng.GetBytes(randomBytes);
+
 				string token = Convert.ToBase64String(randomBytes);
 
-				var refreshToken = new RefreshToken
-				{
-					Token = token,
-					UserId = userId
-				};
-
-				_logger.LogInformation("Refresh token generated successfully for user {UserId}.", userId);
-				return Result<RefreshToken>.Success(refreshToken);
+				_logger.LogInformation("Random token generated successfully.");
+				return Result<string>.Success(data:token);
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error occurred while generating refresh token.");
-				return Result<RefreshToken>.Failure("An error occurred while generating the refresh token.");
+				throw;
 			}
 		}
 
@@ -138,7 +125,7 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				if (string.IsNullOrWhiteSpace(token))
 				{
-					_logger.LogError("Token validation failed due to empty token.");
+					_logger.LogError("ValidateAccessToken failed: empty or null token.");
 					return Result<ClaimsPrincipal?>.Failure("Token cannot be null or empty.");
 				}
 
@@ -153,17 +140,29 @@ namespace Ftareqi.Infrastructure.Implementation
 					IssuerSigningKey = _key
 				};
 
+
 				var tokenHandler = new JwtSecurityTokenHandler();
 				var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out _);
 
-				_logger.LogInformation("Token validated successfully.");
+				_logger.LogInformation("Access token validated successfully.");
 				return Result<ClaimsPrincipal?>.Success(principal);
+			}
+			catch (SecurityTokenExpiredException ex)
+			{
+				_logger.LogWarning(ex, "Access token expired.");
+				throw;
+			}
+			catch (SecurityTokenException ex)
+			{
+				_logger.LogWarning(ex, "Access token is invalid.");
+				throw;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Token validation failed.");
-				return Result<ClaimsPrincipal?>.Failure("Token validation failed.");
+				_logger.LogError(ex, "Unexpected error validating access token.");
+				throw;
 			}
 		}
+
 	}
 }

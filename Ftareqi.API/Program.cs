@@ -1,5 +1,6 @@
 using DripOut.Application.Common.Settings;
 using FluentValidation;
+using Ftareqi.Application.Common;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
@@ -7,10 +8,12 @@ using Ftareqi.Application.Orchestrators;
 using Ftareqi.Application.Validators.Auth;
 using Ftareqi.Domain.Models;
 using Ftareqi.Infrastructure.Implementation;
+using Ftareqi.Infrastructure.Services;
 using Ftareqi.Persistence;
 using Ftareqi.Persistence.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -26,6 +29,11 @@ namespace Ftareqi.API
 		public static void Main(string[] args)
 		{
 			var builder = WebApplication.CreateBuilder(args);
+			//configure IsModelValidated Otptions 
+			builder.Services.Configure<ApiBehaviorOptions>(options =>
+			{
+				options.SuppressModelStateInvalidFilter = true;
+			});
 
 			// Bind JWT Settings
 			var jwtSettings = builder.Configuration.GetSection("JWTSettings").Get<JWTSettings>();
@@ -54,7 +62,7 @@ namespace Ftareqi.API
 					ClockSkew = TimeSpan.Zero 
 				};
 			});
-
+			
 			// Add Authorization
 			builder.Services.AddAuthorization();
 
@@ -94,6 +102,9 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<ITokensService, TokensService>();
 			builder.Services.AddScoped<IUserService, UserService>();
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
+			builder.Services.AddScoped<IOtpService, OtpService>();
+			builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+			builder.Services.AddScoped<IUserClaimsService, UserClaimsService>();
 
 			// Register Repositories
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
@@ -140,6 +151,17 @@ namespace Ftareqi.API
 				options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 			});
 
+			// CORS services
+			builder.Services.AddCors(options =>
+			{
+				options.AddPolicy("_myAllowedOrigins", policy =>
+				{
+					policy
+						.AllowAnyOrigin()
+						.AllowAnyHeader()
+						.AllowAnyMethod();
+				});
+			});
 			var app = builder.Build();
 
 			// Add ExceptionHandler to pipeline
@@ -153,6 +175,10 @@ namespace Ftareqi.API
 			}
 
 			app.UseHttpsRedirection();
+
+			app.UseRouting();
+
+			app.UseCors("_myAllowedOrigins");
 
 			// IMPORTANT: Authentication must come before Authorization
 			app.UseAuthentication();

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Ftareqi.Application.Validators.Auth
@@ -28,9 +29,16 @@ namespace Ftareqi.Application.Validators.Auth
 				.WithMessage("Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character.");
 
 			RuleFor(x => x.PhoneNumber)
-			   .NotEmpty().WithMessage("Phone number is required.")
-			   .Matches(@"^\+?\d{10,15}$").WithMessage("Invalid phone number format.")
-			   .MustAsync(IsPhoneNumberUnique).WithMessage("This phone number is already registered.");
+				.NotEmpty().WithMessage("Phone number is required.")
+				.Must(phone => string.IsNullOrEmpty(phone) || Regex.IsMatch(
+					phone.Replace("\u202A", "")
+						 .Replace("\u202C", "")
+						 .Replace("\u200E", "")
+						 .Replace("\u200F", "")
+						 .Trim(),
+					@"^\+\d{10,15}$"))  
+				.WithMessage("Phone number must start with + and country code (e.g., +201011122222)")
+				.MustAsync(IsPhoneNumberUnique).WithMessage("This phone number is already registered.");
 
 			RuleFor(x => x.Gender)
 				.NotNull().WithMessage("Gender is required.")

@@ -15,5 +15,6 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result> ValidateCredentialsAsync( string phoneNumber, string password);
 		Task<Result<UserDto>> GetUserByIdAsync(string userId);
 		Task<Result<UserDto>> GetUserByPhoneAsync(string phoneNumber);
+		Task<Result> ConfirmPhoneNumber(string userId);
 	}
 }

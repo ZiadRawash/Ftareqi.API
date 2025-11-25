@@ -54,6 +54,15 @@ namespace Ftareqi.Persistence.Repositories
 				.Where(predicate)
 				.ToListAsync();
 		}
+		public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
+		{
+			return await _context.Set<T>().FirstOrDefaultAsync(predicate);
+		}
+
+		public async Task<T?> FirstOrDefaultAsNoTrackingAsync(Expression<Func<T, bool>> predicate)
+		{
+			return await _context.Set<T>().AsNoTracking().FirstOrDefaultAsync(predicate);
+		}
 		public async Task<IEnumerable<T>> FindAllAsNoTrackingAsync(
 			Expression<Func<T, bool>> predicate,
 			params Expression<Func<T, object>>[] includes)

@@ -1,4 +1,5 @@
 ﻿using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs.Authentication;
 using Ftareqi.Domain.Models;
 using System;
 using System.Collections.Generic;
@@ -11,8 +12,8 @@ namespace Ftareqi.Application.Interfaces.Services
 {
 	public interface ITokensService
 	{
-		 Result<string> GenerateAccessToken(Guid userId, IEnumerable<string>roles , Dictionary<string,string> additionalClaims );
-		Result<RefreshToken> GenerateRefreshToken( string userId);
+		Result<string> GenerateAccessToken(CreateAccessTokenDto data);
+		Result<string> GenerateRandomToken();
 		Result<ClaimsPrincipal?> ValidateAccessToken(string token);
 
 	}

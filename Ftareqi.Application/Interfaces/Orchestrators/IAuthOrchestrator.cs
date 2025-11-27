@@ -27,7 +27,7 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		/// <summary>
 		/// Handles token refresh workflow
 		/// </summary>
-		Task<Result<string>> RefreshTokenAsync(string refreshToken);
+		 Task<Result<AccessTokenDto>> RefreshAccessToken(string refreshToken);
 
 		/// <summary>
 		/// Handles logout workflow: token invalidation, activity logging
@@ -37,13 +37,16 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		/// <summary>
 		/// Handles password reset workflow: validation, token generation, email sending
 		/// </summary>
-		//Task<Result> RequestPasswordResetAsync(string phoneNumber);
+		Task<Result> CreatePasswordResetOtpAsync(string phoneNumber);
 
 		/// <summary>
 		/// Handles password reset confirmation workflow
 		/// </summary>
-		//Task<Result> ResetPasswordAsync(ResetPasswordDto request);
-
-		Task<Result> ValidateOtpAsync(string userId, string code, OTPPurpose purpose);
+		Task<Result<ResetTokWithRemainAttempts>> CreateResetPasswordTokenAsync(string PhoneNumber, string otp);
+		Task<Result> ChangePasswordAsync(ResetPasswordDto requestModel);
+		Task<Result> ChangePasswordAsync(ChangePasswordDto requestModel);
+		Task<Result<int?>> ValidateOtpAsync(string userId, string code, OTPPurpose purpose);
+		Task<Result> ResendPhoneVerificationOtp(string phoneNumber);
+		Task<Result> RevokeAllRefreshTokens(string userId);
 	}
 }

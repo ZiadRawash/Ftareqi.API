@@ -26,12 +26,12 @@ namespace Ftareqi.Application.Common.Results
 
 		public new static Result<T> Failure(List<string> errors)
 			=> new(false, default, "Operation failed", errors);
-
-		public new static Result<T>  Failure(List<string> errors, string message = "Operation Failed")
-		=> new(false,default, message, errors);
-		public  static Result<T> Failure( T data , List<string> errors, string message = "Operation Failed")
+		public new static Result<T> Failure(List<string> errors, string message = "Operation Failed")
+		=> new(false, default, message, errors);
+		public static Result<T> Failure(T data, List<string> errors, string message = "Operation Failed")
 		=> new(false, data, message, errors);
-
+		public static Result<T> Failure(T data, string message = "Operation Failed")
+		=> new(false, data, message, new List<string>{message});
 
 	}
 }

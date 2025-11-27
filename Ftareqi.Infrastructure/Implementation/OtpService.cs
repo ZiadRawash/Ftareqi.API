@@ -1,14 +1,15 @@
-﻿using System;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
-using Ftareqi.Application.Common.Results;
+﻿using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs.Authentication;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Constants;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Ftareqi.Infrastructure.Services
 {
@@ -24,16 +25,16 @@ namespace Ftareqi.Infrastructure.Services
 			_unitOfWork = unitOfWork;
 		}
 
-		public async Task<Result<string>> GenerateOtpAsync(string userId, OTPPurpose purpose)
+		public async Task<Result<OTPDto>> GenerateOtpAsync(string userId, OTPPurpose purpose)
 		{
 			if (string.IsNullOrWhiteSpace(userId))
-				return Result<string>.Failure(["User ID cannot be empty"]);
+				return Result<OTPDto>.Failure(["User ID cannot be empty"]);
 
 			var user = await _unitOfWork.Users.GetByIdAsync(userId);
 			if (user is null)
 			{
 				_logger.LogWarning("Attempted to generate OTP for non-existent user: {UserId}", userId);
-				return Result<string>.Failure(["User not found"]);
+				return Result<OTPDto>.Failure(["User not found"]);
 			}
 			var existingOtps = await _unitOfWork.OTPs
 				.FindAllAsTrackingAsync(o => o.UserId == userId && o.Purpose == purpose);
@@ -63,47 +64,44 @@ namespace Ftareqi.Infrastructure.Services
 			_logger.LogInformation("OTP{otp} generated successfully for user {UserId}, purpose {Purpose}, expires at {ExpireAt}",
 				otpCode, userId, purpose, otp.ExpireAt);
 
-			return Result<string>.Success(otpCode);
+			return Result<OTPDto>.Success(new OTPDto { Otp = otpCode });
 		}
 
-		public async Task<Result<int>> VerifyOtpAsync(string userId, string code, OTPPurpose purpose)
+		public async Task<Result<int?>> VerifyOtpAsync(string userId, string code, OTPPurpose purpose)
 		{
-			// Validation
 			if (string.IsNullOrWhiteSpace(userId))
-				return Result<int>.Failure("User ID cannot be empty");
+				return Result<int?>.Failure("User ID cannot be empty");
 
 			if (string.IsNullOrWhiteSpace(code))
-				return Result<int>.Failure("OTP code cannot be empty");
+				return Result<int?>.Failure("OTP code cannot be empty");
 
 			code = code.Trim().Replace(" ", "");
 
 			if (code.Length != OtpLength || !code.All(char.IsDigit))
-				return Result<int>.Failure("Invalid OTP format");
+				return Result<int?>.Failure("Invalid OTP format");
 
 			var otp = await _unitOfWork.OTPs
 				.FirstOrDefaultAsync(o =>
 					o.UserId == userId &&
 					o.Purpose == purpose &&
 					!o.IsUsed);
-
-
 			if (otp == null)
 			{
 				_logger.LogWarning("No valid OTP found for user {UserId}, purpose {Purpose}", userId, purpose);
-				return Result<int>.Failure("OTP expired, Request a new one.");
+				return Result<int?>.Failure("OTP expired, Request a new one.");
 			}
 
 			if (otp.ExpireAt <= DateTime.UtcNow)
 			{
 				_logger.LogWarning("Expired OTP used by user {UserId}", userId);
-				return Result<int>.Failure("OTP has expired, Request a new one");
+				return Result<int?>.Failure("OTP expired, Request a new one");
 			}
 
 
 			if (otp.IsLocked)
 			{
 				_logger.LogWarning("Locked OTP verification attempt by user {UserId}", userId);
-				return Result<int>.Failure("too many failed attempts, Please request a new one");
+				return Result<int?>.Failure("too many failed attempts, Request a new one");
 			}
 
 			
@@ -119,17 +117,15 @@ namespace Ftareqi.Infrastructure.Services
 					userId, otp.FailedAttempts, AuthConstants.MaxOTPAttempts);
 
 				if (otp.IsLocked)
-					return Result<int>.Failure("Maximum attempts reached, Please request a new one");
+					return Result<int?>.Failure("Too many failed attempts, Request a new one");
 
-				return Result<int>.Failure(remainingAttempts,["Invalid OTP "]);
+				return Result<int?>.Failure(remainingAttempts,"Invalid OTP");
 			}
 			otp.IsUsed = true;
 			await _unitOfWork.SaveChangesAsync();
 			_logger.LogInformation("OTP verified successfully for user {UserId}, purpose {Purpose}", userId, purpose);
-			return Result<int>.Success(0, "OTP verified successfully");
-
+			return Result<int?>.Success(null, "OTP verified successfully");
 		}
-
 		private static string GenerateOtp()
 		{
 			using var rng = RandomNumberGenerator.Create();

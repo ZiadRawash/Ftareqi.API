@@ -1,4 +1,5 @@
 ﻿using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs.Authentication;
 using Ftareqi.Domain.Enums;
 using System;
 using System.Collections.Generic;
@@ -11,8 +12,8 @@ namespace Ftareqi.Application.Interfaces.Services
 {
 	public interface IOtpService
 	{
-		Task<Result<string>> GenerateOtpAsync(string userId, OTPPurpose purpose);
-		Task<Result<int>> VerifyOtpAsync(string userId, string code, OTPPurpose purpose);
+		Task<Result<OTPDto>> GenerateOtpAsync(string userId, OTPPurpose purpose);
+		Task<Result<int?>> VerifyOtpAsync(string userId, string code, OTPPurpose purpose);
 	}
 
 	//(background job)

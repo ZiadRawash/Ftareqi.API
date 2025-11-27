@@ -102,7 +102,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					_logger.LogInformation("User with {phoneNumber} Is found", phoneNumber);
 					return Result<UserDto>.Success(userfound.MapTo(), "User found");
 				}
-				return Result<UserDto>.Failure("User Does not exist");		
+				return Result<UserDto>.Failure("User Does not exist");
 			}
 			catch (Exception ex)
 			{
@@ -117,7 +117,7 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				if (string.IsNullOrWhiteSpace(phoneNumber) || string.IsNullOrWhiteSpace(password))
 				{
-					return Result.Failure(new List<string> { "Phone number and password are required." });
+					return Result.Failure( "Phone number and password are required." );
 				}
 
 				var user = await _userManager.Users
@@ -126,12 +126,12 @@ namespace Ftareqi.Infrastructure.Implementation
 				if (user == null || user.IsDeleted)
 				{
 					_logger.LogWarning("ValidateCredentials failed for phone {PhoneNumber}: user not found or deleted.", phoneNumber);
-					return Result.Failure(new List<string> { "Invalid credentials." });
+					return Result.Failure( "Invalid credentials." );
 				}
 				if (!user.PhoneNumberConfirmed)
 				{
 					_logger.LogWarning("User {UserId} tried to login but phone is not confirmed.", user.Id);
-					return Result.Failure(new List<string> { "Phone is Not confirmed" });
+					return Result.Failure( "Phone is Not confirmed" );
 				}
 				var signInResult = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
 
@@ -144,11 +144,11 @@ namespace Ftareqi.Infrastructure.Implementation
 				if (signInResult.IsLockedOut)
 				{
 					_logger.LogWarning("User {UserId} is locked out.", user.Id);
-					return Result.Failure(new List<string> { "Account locked out." });
+					return Result.Failure( "Account locked out." );
 				}
 
 				_logger.LogWarning("Invalid credentials provided for user {UserId}.", user.Id);
-				return Result.Failure(new List<string> { "Invalid credentials." });
+				return Result.Failure("Invalid credentials.");
 			}
 			catch (Exception ex)
 			{
@@ -176,6 +176,107 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result.Failure("Failed to confirm phone number");
 			_logger.LogInformation("Phone number is Confirmed for user {userId} ", userId);
 			return Result.Success();
+		}
+		public async Task<Result> UpdateUserPassword(string userId, string password, string token)
+		{
+			if (string.IsNullOrEmpty(userId))
+			{
+				_logger.LogError("User id can not be empty");
+				return Result.Failure("User not found");
+			}
+
+			if (string.IsNullOrEmpty(password))
+			{
+				_logger.LogError("Password can not be empty");
+				return Result.Failure("Password is required");
+			}
+
+			try
+			{
+				var user = await _userManager.FindByIdAsync(userId);
+				if (user == null)
+				{
+					_logger.LogError($"User with id {userId} not found");
+					return Result.Failure("User not found");
+				}
+				var addPasswordResult = await _userManager.ResetPasswordAsync(user, token, password);
+				if (!addPasswordResult.Succeeded)
+				{
+					var errors = string.Join(", ", addPasswordResult.Errors.Select(e => e.Description));
+					_logger.LogError($"Failed to add new password for user {userId}: {errors}");
+					return Result.Failure($"Failed to update password: {errors}");
+				}
+
+				await _userManager.UpdateSecurityStampAsync(user);
+
+				_logger.LogInformation($"Password updated successfully for user {userId}");
+				return Result.Success("Password updated successfully");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, $"Error updating password for user {userId}");
+				throw;
+			}
+		}
+		public async Task<Result<ResetTokenDto>> CreateResetPasswordToken(string userId)
+		{
+			if (string.IsNullOrEmpty(userId))
+			{
+				_logger.LogError("User id can not be empty");
+				return Result<ResetTokenDto>.Failure("User not found");
+			}
+			try
+			{
+				var user = await _userManager.FindByIdAsync(userId);
+				if (user == null)
+				{
+					_logger.LogError("User with id {userId} not found", userId);
+					return Result<ResetTokenDto>.Failure("User not found");
+				}
+				var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+				_logger.LogInformation("ResetToken {resetToken} created for User with id {userId}",resetToken, userId);
+				var returnToken = new ResetTokenDto { Token = resetToken };
+				return Result<ResetTokenDto>.Success(returnToken);
+			}
+			catch
+			{
+				_logger.LogError("Error happened while creating reset token");
+				throw;
+			}
+			
+		}
+		public async Task<Result> ChangePasswordAsync(string userId, string oldPassword, string newPassword)
+		{
+			if (string.IsNullOrEmpty(userId))
+			{
+				_logger.LogWarning("ChangePassword failed: UserId was null or empty.");
+				return Result.Failure("User is required");
+			}
+
+			var user = await _userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				_logger.LogWarning("ChangePassword failed: User not found. UserId={UserId}", userId);
+				return Result.Failure("User not found.");
+			}
+
+			var passwordCorrect = await _userManager.CheckPasswordAsync(user, oldPassword);
+			if (!passwordCorrect)
+			{
+				_logger.LogWarning("ChangePassword failed: Incorrect old password for UserId {UserId}", userId);
+				return Result.Failure("Old password is incorrect.");
+			}
+
+			var result = await _userManager.ChangePasswordAsync(user, oldPassword, newPassword);
+			if (!result.Succeeded)
+			{
+				var errors = result.Errors.Select(e => e.Description).ToList();
+				_logger.LogError("ChangePassword failed for UserId={UserId}. Errors: {Errors}", userId, string.Join(", ", errors));
+				return Result.Failure(errors);
+			}
+
+			_logger.LogInformation("Password changed successfully for UserId={UserId}", userId);
+			return Result.Success("Password changed successfully.");
 		}
 	}
 }

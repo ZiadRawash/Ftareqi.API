@@ -16,5 +16,8 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result<UserDto>> GetUserByIdAsync(string userId);
 		Task<Result<UserDto>> GetUserByPhoneAsync(string phoneNumber);
 		Task<Result> ConfirmPhoneNumber(string userId);
+		Task<Result> UpdateUserPassword(string userId,string password, string token);
+		Task<Result<ResetTokenDto>> CreateResetPasswordToken(string userId);
+		Task<Result> ChangePasswordAsync(string userId, string oldPassword, string newPassword);
 	}
 }

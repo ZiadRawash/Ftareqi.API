@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -121,29 +122,26 @@ namespace Ftareqi.Application.Orchestrators
 			var tokenfound = await _refreshTokenService.InvalidateAsync(refreshToken);
 			if (tokenfound.IsFailure)
 				return Result.Failure(tokenfound.Errors);
-			return Result<TokensDto>.Success("Refresh token has been revoked successfully");
+			return Result.Success("Refresh token has been revoked successfully");
 		}
-
-		public async Task<Result<string>> RefreshTokenAsync(string refreshToken)
+		public async Task<Result<AccessTokenDto>> RefreshAccessToken(string refreshToken)
 		{
 			var usedId= await _refreshTokenService.GetUserFromRefreshTokenAsync(refreshToken);
 			if (usedId.IsFailure) { 
-				return Result<string>.Failure(usedId.Errors);
+				return Result<AccessTokenDto>.Failure(usedId.Errors);
 			}
-			// Load user roles
 			var rolesResult = await _userClaimsService.GetUserRolesAsync(usedId.Data!);
 			if (rolesResult.IsFailure)
 			{
 				_logger.LogError("Failed to load roles for user {UserId}", usedId.Data!);
-				return Result<string>.Failure("An error occurred during creating access token");
+				return Result<AccessTokenDto>.Failure("An error occurred during creating access token");
 			}
 
-			// Load user claims
 			var claimsResult = await _userClaimsService.GetUserClaimsAsync(usedId.Data!);
 			if (claimsResult.IsFailure)
 			{
 				_logger.LogError("Failed to load claims for user {UserId}", usedId.Data!);
-				return Result<string>.Failure("An error occurred during creating access token");
+				return Result<AccessTokenDto>.Failure("An error occurred during creating access token");
 			}
 			var createAccessTokenDto = new CreateAccessTokenDto
 			{
@@ -153,9 +151,9 @@ namespace Ftareqi.Application.Orchestrators
 			};
 			var accessToken=  _tokensService.GenerateAccessToken(createAccessTokenDto);
 			if (accessToken.IsFailure) {
-				return Result<string>.Failure("An error occurred during creating access token");
+				return Result<AccessTokenDto>.Failure("An error occurred during creating access token");
 			}
-			return Result<string>.Success(data: accessToken.Data!);
+			return Result<AccessTokenDto>.Success(new AccessTokenDto { AccessToken= accessToken.Data! }, "Access token created successfully");
 		}
 		public async Task<Result> RegisterAsync(RegisterRequestDto request)
 		{
@@ -179,31 +177,108 @@ namespace Ftareqi.Application.Orchestrators
 			var otpResult = await _otpService.GenerateOtpAsync(userId!, OTPPurpose.PhoneVerification);
 			if (otpResult.IsFailure)
 			{
-				// Optional: log the failure but still return success for registration
 				_logger.LogWarning("Failed to send OTP for user {UserId}: {Error}", userId, otpResult.Errors.ToString());
-				// You may also choose to fail registration, depending on business rules
 				return Result.Failure("Account created, but failed to send verification OTP");
 			}
-
-			// 3. Return success
+			//sms function
 			return Result.Success("Account created successfully. Verification OTP has been sent.");
 		}
-		public async Task<Result> ValidateOtpAsync(string phoneNumber, string code, OTPPurpose purpose)
+		public async Task<Result<int?>> ValidateOtpAsync(string phoneNumber, string code, OTPPurpose purpose)
 		{
 			var userFound = await _userService.GetUserByPhoneAsync(phoneNumber);
 			if (userFound.IsFailure)
-				return Result.Failure(userFound.Errors);
+				return Result<int?>.Failure(userFound.Errors);
 
 			var validated = await _otpService.VerifyOtpAsync(userFound.Data!.Id, code, purpose);
 			if (!validated.IsSuccess)
-				return Result.Failure( validated.Errors,message:validated.Data.ToString());
-
+				return Result<int?>.Failure(validated.Data, validated.Errors);
 			var isValidated = await _userService.ConfirmPhoneNumber(userFound.Data!.Id);
 			if (!isValidated.IsSuccess)
-				return Result.Failure(isValidated.Errors);
+				return Result<int?>.Failure(isValidated.Errors);
+			return Result<int?>.Success(null,"Phone number confirmed successfully.");
+		}
+		public async Task<Result> CreatePasswordResetOtpAsync(string phoneNumber)
+		{
+			var userfound = await _userService.GetUserByPhoneAsync(phoneNumber);
+			if (userfound.IsFailure)
+			{
+				return Result.Failure(userfound.Errors);
+			}
+			var otpCreated= await _otpService.GenerateOtpAsync(userfound.Data!.Id,OTPPurpose.PasswordReset);
+			if (otpCreated.IsFailure)
+			{
+				return Result.Failure(otpCreated.Errors);
+			}
+			//sms function
+			return Result.Success("OTP sent successfully");
+		}
+		public async Task<Result<ResetTokWithRemainAttempts>> CreateResetPasswordTokenAsync(string PhoneNumber, string otp)
+		{
+			var userFound = await _userService.GetUserByPhoneAsync(PhoneNumber);
+			if (userFound.IsFailure)
+			{
+				return Result<ResetTokWithRemainAttempts>.Failure(userFound.Errors);
+			}
+			var otpVerified = await _otpService.VerifyOtpAsync(userFound.Data!.Id, otp, OTPPurpose.PasswordReset);
+			 var returnResult = new ResetTokWithRemainAttempts { };
+			if (otpVerified.IsFailure)
+			{
+				returnResult.RemainingAttempts= otpVerified.Data;
+				return Result<ResetTokWithRemainAttempts>.Failure(returnResult, otpVerified.Errors);
+			}
+			var resetToken = await _userService.CreateResetPasswordToken(userFound.Data.Id);
+			returnResult.ResetToken = resetToken.Data!.Token;
+			returnResult.RemainingAttempts = otpVerified.Data;
 
-			return Result.Success("Phone number confirmed successfully.");
+			return Result<ResetTokWithRemainAttempts>.Success(returnResult);
 		}
 
+		public async Task<Result> ChangePasswordAsync(ResetPasswordDto requestModel)
+		{
+		var userfound= await _userService.GetUserByPhoneAsync(requestModel.PhoneNumber);
+			if (userfound.IsFailure)
+				return Result.Failure(userfound.Errors);
+			var passwordUpdated = await _userService.UpdateUserPassword(userfound.Data!.Id, requestModel.Password, requestModel.ResetToken);
+			if (passwordUpdated.IsFailure) 
+				return Result.Failure(passwordUpdated.Errors);
+			var revokedAll = await _refreshTokenService.InvalidateAllForUserAsync(userfound.Data!.Id);
+			if (revokedAll.IsFailure)
+				return Result.Failure(revokedAll.Errors);
+			return Result.Success("Password changed successfully");
+		}
+		public async Task<Result> ChangePasswordAsync(ChangePasswordDto requestModel)
+		{
+			var userFound = await _userService.GetUserByIdAsync(requestModel.UserId);
+			if (userFound.IsFailure)
+				return Result.Failure(userFound.Errors);
+			var passwordChanged = await _userService.ChangePasswordAsync(userFound.Data!.Id,requestModel.OldPassword, requestModel.NewPassword);
+			if (passwordChanged.IsFailure)
+				return Result.Failure(passwordChanged.Errors);
+			var revokedAll = await _refreshTokenService.InvalidateAllForUserAsync(userFound.Data!.Id);
+			if (revokedAll.IsFailure)
+				return Result.Failure(revokedAll.Errors);
+			return Result.Success("Password changed successfully");
+		}
+		public async Task<Result> ResendPhoneVerificationOtp(string phoneNumber)
+		{
+		 var userFound = await _userService.GetUserByPhoneAsync(phoneNumber);
+			if (userFound.IsFailure)
+				return Result.Failure(userFound.Errors);
+			var otpCreated = await _otpService.GenerateOtpAsync(userFound.Data!.Id, OTPPurpose.PhoneVerification);
+			if (otpCreated.IsFailure)
+				return Result.Failure(otpCreated.Errors);
+			return Result.Success("Otp sent successfully");
+		}
+		public async Task<Result> RevokeAllRefreshTokens(string userId)
+		{
+			var userFound = await _userService.GetUserByIdAsync(userId);
+			if (userFound.IsFailure)
+				return Result.Failure(userFound.Errors);
+			var areRevoked= await _refreshTokenService.InvalidateAllForUserAsync(userFound.Data!.Id);
+			if (areRevoked.IsFailure)
+				return Result.Failure(areRevoked.Errors);
+			return Result.Success("User logged out from all devices ");
+		}
 	}
 }
+

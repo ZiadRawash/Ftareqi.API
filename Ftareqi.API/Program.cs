@@ -29,6 +29,12 @@ namespace Ftareqi.API
 		public static void Main(string[] args)
 		{
 			var builder = WebApplication.CreateBuilder(args);
+
+			// Configure Serilog EARLY (before anything else that needs logging)
+			builder.Host.UseSerilog((context, services, configuration) => configuration
+							.ReadFrom.Configuration(context.Configuration)
+							.ReadFrom.Services(services));
+
 			//configure IsModelValidated Otptions 
 			builder.Services.Configure<ApiBehaviorOptions>(options =>
 			{
@@ -59,10 +65,10 @@ namespace Ftareqi.API
 					ValidIssuer = jwtSettings!.Issuer,
 					ValidAudience = jwtSettings.Audience,
 					IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SignInKey!)),
-					ClockSkew = TimeSpan.Zero 
+					ClockSkew = TimeSpan.Zero
 				};
 			});
-			
+
 			// Add Authorization
 			builder.Services.AddAuthorization();
 
@@ -72,10 +78,6 @@ namespace Ftareqi.API
 
 			// Initialize FluentValidators
 			builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestDtoValidator>();
-
-			// Configuration for Seq (Serilog)
-			builder.Host.UseSerilog((context, configuration) =>
-				configuration.ReadFrom.Configuration(context.Configuration));
 
 			// Configuration for Sql Server Connection
 			builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -162,7 +164,21 @@ namespace Ftareqi.API
 						.AllowAnyMethod();
 				});
 			});
+
 			var app = builder.Build();
+
+			// Serilog request logging
+			app.UseSerilogRequestLogging(options =>
+			{
+				options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+
+				// Log additional info for slow requests
+				options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+				{
+					diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+					diagnosticContext.Set("UserAgent", httpContext.Request.Headers["User-Agent"].ToString());
+				};
+			});
 
 			// Add ExceptionHandler to pipeline
 			app.UseExceptionHandler();
@@ -188,13 +204,13 @@ namespace Ftareqi.API
 
 			try
 			{
-				Log.Information("Starting Ftareqi web application");
-				Log.Information("Serilog/Seq test message: application started");
+				Log.Information(" Starting Ftareqi web application");
+				Log.Information("Serilog/Seq configured successfully");
 				app.Run();
 			}
 			catch (Exception ex)
 			{
-				Log.Fatal(ex, "Ftareqi application terminated unexpectedly");
+				Log.Fatal(ex, " Ftareqi application terminated unexpectedly");
 			}
 			finally
 			{

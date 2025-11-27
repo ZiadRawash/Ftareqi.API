@@ -2,7 +2,7 @@
   "dependencies": {
     "secrets1": {
       "type": "secrets",
-      "dynamicId": null
+      "connectionId": null
     }
   }
 }

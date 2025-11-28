@@ -12,6 +12,5 @@ namespace Ftareqi.Domain.Enums
 		PasswordReset=1,
 		ChangePhone=2,
 		TwoFactorLogin=3,
-		SensitiveAction=4
 	}
 }

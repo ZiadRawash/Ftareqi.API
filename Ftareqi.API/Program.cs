@@ -1,6 +1,7 @@
 using DripOut.Application.Common.Settings;
 using FluentValidation;
 using Ftareqi.Application.Common;
+using Ftareqi.Application.Common.Settings;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
@@ -35,7 +36,7 @@ namespace Ftareqi.API
 							.ReadFrom.Configuration(context.Configuration)
 							.ReadFrom.Services(services));
 
-			//configure IsModelValidated Otptions 
+			//configure IsModelValidated OTPoptions 
 			builder.Services.Configure<ApiBehaviorOptions>(options =>
 			{
 				options.SuppressModelStateInvalidFilter = true;
@@ -44,6 +45,9 @@ namespace Ftareqi.API
 			// Bind JWT Settings
 			var jwtSettings = builder.Configuration.GetSection("JWTSettings").Get<JWTSettings>();
 			builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
+
+			//bind Cloudinary Settings
+			builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 			// Add Authentication with JWT
 			builder.Services.AddAuthentication(options =>
@@ -107,6 +111,8 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IOtpService, OtpService>();
 			builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 			builder.Services.AddScoped<IUserClaimsService, UserClaimsService>();
+			builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+			builder.Services.AddScoped<IFileMapper, FileMapper>();
 
 			// Register Repositories
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));

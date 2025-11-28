@@ -15,8 +15,6 @@ namespace Ftareqi.Domain.Models
 		public DateTime CreatedOn { get; private set; } = DateTime.UtcNow;
 		public DateTime? RevokedOn { get; set; }
 		public DateTime ExpiresOn { get; private set; } = DateTime.UtcNow.AddDays(AuthConstants.RefreshTokenExpirationDays);
-		public bool IsActive => !RevokedOn.HasValue && DateTime.UtcNow <= ExpiresOn;
-
 		public User? User { get; set; }
 		[ForeignKey("User")]
 		public required string UserId { get; set; }

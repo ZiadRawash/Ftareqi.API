@@ -23,5 +23,6 @@ namespace Ftareqi.Domain.Models
 
 		public int PenaltyCount { get; set; }
 		public List<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+		public DriverProfile? DriverProfile { get; set; }
 	}
 }

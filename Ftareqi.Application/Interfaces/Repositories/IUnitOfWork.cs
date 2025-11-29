@@ -12,6 +12,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		IBaseRepository<User> Users {  get; }
 		IBaseRepository <RefreshToken > RefreshTokens { get; }
 		IBaseRepository <OTP > OTPs { get; }
+		IBaseRepository <DriverProfile> DriverProfiles { get; }
 
 		Task<int> SaveChangesAsync();
 	}

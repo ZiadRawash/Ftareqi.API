@@ -32,7 +32,7 @@ namespace Ftareqi.Infrastructure.Implementation
 			_logger = logger;
 		}
 
-		public async Task<Result<SavedImageDto>> UploadPhotos(CloudinaryReqDto image)
+		public async Task<Result<SavedImageDto>> UploadPhoto(CloudinaryReqDto image)
 		{
 			if (image?.FileStream == null || string.IsNullOrEmpty(image.FileName)){
 				_logger.LogWarning("Error With data sent to Cloudinary service");

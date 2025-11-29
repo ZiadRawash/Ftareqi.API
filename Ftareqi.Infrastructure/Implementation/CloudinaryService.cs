@@ -20,8 +20,9 @@ namespace Ftareqi.Infrastructure.Implementation
 	{
 		private readonly CloudinarySettings _cloudinarySettings;
 		private readonly Cloudinary _cloudinary;
-		private readonly ILogger<CloudinaryService>_logger;
-		public CloudinaryService(IOptions<CloudinarySettings> CloudinarySettings , ILogger<CloudinaryService> logger)
+		private readonly ILogger<CloudinaryService> _logger;
+
+		public CloudinaryService(IOptions<CloudinarySettings> CloudinarySettings, ILogger<CloudinaryService> logger)
 		{
 			_cloudinarySettings = CloudinarySettings.Value;
 			var account = new Account(
@@ -34,7 +35,8 @@ namespace Ftareqi.Infrastructure.Implementation
 
 		public async Task<Result<SavedImageDto>> UploadPhotoAsync(CloudinaryReqDto image)
 		{
-			if (image?.FileStream == null || string.IsNullOrEmpty(image.FileName)){
+			if (image?.FileStream == null || string.IsNullOrEmpty(image.FileName))
+			{
 				_logger.LogWarning("Error With data sent to Cloudinary service");
 				return Result<SavedImageDto>.Failure("Invalid input data");
 			}
@@ -43,7 +45,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				var uploadParams = new ImageUploadParams
 				{
 					File = new FileDescription(image.FileName, image.FileStream),
-					Folder = "Ftareqi" 
+					Folder = "Ftareqi"
 				};
 
 				var uploadResult = await _cloudinary.UploadAsync(uploadParams);
@@ -58,17 +60,17 @@ namespace Ftareqi.Infrastructure.Implementation
 					_logger.LogInformation("{filename} uploaded successfully to Cloudinary", image.FileName);
 					return Result<SavedImageDto>.Success(dto);
 				}
-				_logger.LogWarning("Error With uploading file {filename} to Cloudinary service",image.FileName);
+				_logger.LogWarning("Error With uploading file {filename} to Cloudinary service", image.FileName);
 				return Result<SavedImageDto>.Failure("Upload failed");
 			}
-			catch(Exception ex)  {
+			catch (Exception ex)
+			{
 				_logger.LogError("exception happened{message}", ex.Message);
 				throw;
 			}
-
 		}
 
-		public async Task<Result<List<SavedImageDto>>> UploadPhotosAsync(List<CloudinaryReqDto>images)
+		public async Task<Result<List<SavedImageDto>>> UploadPhotosAsync(List<CloudinaryReqDto> images)
 		{
 			if (images == null || !images.Any())
 			{
@@ -139,7 +141,6 @@ namespace Ftareqi.Infrastructure.Implementation
 			};
 
 			var result = await _cloudinary.DestroyAsync(deletionParams);
-			var Destroy = await _cloudinary.DestroyAsync(deletionParams);
 
 			if (result.StatusCode == System.Net.HttpStatusCode.OK && result.Result == "ok")
 			{
@@ -148,6 +149,41 @@ namespace Ftareqi.Infrastructure.Implementation
 			_logger.LogWarning("error happened while removing image with publicId {deleteId}", deleteId);
 			return Result.Failure("error happened while removing image");
 		}
+
+		public async Task<Result> DeleteImagesAsync(List<string> deleteIds)
+		{
+			if (deleteIds == null || !deleteIds.Any())
+			{
+				_logger.LogWarning("No delete IDs provided");
+				return Result.Failure("No delete IDs provided");
+			}
+
+			foreach (var deleteId in deleteIds)
+			{
+				if (string.IsNullOrEmpty(deleteId))
+					continue;
+
+				try
+				{
+					var deletionParams = new DeletionParams(deleteId)
+					{
+						ResourceType = ResourceType.Image,
+						Invalidate = true
+					};
+
+					await _cloudinary.DestroyAsync(deletionParams);
+					_logger.LogInformation("Deleted image with publicId {deleteId}", deleteId);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex, "Failed to delete image with publicId {deleteId}", deleteId);
+
+				}
+			}
+
+			return Result.Success("Deletion completed");
+		}
+
 		private async Task RollbackUploads(List<SavedImageDto> uploadedImages)
 		{
 			if (!uploadedImages.Any()) return;
@@ -166,6 +202,5 @@ namespace Ftareqi.Infrastructure.Implementation
 				}
 			}
 		}
-
 	}
 }

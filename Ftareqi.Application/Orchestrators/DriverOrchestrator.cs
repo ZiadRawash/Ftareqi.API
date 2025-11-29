@@ -33,12 +33,10 @@ namespace Ftareqi.Infrastructure.Implementation
 		}
 		public async Task<Result<string?>> CreateDriverProfile(DriverProfileReqDto driverDto)
 		{
-			// 1. Validate user exists
 			var userFound = await _userService.GetUserByPhoneAsync(driverDto.PhoneNumber);
-			if (userFound.IsFailure)
+			if (userFound.IsFailure && userFound.Data!.Id==null)
 				return Result<string?>.Failure(userFound.Errors);
 
-			// 2. Map and prepare files for upload
 			var images = _fileMapper.MapFiles([driverDto.DriverProfilePhoto, driverDto.DriverLicenseFront, driverDto.DriverLicenseBack]);
 
 			if (images == null || images.Count != 3)
@@ -81,6 +79,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					UserId = userFound.Data!.Id,
 					CreatedAt = DateTime.UtcNow,
 					LicenseExpiryDate = driverDto.LicenseExpiryDate,
+					Status=DriverStatus.Pending,
 				};
 				await _unitOfWork.DriverProfiles.AddAsync(driverProfile);
 				await _unitOfWork.SaveChangesAsync(); 

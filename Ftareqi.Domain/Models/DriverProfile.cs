@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Ftareqi.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -11,7 +12,7 @@ namespace Ftareqi.Domain.Models
 	{
 		public int Id { get; set; }
 		public DateTime LicenseExpiryDate { get; set; }	
-		public bool IsVerified { get; set; }
+		public DriverStatus Status { get; set; }
 		public DateTime CreatedAt {  get; set; }=DateTime.UtcNow;
 		public DateTime UpdatedAt {  get; set; }
 		public bool IsDeleted {  get; set; }

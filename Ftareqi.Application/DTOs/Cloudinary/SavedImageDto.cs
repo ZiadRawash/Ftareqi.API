@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Ftareqi.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,6 +11,7 @@ namespace Ftareqi.Application.DTOs.Cloudinary
 	{
 		public string? ImageUrl { get; set; }
 		public string? deleteId { get; set; }
+		public ImageType ImageType { get; set; }
 
 	}
 }

@@ -32,7 +32,7 @@ namespace Ftareqi.Infrastructure.Implementation
 			_logger = logger;
 		}
 
-		public async Task<Result<SavedImageDto>> UploadPhoto(CloudinaryReqDto image)
+		public async Task<Result<SavedImageDto>> UploadPhotoAsync(CloudinaryReqDto image)
 		{
 			if (image?.FileStream == null || string.IsNullOrEmpty(image.FileName)){
 				_logger.LogWarning("Error With data sent to Cloudinary service");
@@ -67,6 +67,63 @@ namespace Ftareqi.Infrastructure.Implementation
 			}
 
 		}
+
+		public async Task<Result<List<SavedImageDto>>> UploadPhotosAsync(List<CloudinaryReqDto>images)
+		{
+			if (images == null || !images.Any())
+			{
+				_logger.LogWarning("No images provided for upload");
+				return Result<List<SavedImageDto>>.Failure("No images provided");
+			}
+			var uploadedImages = new List<SavedImageDto>();
+			try
+			{
+				foreach (var image in images)
+				{
+					if (image?.FileStream == null || string.IsNullOrEmpty(image.FileName))
+					{
+						_logger.LogWarning("Invalid image data for file: {fileName}", image?.FileName ?? "unknown");
+
+						await RollbackUploads(uploadedImages);
+						return Result<List<SavedImageDto>>.Failure($"Invalid data for file: {image?.FileName ?? "unknown"}");
+					}
+
+					var uploadParams = new ImageUploadParams
+					{
+						File = new FileDescription(image.FileName, image.FileStream),
+						Folder = "Ftareqi"
+					};
+
+					var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+					if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
+					{
+						_logger.LogWarning("Failed to upload {filename}", image.FileName);
+						await RollbackUploads(uploadedImages);
+						return Result<List<SavedImageDto>>.Failure($"Failed to upload {image.FileName}");
+					}
+
+					var dto = new SavedImageDto
+					{
+						ImageUrl = uploadResult.SecureUrl.AbsoluteUri,
+						deleteId = uploadResult.PublicId,
+						ImageType = image.imageType
+					};
+					uploadedImages.Add(dto);
+					_logger.LogInformation("{filename} uploaded successfully", image.FileName);
+				}
+
+				_logger.LogInformation("Successfully uploaded all {count} images", uploadedImages.Count);
+				return Result<List<SavedImageDto>>.Success(uploadedImages);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Exception during batch upload");
+				await RollbackUploads(uploadedImages);
+				throw;
+			}
+		}
+
 		public async Task<Result> DeleteImage(string deleteId)
 		{
 			if (string.IsNullOrEmpty(deleteId))
@@ -91,5 +148,24 @@ namespace Ftareqi.Infrastructure.Implementation
 			_logger.LogWarning("error happened while removing image with publicId {deleteId}", deleteId);
 			return Result.Failure("error happened while removing image");
 		}
+		private async Task RollbackUploads(List<SavedImageDto> uploadedImages)
+		{
+			if (!uploadedImages.Any()) return;
+
+			_logger.LogWarning("Rolling back {count} uploaded images", uploadedImages.Count);
+
+			foreach (var image in uploadedImages)
+			{
+				try
+				{
+					await DeleteImage(image.deleteId!);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Failed to delete image {publicId} during rollback", image.deleteId);
+				}
+			}
+		}
+
 	}
 }

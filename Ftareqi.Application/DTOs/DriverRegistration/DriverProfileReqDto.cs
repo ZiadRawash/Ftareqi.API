@@ -10,8 +10,9 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 	public class DriverProfileReqDto
 	{
 		public string  PhoneNumber { get; set; }=string.Empty;
-		public IFormFile? DriverPhoto{ get; set; } 
-		public IFormFile? DriverLicensePhoto { get; set; } 
+		public IFormFile? DriverProfilePhoto { get; set; } 
+		public IFormFile? DriverLicenseFront { get; set; } 
+		public IFormFile? DriverLicenseBack { get; set; } 
 		public DateTime LicenseExpiryDate { get; set; }
 	}
 }

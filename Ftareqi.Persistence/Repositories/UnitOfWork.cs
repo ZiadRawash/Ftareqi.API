@@ -15,6 +15,7 @@ namespace Ftareqi.Persistence.Repositories
 		public IBaseRepository<RefreshToken> RefreshTokens {  get; private set; }
 		public IBaseRepository<OTP> OTPs {  get; private set; }
 		public IBaseRepository<DriverProfile> DriverProfiles {  get; private set; }
+		public IBaseRepository<Image> Images {  get; private set; }
 
 
 		public UnitOfWork(ApplicationDbContext applicationDbContext)
@@ -24,8 +25,8 @@ namespace Ftareqi.Persistence.Repositories
 			RefreshTokens = new BaseRepository<RefreshToken>(_applicationDbContext);
 			OTPs = new BaseRepository<OTP>(_applicationDbContext);
 			DriverProfiles= new BaseRepository<DriverProfile>(_applicationDbContext);
+			Images= new BaseRepository<Image>(_applicationDbContext);
 		}
-
 		public ValueTask DisposeAsync()
 		{
 			return _applicationDbContext.DisposeAsync();

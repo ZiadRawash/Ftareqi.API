@@ -11,7 +11,10 @@ namespace Ftareqi.Application.Interfaces.Services
 {
 	public interface ICloudinaryService
 	{
-		Task<Result<SavedImageDto>> UploadPhoto(CloudinaryReqDto Image);
+		Task<Result<SavedImageDto>> UploadPhotoAsync(CloudinaryReqDto image);
+		Task<Result<List<SavedImageDto>>> UploadPhotosAsync(List<CloudinaryReqDto> images);
+
 		Task<Result> DeleteImage(string deleteId);
+		Task<Result> DeleteImagesAsync(List<string> deleteIds);
 	}
 }

@@ -6,9 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ftareqi.Application.Interfaces.Services
+namespace Ftareqi.Application.Interfaces.Orchestrators
 {
-	public interface IDriverService
+	public interface IDriverOrchestrator
 	{
 		Task<Result<string?>> CreateDriverProfile(DriverProfileReqDto driverDto);
 	}

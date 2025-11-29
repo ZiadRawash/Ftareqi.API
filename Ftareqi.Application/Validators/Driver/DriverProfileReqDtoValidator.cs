@@ -28,20 +28,26 @@ namespace Ftareqi.Application.Validators.Driver
 						 .Trim(),
 					@"^\+\d{10,15}$"));
 
-			RuleFor(x => x.DriverPhoto)
+			RuleFor(x => x.DriverProfilePhoto)
 				.NotNull().WithMessage("Driver photo is required.")
 				.Must(f => f!.Length > 0).WithMessage("Driver photo cannot be empty.")
 				.Must(BeValidExtension).WithMessage("Driver photo type is not allowed.")
 				.Must(BeValidMimeType).WithMessage("Driver photo type is invalid.")
 				.Must(f => f!.Length <= MaxFileSize).WithMessage("Driver photo exceeds file size limit (5MB).");
 
+			RuleFor(x => x.DriverLicenseFront)
+				.NotNull().WithMessage("Driver photo is required.")
+				.Must(f => f!.Length > 0).WithMessage("Driver photo cannot be empty.")
+				.Must(BeValidExtension).WithMessage("Driver photo type is not allowed.")
+				.Must(BeValidMimeType).WithMessage("Driver photo type is invalid.")
+				.Must(f => f!.Length <= MaxFileSize).WithMessage("Driver photo exceeds file size limit (5MB).");
 
-			RuleFor(x => x.DriverLicensePhoto)
-				.NotNull().WithMessage("Driver license photo is required.")
-				.Must(f => f!.Length > 0).WithMessage("Driver license photo cannot be empty.")
-				.Must(BeValidExtension).WithMessage("Driver license photo type is not allowed.")
-				.Must(BeValidMimeType).WithMessage("Driver license photo type is invalid.")
-				.Must(f => f!.Length <= MaxFileSize).WithMessage("Driver license photo exceeds file size limit (5MB).");
+			RuleFor(x => x.DriverLicenseBack)
+				.NotNull().WithMessage("Driver photo is required.")
+				.Must(f => f!.Length > 0).WithMessage("Driver photo cannot be empty.")
+				.Must(BeValidExtension).WithMessage("Driver photo type is not allowed.")
+				.Must(BeValidMimeType).WithMessage("Driver photo type is invalid.")
+				.Must(f => f!.Length <= MaxFileSize).WithMessage("Driver photo exceeds file size limit (5MB).");
 
 
 			RuleFor(x => x.LicenseExpiryDate)

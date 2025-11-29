@@ -113,7 +113,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IUserClaimsService, UserClaimsService>();
 			builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
-			builder.Services.AddScoped<IDriverService, DriverService>();
+			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
 
 			// Register Repositories
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));

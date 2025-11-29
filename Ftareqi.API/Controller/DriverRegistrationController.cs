@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
 using Ftareqi.Application.Common;
 using Ftareqi.Application.DTOs.DriverRegistration;
-using Ftareqi.Application.Interfaces.Services;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Model;
@@ -12,11 +12,11 @@ namespace Ftareqi.API.Controller
 	[ApiController]
 	public class DriverRegistrationController : ControllerBase
 	{
-		private readonly IDriverService _driverService;
+		private readonly IDriverOrchestrator _driverService;
 		private readonly IValidator<DriverProfileReqDto> _validator;
 
 		public DriverRegistrationController(
-			IDriverService driverService,
+			IDriverOrchestrator driverService,
 			IValidator<DriverProfileReqDto> validator)
 		{
 			_driverService = driverService;

@@ -11,7 +11,6 @@ namespace Ftareqi.Domain.Models
 
 		public Gender Gender { get; set; }
 
-		public string? ProfilePictureUrl { get; set; }
 
 		public required DateTime DateOfBirth { get; set; }
 
@@ -22,6 +21,7 @@ namespace Ftareqi.Domain.Models
 		public bool IsDeleted { get; set; }
 
 		public int PenaltyCount { get; set; }
+		public ICollection<Image> Images { get; set; } = new List<Image>();
 		public List<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 		public DriverProfile? DriverProfile { get; set; }
 	}

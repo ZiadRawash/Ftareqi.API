@@ -1,4 +1,5 @@
-﻿using Ftareqi.Application.DTOs.Files;
+﻿using Ftareqi.Application.DTOs.Cloudinary;
+using Ftareqi.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
@@ -8,8 +9,9 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Application.Interfaces.Services
 {
-	public interface IFileMapper
+    public interface IFileMapper
 	{
-		List<CloudinaryReqDto> MapFiles(List<IFormFile> files);
+		List<CloudinaryReqDto> MapFilesWithTypes(List<IFormFile> files, List<ImageType> imageTypes);
+		CloudinaryReqDto MapFile(IFormFile file, ImageType imageType);	
 	}
 }

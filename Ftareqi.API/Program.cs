@@ -2,21 +2,24 @@ using DripOut.Application.Common.Settings;
 using FluentValidation;
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Settings;
+using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Orchestrators;
 using Ftareqi.Application.Validators.Auth;
 using Ftareqi.Domain.Models;
+using Ftareqi.Infrastructure.BackgroundJobs;
 using Ftareqi.Infrastructure.Implementation;
 using Ftareqi.Infrastructure.Services;
 using Ftareqi.Persistence;
 using Ftareqi.Persistence.Repositories;
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -31,35 +34,38 @@ namespace Ftareqi.API
 		{
 			var builder = WebApplication.CreateBuilder(args);
 
-			// Configure Serilog EARLY (before anything else that needs logging)
-			builder.Host.UseSerilog((context, services, configuration) => configuration
-							.ReadFrom.Configuration(context.Configuration)
-							.ReadFrom.Services(services));
+			// ---------------------
+			// Serilog
+			// ---------------------
+			builder.Host.UseSerilog((context, services, configuration) =>
+				configuration.ReadFrom.Configuration(context.Configuration)
+							 .ReadFrom.Services(services));
 
-			//configure IsModelValidated OTPoptions 
-			builder.Services.Configure<ApiBehaviorOptions>(options =>
+			builder.Services.Configure<ApiBehaviorOptions>(o =>
 			{
-				options.SuppressModelStateInvalidFilter = true;
+				o.SuppressModelStateInvalidFilter = true;
 			});
 
-			// Bind JWT Settings
+			// ---------------------
+			// JWT Settings
+			// ---------------------
 			var jwtSettings = builder.Configuration.GetSection("JWTSettings").Get<JWTSettings>();
 			builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
 
-			//bind Cloudinary Settings
 			builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
-			// Add Authentication with JWT
+			// ---------------------
+			// Authentication
+			// ---------------------
 			builder.Services.AddAuthentication(options =>
 			{
 				options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
 				options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-				options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 			})
 			.AddJwtBearer(options =>
 			{
 				options.SaveToken = true;
-				options.RequireHttpsMetadata = false; // true in production
+				options.RequireHttpsMetadata = false;
 				options.TokenValidationParameters = new TokenValidationParameters
 				{
 					ValidateIssuer = true,
@@ -73,22 +79,42 @@ namespace Ftareqi.API
 				};
 			});
 
-			// Add Authorization
+			// ---------------------
+			// Hangfire 
+			// ---------------------
+			builder.Services.AddHangfire(config =>
+			{
+				config.UseSqlServerStorage(
+					builder.Configuration.GetConnectionString("HangfireConnection"));
+			});
+
+			// Enable Hangfire server inside the API
+			builder.Services.AddHangfireServer();
+
+			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
+			builder.Services.AddScoped<IDriverImageUploadJob, DriverImageUploadJob>();
+
+			// ---------------------
+			// Authorization
+			// ---------------------
 			builder.Services.AddAuthorization();
 
-			// Inject GlobalErrorHandler
 			builder.Services.AddExceptionHandler<GlobalErrorHandler>();
 			builder.Services.AddProblemDetails();
 
-			// Initialize FluentValidators
 			builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestDtoValidator>();
 
-			// Configuration for Sql Server Connection
+			// ---------------------
+			// DbContext
+			// ---------------------
 			builder.Services.AddDbContext<ApplicationDbContext>(options =>
 				options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-			// Configuration for Identity
-			builder.Services.AddIdentity<User, IdentityRole>(options => {
+			// ---------------------
+			// Identity
+			// ---------------------
+			builder.Services.AddIdentity<User, IdentityRole>(options =>
+			{
 				options.Password.RequireDigit = true;
 				options.Password.RequireLowercase = true;
 				options.Password.RequireUppercase = true;
@@ -98,13 +124,14 @@ namespace Ftareqi.API
 				options.Lockout.MaxFailedAccessAttempts = 5;
 				options.Lockout.AllowedForNewUsers = true;
 			})
-				.AddEntityFrameworkStores<ApplicationDbContext>()
-				.AddDefaultTokenProviders();
+			.AddEntityFrameworkStores<ApplicationDbContext>()
+			.AddDefaultTokenProviders();
 
-			// Add services to the container
+			// ---------------------
+			// Services
+			// ---------------------
 			builder.Services.AddControllers();
 
-			// Register Services
 			builder.Services.AddScoped<ITokensService, TokensService>();
 			builder.Services.AddScoped<IUserService, UserService>();
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
@@ -115,11 +142,12 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
 
-			// Register Repositories
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-			// Swagger configuration with JWT support
+			// ---------------------
+			// Swagger
+			// ---------------------
 			builder.Services.AddEndpointsApiExplorer();
 			builder.Services.AddSwaggerGen(options =>
 			{
@@ -127,10 +155,9 @@ namespace Ftareqi.API
 				{
 					Version = "v1",
 					Title = "Ftareqi API",
-					Description = "An ASP.NET Core Web API for Carpooling "
+					Description = "An ASP.NET Core Web API for Carpooling"
 				});
 
-				// Add JWT Authentication to Swagger
 				options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
 				{
 					Name = "Authorization",
@@ -138,7 +165,7 @@ namespace Ftareqi.API
 					Scheme = "Bearer",
 					BearerFormat = "JWT",
 					In = ParameterLocation.Header,
-					Description = "Enter 'Bearer' followed by a space and your JWT token.\n\nExample: 'Bearer eyJhbGc...'"
+					Description = "Enter: Bearer {your token}"
 				});
 
 				options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -160,42 +187,27 @@ namespace Ftareqi.API
 				options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 			});
 
-			// CORS services
 			builder.Services.AddCors(options =>
 			{
 				options.AddPolicy("_myAllowedOrigins", policy =>
 				{
-					policy
-						.AllowAnyOrigin()
-						.AllowAnyHeader()
-						.AllowAnyMethod();
+					policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
 				});
 			});
 
 			var app = builder.Build();
 
-			// Serilog request logging
-			app.UseSerilogRequestLogging(options =>
-			{
-				options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+			app.UseSerilogRequestLogging();
 
-				// Log additional info for slow requests
-				options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
-				{
-					diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
-					diagnosticContext.Set("UserAgent", httpContext.Request.Headers["User-Agent"].ToString());
-				};
-			});
-
-			// Add ExceptionHandler to pipeline
 			app.UseExceptionHandler();
 
-			// Configure the HTTP request pipeline
 			if (app.Environment.IsDevelopment())
 			{
 				app.UseSwagger();
 				app.UseSwaggerUI();
 			}
+
+			app.UseHangfireDashboard("/hangfire"); // Dashboard enabled
 
 			app.UseHttpsRedirection();
 
@@ -203,7 +215,6 @@ namespace Ftareqi.API
 
 			app.UseCors("_myAllowedOrigins");
 
-			// IMPORTANT: Authentication must come before Authorization
 			app.UseAuthentication();
 			app.UseAuthorization();
 
@@ -211,13 +222,12 @@ namespace Ftareqi.API
 
 			try
 			{
-				Log.Information(" Starting Ftareqi web application");
-				Log.Information("Serilog/Seq configured successfully");
+				Log.Information("Starting Ftareqi web application");
 				app.Run();
 			}
 			catch (Exception ex)
 			{
-				Log.Fatal(ex, " Ftareqi application terminated unexpectedly");
+				Log.Fatal(ex, "Ftareqi app terminated unexpectedly");
 			}
 			finally
 			{

@@ -1,5 +1,7 @@
 ﻿using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Domain.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,5 +39,9 @@ namespace Ftareqi.Persistence.Repositories
 			return _applicationDbContext.SaveChangesAsync();
 		}
 
+		public async Task<IDbContextTransaction> BeginTransactionAsync()
+		{
+			return await _applicationDbContext.Database.BeginTransactionAsync();
+		}
 	}
 }

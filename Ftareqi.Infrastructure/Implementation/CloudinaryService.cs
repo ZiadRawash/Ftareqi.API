@@ -3,204 +3,194 @@ using CloudinaryDotNet.Actions;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.Common.Settings;
 using Ftareqi.Application.DTOs.Cloudinary;
-using Ftareqi.Application.DTOs.Files;
 using Ftareqi.Application.Interfaces.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Net;
 using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Ftareqi.Infrastructure.Implementation
 {
 	public class CloudinaryService : ICloudinaryService
 	{
-		private readonly CloudinarySettings _cloudinarySettings;
 		private readonly Cloudinary _cloudinary;
 		private readonly ILogger<CloudinaryService> _logger;
 
-		public CloudinaryService(IOptions<CloudinarySettings> CloudinarySettings, ILogger<CloudinaryService> logger)
+		public CloudinaryService(IOptions<CloudinarySettings> cloudinarySettings, ILogger<CloudinaryService> logger)
 		{
-			_cloudinarySettings = CloudinarySettings.Value;
-			var account = new Account(
-			_cloudinarySettings.CloudName,
-			_cloudinarySettings.ApiKey,
-			_cloudinarySettings.ApiSecret);
-			_cloudinary = new Cloudinary(account);
+			var settings = cloudinarySettings.Value;
+			_cloudinary = new Cloudinary(new Account(
+				settings.CloudName,
+				settings.ApiKey,
+				settings.ApiSecret
+			));
 			_logger = logger;
 		}
 
 		public async Task<Result<SavedImageDto>> UploadPhotoAsync(CloudinaryReqDto image)
 		{
-			if (image?.FileStream == null || string.IsNullOrEmpty(image.FileName))
+			if (!IsValidImage(image))
 			{
-				_logger.LogWarning("Error With data sent to Cloudinary service");
+				_logger.LogWarning("Invalid input for single image upload");
 				return Result<SavedImageDto>.Failure("Invalid input data");
 			}
+
 			try
 			{
-				var uploadParams = new ImageUploadParams
+				var uploadResult = await _cloudinary.UploadAsync(new ImageUploadParams
 				{
 					File = new FileDescription(image.FileName, image.FileStream),
 					Folder = "Ftareqi"
+				});
+
+				if (uploadResult.StatusCode != HttpStatusCode.OK)
+				{
+					_logger.LogWarning("Upload failed for {file}", image.FileName);
+					return Result<SavedImageDto>.Failure("Upload failed");
+				}
+
+				var dto = new SavedImageDto
+				{
+					ImageUrl = uploadResult.SecureUrl.AbsoluteUri,
+					deleteId = uploadResult.PublicId,
+					ImageType = image.imageType
 				};
 
-				var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-
-				if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK)
-				{
-					var dto = new SavedImageDto
-					{
-						ImageUrl = uploadResult.SecureUrl.AbsoluteUri,
-						deleteId = uploadResult.PublicId
-					};
-					_logger.LogInformation("{filename} uploaded successfully to Cloudinary", image.FileName);
-					return Result<SavedImageDto>.Success(dto);
-				}
-				_logger.LogWarning("Error With uploading file {filename} to Cloudinary service", image.FileName);
-				return Result<SavedImageDto>.Failure("Upload failed");
+				_logger.LogInformation("{file} uploaded successfully", image.FileName);
+				return Result<SavedImageDto>.Success(dto);
 			}
-			catch (Exception ex)
+			catch (System.Exception ex)
 			{
-				_logger.LogError("exception happened{message}", ex.Message);
+				_logger.LogError(ex, "Exception during single image upload");
 				throw;
 			}
 		}
 
 		public async Task<Result<List<SavedImageDto>>> UploadPhotosAsync(List<CloudinaryReqDto> images)
 		{
-			if (images == null || !images.Any())
-			{
-				_logger.LogWarning("No images provided for upload");
+			if (images == null || images.Count == 0)
 				return Result<List<SavedImageDto>>.Failure("No images provided");
+
+			// Validate all images before uploading
+			var invalidImages = images.Where(img => !IsValidImage(img)).ToList();
+			if (invalidImages.Any())
+			{
+				_logger.LogWarning("{count} invalid images provided", invalidImages.Count);
+				return Result<List<SavedImageDto>>.Failure($"{invalidImages.Count} invalid images provided");
 			}
-			var uploadedImages = new List<SavedImageDto>();
+
 			try
 			{
-				foreach (var image in images)
+				// Upload all images in parallel
+				var uploadTasks = images.Select(UploadPhotoAsync).ToList();
+				var results = await Task.WhenAll(uploadTasks);
+
+				// Check if any failed AFTER all uploads complete
+				var failures = results.Where(r => r.IsFailure).ToList();
+
+				if (failures.Any())
 				{
-					if (image?.FileStream == null || string.IsNullOrEmpty(image.FileName))
-					{
-						_logger.LogWarning("Invalid image data for file: {fileName}", image?.FileName ?? "unknown");
+					// Get all successful uploads for rollback
+					var successful = results.Where(r => r.IsSuccess).Select(r => r.Data!).ToList();
 
-						await RollbackUploads(uploadedImages);
-						return Result<List<SavedImageDto>>.Failure($"Invalid data for file: {image?.FileName ?? "unknown"}");
-					}
+					_logger.LogWarning("{failCount} of {total} uploads failed. Rolling back {successCount} successful uploads",
+						failures.Count, images.Count, successful.Count);
 
-					var uploadParams = new ImageUploadParams
-					{
-						File = new FileDescription(image.FileName, image.FileStream),
-						Folder = "Ftareqi"
-					};
-
-					var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-
-					if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
-					{
-						_logger.LogWarning("Failed to upload {filename}", image.FileName);
-						await RollbackUploads(uploadedImages);
-						return Result<List<SavedImageDto>>.Failure($"Failed to upload {image.FileName}");
-					}
-
-					var dto = new SavedImageDto
-					{
-						ImageUrl = uploadResult.SecureUrl.AbsoluteUri,
-						deleteId = uploadResult.PublicId,
-						ImageType = image.imageType
-					};
-					uploadedImages.Add(dto);
-					_logger.LogInformation("{filename} uploaded successfully", image.FileName);
+					await RollbackUploads(successful);
+					return Result<List<SavedImageDto>>.Failure(failures.First().Errors);
 				}
 
-				_logger.LogInformation("Successfully uploaded all {count} images", uploadedImages.Count);
+				var uploadedImages = results.Select(r => r.Data!).ToList();
+				_logger.LogInformation("Batch upload completed. {count} images uploaded", uploadedImages.Count);
 				return Result<List<SavedImageDto>>.Success(uploadedImages);
 			}
-			catch (Exception ex)
+			catch (System.Exception ex)
 			{
 				_logger.LogError(ex, "Exception during batch upload");
-				await RollbackUploads(uploadedImages);
 				throw;
 			}
 		}
 
-		public async Task<Result> DeleteImage(string deleteId)
+		public async Task<Result> DeleteImageAsync(string deleteId)
 		{
-			if (string.IsNullOrEmpty(deleteId))
-			{
-				_logger.LogWarning("publicId is required");
+			if (string.IsNullOrWhiteSpace(deleteId))
 				return Result.Failure("publicId is required");
-			}
 
-			var deletionParams = new DeletionParams(deleteId)
+			try
 			{
-				ResourceType = ResourceType.Image,
-				Invalidate = true
-			};
+				var deletionParams = new DeletionParams(deleteId)
+				{
+					ResourceType = ResourceType.Image,
+					Invalidate = true
+				};
 
-			var result = await _cloudinary.DestroyAsync(deletionParams);
+				var result = await _cloudinary.DestroyAsync(deletionParams);
 
-			if (result.StatusCode == System.Net.HttpStatusCode.OK && result.Result == "ok")
-			{
-				return Result.Success("Image deleted successfully");
+				if (result.StatusCode == HttpStatusCode.OK && result.Result == "ok")
+				{
+					_logger.LogInformation("Image deleted successfully: {id}", deleteId);
+					return Result.Success("Image deleted successfully");
+				}
+
+				_logger.LogWarning("Failed to delete image {id}. Status: {status}, Result: {result}",
+					deleteId, result.StatusCode, result.Result);
+				return Result.Failure("Error deleting image");
 			}
-			_logger.LogWarning("error happened while removing image with publicId {deleteId}", deleteId);
-			return Result.Failure("error happened while removing image");
+			catch (System.Exception ex)
+			{
+				_logger.LogError(ex, "Exception while deleting image {id}", deleteId);
+				return Result.Failure($"Exception during deletion: {ex.Message}");
+			}
 		}
 
 		public async Task<Result> DeleteImagesAsync(List<string> deleteIds)
 		{
-			if (deleteIds == null || !deleteIds.Any())
-			{
-				_logger.LogWarning("No delete IDs provided");
+			if (deleteIds == null || deleteIds.Count == 0)
 				return Result.Failure("No delete IDs provided");
-			}
 
-			foreach (var deleteId in deleteIds)
+			var validIds = deleteIds.Where(id => !string.IsNullOrWhiteSpace(id)).ToList();
+
+			if (validIds.Count == 0)
+				return Result.Failure("No valid delete IDs provided");
+
+			var deleteTasks = validIds.Select(DeleteImageAsync).ToList();
+			var results = await Task.WhenAll(deleteTasks);
+
+			var failureCount = results.Count(r => r.IsFailure);
+
+			if (failureCount > 0)
 			{
-				if (string.IsNullOrEmpty(deleteId))
-					continue;
-
-				try
-				{
-					var deletionParams = new DeletionParams(deleteId)
-					{
-						ResourceType = ResourceType.Image,
-						Invalidate = true
-					};
-
-					await _cloudinary.DestroyAsync(deletionParams);
-					_logger.LogInformation("Deleted image with publicId {deleteId}", deleteId);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogWarning(ex, "Failed to delete image with publicId {deleteId}", deleteId);
-
-				}
+				_logger.LogWarning("{failCount} of {total} deletions failed", failureCount, validIds.Count);
+			}
+			else
+			{
+				_logger.LogInformation("Successfully deleted all {count} images", validIds.Count);
 			}
 
-			return Result.Success("Deletion completed");
+			return Result.Success($"Deletion completed: {validIds.Count - failureCount}/{validIds.Count} succeeded");
 		}
 
 		private async Task RollbackUploads(List<SavedImageDto> uploadedImages)
 		{
-			if (!uploadedImages.Any()) return;
+			if (uploadedImages == null || uploadedImages.Count == 0)
+				return;
 
-			_logger.LogWarning("Rolling back {count} uploaded images", uploadedImages.Count);
+			_logger.LogWarning("Rolling back {count} images", uploadedImages.Count);
 
-			foreach (var image in uploadedImages)
-			{
-				try
-				{
-					await DeleteImage(image.deleteId!);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Failed to delete image {publicId} during rollback", image.deleteId);
-				}
-			}
+			var rollbackTasks = uploadedImages
+				.Where(img => !string.IsNullOrWhiteSpace(img.deleteId))
+				.Select(img => DeleteImageAsync(img.deleteId!));
+
+			await Task.WhenAll(rollbackTasks);
+		}
+
+		private bool IsValidImage(CloudinaryReqDto img)
+		{
+			return img != null &&
+				   img.FileStream != null &&
+				   !string.IsNullOrWhiteSpace(img.FileName);
 		}
 	}
 }

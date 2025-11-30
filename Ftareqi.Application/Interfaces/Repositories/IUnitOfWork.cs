@@ -1,4 +1,5 @@
 ﻿using Ftareqi.Domain.Models;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +16,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		IBaseRepository <DriverProfile> DriverProfiles { get; }
 		IBaseRepository <Image> Images { get; }
 
+		Task<IDbContextTransaction> BeginTransactionAsync();
 		Task<int> SaveChangesAsync();
 	}
 }

@@ -14,5 +14,7 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 		public IFormFile? DriverLicenseFront { get; set; } 
 		public IFormFile? DriverLicenseBack { get; set; } 
 		public DateTime LicenseExpiryDate { get; set; }
+
+
 	}
 }

@@ -12,6 +12,8 @@ namespace Ftareqi.Application.Interfaces.Services
     public interface IFileMapper
 	{
 		List<CloudinaryReqDto> MapFilesWithTypes(List<IFormFile> files, List<ImageType> imageTypes);
-		CloudinaryReqDto MapFile(IFormFile file, ImageType imageType);	
+		CloudinaryReqDto MapFile(IFormFile file, ImageType imageType);
+		List<CloudinaryReqDto> MapFilesWithTypes(List<(IFormFile File, ImageType Type)> inputs);
+
 	}
 }

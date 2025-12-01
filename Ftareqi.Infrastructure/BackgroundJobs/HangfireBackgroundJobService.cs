@@ -1,4 +1,4 @@
-﻿// Ftareqi.Infrastructure/BackgroundJobs/HangfireBackgroundJobService.cs
+﻿
 using Ftareqi.Application.Interfaces.Services;
 using Hangfire;
 using Microsoft.Extensions.Logging;

@@ -141,6 +141,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
+			builder.Services.AddScoped<ICarImageUploadJob, CarImageUploadJob>();
 
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

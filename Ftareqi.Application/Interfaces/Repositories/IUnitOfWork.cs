@@ -10,6 +10,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 {
 	public interface IUnitOfWork: IAsyncDisposable	
 	{
+		IBaseRepository<Car> Cars { get; }
 		IBaseRepository<User> Users {  get; }
 		IBaseRepository <RefreshToken > RefreshTokens { get; }
 		IBaseRepository <OTP > OTPs { get; }

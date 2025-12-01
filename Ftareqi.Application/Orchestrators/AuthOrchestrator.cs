@@ -155,15 +155,14 @@ namespace Ftareqi.Application.Orchestrators
 			}
 			return Result<AccessTokenDto>.Success(new AccessTokenDto { AccessToken= accessToken.Data! }, "Access token created successfully");
 		}
-		public async Task<Result> RegisterAsync(RegisterRequestDto request)
+		public async Task<Result<string>> RegisterAsync(RegisterRequestDto request)
 		{
 
 			var userCreationResult = await _userService.CreateUserAsync(request);
 			if (userCreationResult.IsFailure)
 			{
-				return userCreationResult;
+				return Result<string>.Failure(userCreationResult.Errors);
 			}
-
 			var userId = userCreationResult.Data?.Id;
 			_logger.LogInformation("Account has been created successfully for {UserId}", userId);
 
@@ -178,10 +177,10 @@ namespace Ftareqi.Application.Orchestrators
 			if (otpResult.IsFailure)
 			{
 				_logger.LogWarning("Failed to send OTP for user {UserId}: {Error}", userId, otpResult.Errors.ToString());
-				return Result.Failure("Account created, but failed to send verification OTP");
+				return Result<string>.Failure(otpResult.Errors);
 			}
 			//sms function
-			return Result.Success("Account created successfully. Verification OTP has been sent.");
+			return Result<string>.Success(data:userId!, message:"User registered successfully ");
 		}
 		public async Task<Result<int?>> ValidateOtpAsync(string phoneNumber, string code, OTPPurpose purpose)
 		{

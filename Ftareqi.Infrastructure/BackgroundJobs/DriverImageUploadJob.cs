@@ -28,28 +28,18 @@ public class DriverImageUploadJob : IDriverImageUploadJob
 	public async Task UploadDriverImagesAsync(
 		int driverProfileId,
 		string userId,
-		List<ImageUploadData> imagesToUpload)
+		List<CloudinaryReqDto> imagesToUpload)
 	{
 		_logger.LogInformation("Starting image upload for driver profile {profileId}", driverProfileId);
 
 		try
 		{
-		
-			var cloudinaryRequests = imagesToUpload.Select(img => new CloudinaryReqDto
-			{
-				FileName = img.FileName,
-				FileStream = new MemoryStream(img.FileBytes),
-				imageType = img.ImageType
-			}).ToList();
-
-		
-			var uploadResult = await _cloudinaryService.UploadPhotosAsync(cloudinaryRequests);
+			var uploadResult = await _cloudinaryService.UploadPhotosAsync(imagesToUpload);
 
 			if (uploadResult.IsFailure)
 			{
 				_logger.LogError("Image upload failed for profile {profileId}: {errors}",
-					driverProfileId,
-					string.Join(", ", uploadResult.Errors));
+					driverProfileId,string.Join(", ", uploadResult.Errors));
 
 				await UpdateStatus(driverProfileId, DriverStatus.ImageUploadFailed);
 				throw new Exception($"Cloudinary upload failed: {uploadResult.Errors}");

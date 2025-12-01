@@ -10,6 +10,7 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 {
 	public interface IDriverOrchestrator
 	{
-		Task<Result<DriverProfileResponseDto>> CreateDriverProfileAsync(DriverProfileReqDto driverDto);
+		Task<Result<DriverProfileResponseDto>> CreateDriverProfileAsync(DriverProfileCreateDto driverDto);
+		Task<Result<CarResponseDto>> CreateCarForDriverProfile(CarCreateDto carDto);
 	}
 }

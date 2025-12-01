@@ -9,8 +9,8 @@ namespace Ftareqi.Application.DTOs.Cloudinary
 {
 	public class CloudinaryReqDto
 	{
+		public required string TempFilePath { get; set; }
 		public required string FileName { get; set; }
-		public required Stream FileStream { get; set; }
-		public required ImageType imageType { get; set; }
+		public required ImageType Type { get; set; }
 	}
 }

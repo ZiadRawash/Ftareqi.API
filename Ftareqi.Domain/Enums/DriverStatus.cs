@@ -13,7 +13,6 @@ namespace Ftareqi.Domain.Enums
 		Pending = 2,             
 		Active = 3,                 
 		Rejected = 4,            
-		Suspended = 5,
-		Expired=6
+		Expired=5
 	}
 }

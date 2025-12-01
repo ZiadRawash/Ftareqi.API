@@ -26,6 +26,12 @@ namespace Ftareqi.Domain.Models
 		public DriverProfile? DriverProfile { get; set; }
 		[ForeignKey(nameof(DriverProfile))]
 		public int? DriverProfileId { get; set; }
+		
+		public Car? Car { get; set; }
+
+		[ForeignKey(nameof(Car))]
+		public int? CarId { get; set; }
+
 
 	}
 }

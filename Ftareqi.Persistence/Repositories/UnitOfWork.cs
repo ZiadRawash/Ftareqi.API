@@ -18,6 +18,7 @@ namespace Ftareqi.Persistence.Repositories
 		public IBaseRepository<OTP> OTPs {  get; private set; }
 		public IBaseRepository<DriverProfile> DriverProfiles {  get; private set; }
 		public IBaseRepository<Image> Images {  get; private set; }
+		public IBaseRepository<Car> Cars {  get; private set; }
 
 
 		public UnitOfWork(ApplicationDbContext applicationDbContext)
@@ -28,6 +29,7 @@ namespace Ftareqi.Persistence.Repositories
 			OTPs = new BaseRepository<OTP>(_applicationDbContext);
 			DriverProfiles= new BaseRepository<DriverProfile>(_applicationDbContext);
 			Images= new BaseRepository<Image>(_applicationDbContext);
+			Cars= new BaseRepository<Car>(_applicationDbContext);
 		}
 		public ValueTask DisposeAsync()
 		{

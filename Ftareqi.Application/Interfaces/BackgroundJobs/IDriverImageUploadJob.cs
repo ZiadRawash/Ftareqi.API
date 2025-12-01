@@ -1,4 +1,5 @@
 ﻿using Ftareqi.Application.DTOs.BackgroundJobs;
+using Ftareqi.Application.DTOs.Cloudinary;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,6 @@ namespace Ftareqi.Application.Interfaces.BackgroundJobs
 		Task UploadDriverImagesAsync(
 			int driverProfileId,
 			string userId,
-			List<ImageUploadData> imagesToUpload);
+			List<CloudinaryReqDto> imagesToUpload);
 	}
 }

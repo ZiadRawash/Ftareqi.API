@@ -41,7 +41,7 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				var uploadResult = await _cloudinary.UploadAsync(new ImageUploadParams
 				{
-					File = new FileDescription(image.FileName, image.FileStream),
+					File = new FileDescription(image.FileName, image.TempFilePath),
 					Folder = "Ftareqi"
 				});
 
@@ -55,7 +55,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				{
 					ImageUrl = uploadResult.SecureUrl.AbsoluteUri,
 					deleteId = uploadResult.PublicId,
-					ImageType = image.imageType
+					ImageType = image.Type,
 				};
 
 				_logger.LogInformation("{file} uploaded successfully", image.FileName);
@@ -73,7 +73,7 @@ namespace Ftareqi.Infrastructure.Implementation
 			if (images == null || images.Count == 0)
 				return Result<List<SavedImageDto>>.Failure("No images provided");
 
-			// Validate all images before uploading
+
 			var invalidImages = images.Where(img => !IsValidImage(img)).ToList();
 			if (invalidImages.Any())
 			{
@@ -188,9 +188,18 @@ namespace Ftareqi.Infrastructure.Implementation
 
 		private bool IsValidImage(CloudinaryReqDto img)
 		{
-			return img != null &&
-				   img.FileStream != null &&
-				   !string.IsNullOrWhiteSpace(img.FileName);
+			if (img == null)
+				return false;
+
+			if (string.IsNullOrWhiteSpace(img.FileName))
+				return false;
+
+			if (string.IsNullOrWhiteSpace(img.TempFilePath))
+				return false;
+
+			if (!File.Exists(img.TempFilePath))
+				return false;
+		return true;
 		}
-	}
+	};
 }

@@ -17,7 +17,7 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		/// <summary>
 		/// Handles complete registration workflow: validation, user creation, token generation, welcome notification
 		/// </summary>
-		Task<Result> RegisterAsync(RegisterRequestDto request);
+		Task<Result<string>> RegisterAsync(RegisterRequestDto request);
 
 		/// <summary>
 		/// Handles complete login workflow: validation, credential check, token generation, activity logging

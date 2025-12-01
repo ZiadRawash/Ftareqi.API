@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Application.DTOs.DriverRegistration
 {
-	public class DriverProfileReqDto
+	public class DriverProfileCreateDto
 	{
-		public IFormFile? DriverProfilePhoto { get; set; } 
-		public IFormFile? DriverLicenseFront { get; set; } 
-		public IFormFile? DriverLicenseBack { get; set; } 
+		public string UserId { get; set; } = default!;
+		public IFormFile? DriverProfilePhoto { get; set; }
+		public IFormFile? DriverLicenseFront { get; set; }
+		public IFormFile? DriverLicenseBack { get; set; }
 		public DateTime LicenseExpiryDate { get; set; }
-
 	}
 }

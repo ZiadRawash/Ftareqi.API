@@ -32,7 +32,7 @@ namespace Ftareqi.API.Controller
 		/// Registers a new user account
 		/// </summary>
 		[HttpPost("register")]
-		public async Task<ActionResult<ApiResponse>> Register([FromBody] RegisterRequestDto model)
+		public async Task<ActionResult<ApiResponse<UserIdDto>>> Register([FromBody] RegisterRequestDto model)
 		{
 			var validation = await _registerRequestDtoValidator.ValidateAsync(model);
 			if (!validation.IsValid)
@@ -49,15 +49,19 @@ namespace Ftareqi.API.Controller
 				{
 					Success = false,
 					Errors = result.Errors,
-					Message = result.Message
+					Message = result.Message,
+					
 				});
 			}
-
-			return Ok(new ApiResponse
+			return Ok(new ApiResponse<UserIdDto>
 			{
 				Success = true,
 				Message = result.Message,
-				Errors = result.Errors
+				Errors = result.Errors,
+				Data = new UserIdDto
+				{
+					Id = result.Data
+				}
 			});
 		}
 

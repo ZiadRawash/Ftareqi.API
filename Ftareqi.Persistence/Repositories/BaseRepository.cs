@@ -1,4 +1,6 @@
-﻿using Ftareqi.Application.Interfaces.Repositories;
+﻿using Ftareqi.Application.Common.Consts;
+using Ftareqi.Application.Interfaces.Repositories;
+using Hangfire.Storage.Monitoring;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -114,7 +116,9 @@ namespace Ftareqi.Persistence.Repositories
 		public async Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
 			int pageNumber,
 			int pageSize,
+			Expression<Func<T, object>> orderBy,
 			Expression<Func<T, bool>>? predicate = null,
+			bool descending = false,
 			params Expression<Func<T, object>>[] includes)
 		{
 			IQueryable<T> query = _dbSet;
@@ -131,6 +135,10 @@ namespace Ftareqi.Persistence.Repositories
 
 			int totalCount = await query.CountAsync();
 
+			query = descending ? query.OrderByDescending(orderBy)
+							   : query.OrderBy(orderBy);
+
+
 			var items = await query
 				.AsNoTracking()
 				.Skip((pageNumber - 1) * pageSize)
@@ -139,6 +147,7 @@ namespace Ftareqi.Persistence.Repositories
 
 			return (items, totalCount);
 		}
+
 
 		public void Update(T entity)
 		{

@@ -52,11 +52,8 @@ namespace Ftareqi.API.Controllers
 			return Ok(result.Data);
 		}
 
-		/// <summary>
-		///	Creates car profile and connect it to driver profile
-		/// </summary>
 		[HttpPost("/api/users/{userId}/driver-profile/car")]
-			public async Task<IActionResult> AddCarToDriverProfile([FromRoute] string userId,[FromForm] CarReqDto request)
+		public async Task<IActionResult> AddCarToDriverProfile([FromRoute] string userId,[FromForm] CarReqDto request)
 		{
 			var validationResult = await _CarReqDtoValidatorValidator.ValidateAsync(request);
 			if (!validationResult.IsValid)

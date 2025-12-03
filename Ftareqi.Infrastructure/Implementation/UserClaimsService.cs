@@ -46,6 +46,13 @@ namespace Ftareqi.Infrastructure.Implementation
 
 			try
 			{
+				var existingClaims = await _userManager.GetClaimsAsync(user);
+				if (existingClaims.Any(c => c.Type == claimType && c.Value == claimValue))
+				{
+					_logger.LogInformation("Duplicate claim ignored for user {UserId}. ClaimType: {ClaimType}", userId, claimType);
+					return Result.Failure("This claim already exists for the user.");
+				}
+
 				var claim = new Claim(claimType, claimValue);
 				var result = await _userManager.AddClaimAsync(user, claim);
 
@@ -64,6 +71,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result.Failure("An error occurred while adding the claim.");
 			}
 		}
+
 
 		public async Task<Result> AddRolesAsync(string userId, IEnumerable<string> roles)
 		{

@@ -12,6 +12,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 {
 	public interface IBaseRepository<T> where T : class
 	{
+		//add
 		Task AddAsync(T entity);
 		Task AddRangeAsync(IEnumerable<T> entities);
 
@@ -19,7 +20,6 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		Task<T?> GetByIdAsync(params object[] keyValues);
 		Task<IEnumerable<T>> GetAllAsNoTrackingAsync();
 		Task<IEnumerable<T>> GetAllAsTrackingAsync();
-
 		Task<IEnumerable<T>> FindAllAsNoTrackingAsync(Expression<Func<T, bool>> predicate);
 		Task<IEnumerable<T>> FindAllAsNoTrackingAsync(
 			Expression<Func<T, bool>> predicate,
@@ -33,10 +33,12 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
 		Task<T?> FirstOrDefaultAsNoTrackingAsync(Expression<Func<T, bool>> predicate);
 
-		Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
+		 Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
 			int pageNumber,
 			int pageSize,
+			Expression<Func<T, object>> orderBy,
 			Expression<Func<T, bool>>? predicate = null,
+			bool descending = false,
 			params Expression<Func<T, object>>[] includes);
 
 		// Helpers

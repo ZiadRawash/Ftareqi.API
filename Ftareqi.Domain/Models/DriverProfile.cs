@@ -17,6 +17,8 @@ namespace Ftareqi.Domain.Models
 		public DateTime UpdatedAt {  get; set; }
 		public bool IsDeleted {  get; set; }
 		public ICollection<Image> Images { get; set; } = new List<Image>();
+
+		public Car? Car { get; set; }
 		public User? User { get; set; }
 		[ForeignKey(nameof(User))]
 		public required string UserId { get; set; }

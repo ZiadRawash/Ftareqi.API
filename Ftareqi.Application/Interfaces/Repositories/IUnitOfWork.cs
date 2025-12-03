@@ -14,7 +14,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		IBaseRepository<User> Users {  get; }
 		IBaseRepository <RefreshToken > RefreshTokens { get; }
 		IBaseRepository <OTP > OTPs { get; }
-		IBaseRepository <DriverProfile> DriverProfiles { get; }
+		IDriverProfileRepository DriverProfiles { get; }
 		IBaseRepository <Image> Images { get; }
 
 		Task<IDbContextTransaction> BeginTransactionAsync();

@@ -1,4 +1,6 @@
 ﻿using Ftareqi.Application.DTOs.DriverRegistration;
+using Ftareqi.Domain.Enums;
+using Ftareqi.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,6 +36,37 @@ namespace Ftareqi.Application.Mappers
 				CarLicenseFront = dto.CarLicenseFront,
 				CarLicenseBack = dto.CarLicenseBack
 			};
+		}
+		public static DriverWithCarResponseDto ToDto(DriverProfile profile)
+		{
+			var car = profile.Car;
+
+			return new DriverWithCarResponseDto
+			{
+				ProfileId= profile.Id,
+				FullName = profile.User?.FullName,
+				PhoneNumber = profile.User?.PhoneNumber,
+				DriverStatus = profile.Status,
+				DriverLicenseExpiryDate = profile.LicenseExpiryDate,
+				ProfileCreationDate = profile.CreatedAt,
+				DriverPhoto = GetImageUrl(profile.Images, ImageType.DriverProfilePhoto),
+				DriverLicenseFront = GetImageUrl(profile.Images, ImageType.DriverLicenseFront),
+				DriverLicenseBack = GetImageUrl(profile.Images, ImageType.DriverLicenseBack),
+
+				// car info
+				Model = car?.Model ?? "",
+				Color = car?.Color,
+				palette = car?.palette,
+				NumOfSeats = car?.NumOfSeats ?? 0,
+				CarPhoto = GetImageUrl(car?.Images, ImageType.CarPhoto),
+				CarLicenseFront = GetImageUrl(car?.Images, ImageType.CarLicenseFront),
+				carLicenseBack = GetImageUrl(car?.Images, ImageType.CarLicenseBack)
+			};
+		}
+
+		private static string? GetImageUrl(IEnumerable<Image>? images, ImageType type)
+		{
+			return images?.FirstOrDefault(i => i.Type == type)?.Url;
 		}
 	}
 

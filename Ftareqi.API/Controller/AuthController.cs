@@ -3,9 +3,9 @@ using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Authentication;
 using Ftareqi.Application.Interfaces.Orchestrators;
+using Ftareqi.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Model;
 
 namespace Ftareqi.API.Controller
 {
@@ -16,12 +16,12 @@ namespace Ftareqi.API.Controller
 	{
 		private readonly IValidator<RegisterRequestDto> _registerRequestDtoValidator;
 		private readonly IAuthOrchestrator _authOrchestrator;
-		private readonly IValidator<ChangePasswordDto>_changePasswordValidator;
+		private readonly IValidator<ChangePasswordDto> _changePasswordValidator;
 
 		public AuthController(
 			IAuthOrchestrator authOrchestrator,
 			IValidator<RegisterRequestDto> registerRequestDtoValidator,
-			IValidator<ChangePasswordDto> changePasswordValidator	)
+			IValidator<ChangePasswordDto> changePasswordValidator)
 		{
 			_authOrchestrator = authOrchestrator;
 			_registerRequestDtoValidator = registerRequestDtoValidator;
@@ -50,9 +50,9 @@ namespace Ftareqi.API.Controller
 					Success = false,
 					Errors = result.Errors,
 					Message = result.Message,
-					
 				});
 			}
+
 			return Ok(new ApiResponse<UserIdDto>
 			{
 				Success = true,
@@ -72,19 +72,7 @@ namespace Ftareqi.API.Controller
 		public async Task<ActionResult<ApiResponse<TokensDto>>> Login([FromBody] LoginRequestDto request)
 		{
 			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
-
-				return BadRequest(new ApiResponse<TokensDto>
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
+				return BadRequest(ModelState.ToApiResponse());
 
 			var result = await _authOrchestrator.LoginAsync(request);
 
@@ -117,19 +105,8 @@ namespace Ftareqi.API.Controller
 		public async Task<ActionResult<ApiResponse>> Logout([FromBody] RefreshToken refreshToken)
 		{
 			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
+				return BadRequest(ModelState.ToApiResponse());
 
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
 			var result = await _authOrchestrator.LogoutAsync(refreshToken.Token);
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -154,19 +131,8 @@ namespace Ftareqi.API.Controller
 		public async Task<ActionResult<ApiResponse>> LogoutAll([FromBody] RefreshToken refreshToken)
 		{
 			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
+				return BadRequest(ModelState.ToApiResponse());
 
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
 			var result = await _authOrchestrator.RevokeAllRefreshTokens(refreshToken.Token);
 
 			if (result.IsFailure)
@@ -192,19 +158,8 @@ namespace Ftareqi.API.Controller
 		public async Task<ActionResult<ApiResponse<string>>> RefreshToken([FromBody] RefreshToken refreshToken)
 		{
 			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
+				return BadRequest(ModelState.ToApiResponse());
 
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
 			var result = await _authOrchestrator.RefreshAccessToken(refreshToken.Token);
 
 			if (result.IsFailure)
@@ -225,35 +180,30 @@ namespace Ftareqi.API.Controller
 		}
 
 		/// <summary>
-		/// Verifies user's phone number using OTP code
+		/// Verifies user's phone number using OTP code and logs them in automatically
 		/// </summary>
 		[HttpPost("phone/verify")]
-		public async Task<ActionResult<ApiResponse<int?>>> VerifyPhone([FromBody] VerifyOtpRequestDto request)
+		public async Task<ActionResult<ApiResponse<TokensWithRemainAttempts>>> VerifyPhoneAndLogin([FromBody] PhoneWithResetOtpDto request)
 		{
-			var result = await _authOrchestrator.ValidateOtpAsync(
+			if (!ModelState.IsValid)
+				return BadRequest(ModelState.ToApiResponse());
+
+			var result = await _authOrchestrator.ValidateOtpAndLoginAsync(
 				request.PhoneNumber,
-				request.OtpCode,
-				Domain.Enums.OTPPurpose.PhoneVerification);
+				request.otp,
+				OTPPurpose.PhoneVerification);
 
-			if (result.IsFailure)
-			{
-				return BadRequest(new ApiResponse<int?>
-				{
-					Message = result.Message,
-					Success = result.IsSuccess,
-					Errors = result.Errors,
-					Data= result.Data	
-				});
-			}
-
-			return Ok(new ApiResponse
+			var model = new ApiResponse<TokensWithRemainAttempts>
 			{
 				Message = result.Message,
 				Success = result.IsSuccess,
 				Errors = result.Errors,
-			});
+				Data = result.Data
+			};
+			if (result.IsFailure)
+				return BadRequest(model);
+			return Ok(model);
 		}
-
 		/// <summary>
 		/// Resends phone verification OTP to user's phone number
 		/// </summary>
@@ -261,21 +211,9 @@ namespace Ftareqi.API.Controller
 		public async Task<ActionResult<ApiResponse>> ResendVerificationOtp([FromBody] PhoneNumberRequestDto model)
 		{
 			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
+				return BadRequest(ModelState.ToApiResponse());
 
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
-
-			var result = await _authOrchestrator.ResendPhoneVerificationOtp(model.PhoneNumber);
+			var result = await _authOrchestrator.SendOtpAsync(model.PhoneNumber, OTPPurpose.PhoneVerification);
 
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -300,21 +238,9 @@ namespace Ftareqi.API.Controller
 		public async Task<ActionResult<ApiResponse>> RequestPasswordReset([FromBody] PhoneNumberRequestDto model)
 		{
 			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
+				return BadRequest(ModelState.ToApiResponse());
 
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
-
-			var result = await _authOrchestrator.CreatePasswordResetOtpAsync(model.PhoneNumber);
+			var result = await _authOrchestrator.SendOtpAsync(model.PhoneNumber, OTPPurpose.PasswordReset);
 
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -339,19 +265,8 @@ namespace Ftareqi.API.Controller
 		public async Task<ActionResult<ApiResponse<ResetTokWithRemainAttempts>>> VerifyResetPasswordOtp([FromBody] PhoneWithResetOtpDto model)
 		{
 			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
+				return BadRequest(ModelState.ToApiResponse());
 
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
 
 			var tokenCreated = await _authOrchestrator.CreateResetPasswordTokenAsync(
 				model.PhoneNumber,
@@ -365,7 +280,6 @@ namespace Ftareqi.API.Controller
 					Errors = tokenCreated.Errors,
 					Message = "Invalid request data",
 					Data = tokenCreated.Data
-
 				});
 			}
 
@@ -377,6 +291,7 @@ namespace Ftareqi.API.Controller
 				Data = tokenCreated.Data,
 			});
 		}
+
 		/// <summary>
 		/// Resets user password using reset token
 		/// </summary>
@@ -384,19 +299,7 @@ namespace Ftareqi.API.Controller
 		public async Task<ActionResult<ApiResponse>> ResetPassword([FromBody] ResetPasswordDto model)
 		{
 			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
-
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
+				return BadRequest(ModelState.ToApiResponse());
 
 			var result = await _authOrchestrator.ChangePasswordAsync(model);
 
@@ -432,6 +335,7 @@ namespace Ftareqi.API.Controller
 					Errors = errors
 				});
 			}
+
 			var result = await _authOrchestrator.ChangePasswordAsync(model);
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -447,8 +351,6 @@ namespace Ftareqi.API.Controller
 				Success = result.IsSuccess,
 				Errors = result.Errors,
 			});
-
 		}
-
 	}
 }

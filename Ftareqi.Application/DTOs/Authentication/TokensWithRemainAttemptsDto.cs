@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Application.DTOs.Authentication
 {
-	public class VerifyOtpRequestDto
+	public class TokensWithRemainAttempts
 	{
-		public required string PhoneNumber { get; set; }
-		public required string OtpCode { get; set; }
+		public	int? RemainingAttempts { get; set; }
+		public string? AccessToken { get; set; }
+		public string? RefreshToken { get; set; }
+
 	}
 }

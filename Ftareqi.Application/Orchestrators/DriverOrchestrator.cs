@@ -199,6 +199,7 @@ namespace Ftareqi.Application.Orchestrators
 			// Map to DTO
 			var results = profilesItems.Select(x => new DriverProfileWithUsernameDto
 			{
+				DriverProfileId=x.User!.DriverProfile!.Id,
 				CreatedAt = x.CreatedAt,
 				PhoneNumber = x.User!.PhoneNumber,
 				FullName = x.User!.FullName,

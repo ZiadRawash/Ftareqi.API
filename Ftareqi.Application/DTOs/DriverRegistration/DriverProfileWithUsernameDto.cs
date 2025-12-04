@@ -8,6 +8,7 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 {
 	public class DriverProfileWithUsernameDto
 	{
+		public int DriverProfileId {  get; set; }
 		public string? FullName { get; set; }
 		public string? PhoneNumber { get; set; }
 		public  DateTime CreatedAt { get; set; }

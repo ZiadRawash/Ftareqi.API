@@ -40,7 +40,7 @@ namespace Ftareqi.Application.Validators.Driver
 
 
 			RuleFor(x => x.LicenseExpiryDate)
-				.GreaterThan(DateTime.UtcNow.Date)
+				.GreaterThan(DateTime.UtcNow.Date.AddDays(1))
 				.WithMessage("License expiry date must be in the future.");
 		}
 	}

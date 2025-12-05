@@ -27,6 +27,9 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 		public int NumOfSeats { get; set; }
 		public string? CarPhoto { get; set; }
 		public string? CarLicenseFront { get; set; }
-		public string? carLicenseBack { get; set; }
+		public string? CarLicenseBack { get; set; }
+		public DateTime? CarLicenseExpiryDate { get; set; }
+
+
 	}
 }

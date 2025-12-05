@@ -34,7 +34,9 @@ namespace Ftareqi.Application.Mappers
 				NumOfSeats = dto.NumOfSeats,
 				CarPhoto = dto.CarPhoto,
 				CarLicenseFront = dto.CarLicenseFront,
-				CarLicenseBack = dto.CarLicenseBack
+				CarLicenseBack = dto.CarLicenseBack,
+				LicenseExpiryDate= dto.LicenseExpiryDate
+				
 			};
 		}
 		public static DriverWithCarResponseDto ToDto(DriverProfile profile)
@@ -54,13 +56,14 @@ namespace Ftareqi.Application.Mappers
 				DriverLicenseBack = GetImageUrl(profile.Images, ImageType.DriverLicenseBack),
 
 				// car info
+				CarLicenseExpiryDate=car?.LicenseExpiryDate,
 				Model = car?.Model ?? "",
 				Color = car?.Color,
 				palette = car?.palette,
 				NumOfSeats = car?.NumOfSeats ?? 0,
 				CarPhoto = GetImageUrl(car?.Images, ImageType.CarPhoto),
 				CarLicenseFront = GetImageUrl(car?.Images, ImageType.CarLicenseFront),
-				carLicenseBack = GetImageUrl(car?.Images, ImageType.CarLicenseBack)
+				CarLicenseBack = GetImageUrl(car?.Images, ImageType.CarLicenseBack)
 			};
 		}
 

@@ -124,6 +124,7 @@ namespace Ftareqi.Application.Orchestrators
 			// create car itself
 			var car = new Car
 			{
+				LicenseExpiryDate=carDto.LicenseExpiryDate,
 				DriverProfileId = found!.Id,
 				Color = carDto.Color!,
 				Model = carDto.Model!,
@@ -159,6 +160,7 @@ namespace Ftareqi.Application.Orchestrators
 				DriverProfileId = car.DriverProfileId!,
 				NumOfSeats = car.NumOfSeats,
 				palette = car.palette!,
+				LicenseExpiryDate= car.LicenseExpiryDate!,
 			};
 			return Result<CarResponseDto>.Success(response);
 		}

@@ -17,5 +17,6 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 		public IFormFile? CarPhoto { get; set; }
 		public IFormFile? CarLicenseFront { get; set; }
 		public IFormFile? CarLicenseBack { get; set; }
+		public DateTime LicenseExpiryDate {  get; set; }
 	}
 }

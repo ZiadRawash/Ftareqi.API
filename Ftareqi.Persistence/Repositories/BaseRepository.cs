@@ -65,6 +65,7 @@ namespace Ftareqi.Persistence.Repositories
 		{
 			return await _context.Set<T>().AsNoTracking().FirstOrDefaultAsync(predicate);
 		}
+
 		public async Task<IEnumerable<T>> FindAllAsNoTrackingAsync(
 			Expression<Func<T, bool>> predicate,
 			params Expression<Func<T, object>>[] includes)
@@ -97,7 +98,6 @@ namespace Ftareqi.Persistence.Repositories
 
 			return await query.ToListAsync();
 		}
-
 		public async Task<IEnumerable<T>> GetAllAsNoTrackingAsync()
 		{
 			return await _dbSet.AsNoTracking().ToListAsync();
@@ -147,8 +147,6 @@ namespace Ftareqi.Persistence.Repositories
 
 			return (items, totalCount);
 		}
-
-
 		public void Update(T entity)
 		{
 			_dbSet.Update(entity);

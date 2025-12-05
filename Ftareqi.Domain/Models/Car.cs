@@ -18,6 +18,7 @@ namespace Ftareqi.Domain.Models
 		public bool IsDeleted { get; set; }
 		public DateTime CreatedAt { get; set; }= DateTime.UtcNow;
 		public DateTime UpdatedAt { get; set; }
+		public DateTime LicenseExpiryDate { get; set; }
 
 		public DriverProfile? DriverProfile { get; set; }
 		[ForeignKey(nameof(DriverProfile))]

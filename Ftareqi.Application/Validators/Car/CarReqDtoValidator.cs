@@ -49,6 +49,10 @@ namespace Ftareqi.Application.Validators.Car
 				.Must(ImageValidator.BeValidExtension).WithMessage("Back license type is not allowed.")
 				.Must(ImageValidator.BeValidMimeType).WithMessage("Back license type is invalid.")
 				.Must(f => f!.Length <= ImageValidator.MaxFileSize).WithMessage("Back license photo exceeds size limit (5MB).");
+
+			RuleFor(x => x.LicenseExpiryDate)
+				.GreaterThan(DateTime.UtcNow.Date.AddDays(1))
+				.WithMessage("License expiry date must be in the future.");
 		}
 	}
 }

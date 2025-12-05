@@ -19,7 +19,7 @@ namespace Ftareqi.API.Controller
 
 		// GET: api/moderator/driver-requests/pending
 		[HttpGet("pending")]
-		public async Task<ActionResult<ApiResponse<PaginatedResponse<DriverProfileWithUsernameDto>>>> GetPendingProfiles([FromQuery] PaginationReqDto page)
+		public async Task<ActionResult<ApiResponse<PaginatedResponse<DriverProfileWithUsernameDto>>>> GetPendingProfiles([FromQuery] GenericQueryModel model)
 		{
 			if (!ModelState.IsValid)
 			{
@@ -36,7 +36,7 @@ namespace Ftareqi.API.Controller
 				});
 			}
 
-			var response = await _driverOrchestrator.GetPendingDriverProfiles(page);
+			var response = await _driverOrchestrator.GetPendingDriverProfiles(model);
 			return Ok(new ApiResponse<PaginatedResponse<DriverProfileWithUsernameDto>>
 			{
 				Data = response.Data,

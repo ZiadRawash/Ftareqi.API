@@ -87,7 +87,7 @@ namespace Ftareqi.Application.Orchestrators
 				var photosSerialized = _fileMapper.MapFilesWithTypes(imagesToUpload);
 
 
-				// Enqueue job using generic interface - NO HANGFIRE DEPENDENCY HERE!
+
 				var jobId = await _backgroundJobService.EnqueueAsync<IDriverImageUploadJob>(
 					job => job.UploadDriverImagesAsync(
 						driverProfile.Id,
@@ -185,7 +185,7 @@ namespace Ftareqi.Application.Orchestrators
 			}
 		}
 		// Get pending profiles for moderator
-		public async Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(PaginationReqDto page)
+		public async Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(GenericQueryModel page)
 		{
 			// Get paged data from repository
 			var (profilesItems, totalCount) = await _unitOfWork.DriverProfiles.GetPagedAsync(

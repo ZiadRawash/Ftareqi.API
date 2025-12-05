@@ -1,5 +1,6 @@
 using DripOut.Application.Common.Settings;
 using FluentValidation;
+using Ftareqi.API.Configurations;
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Settings;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
@@ -30,7 +31,7 @@ namespace Ftareqi.API
 {
 	public class Program
 	{
-		public static void Main(string[] args)
+		public static async Task Main(string[] args)
 		{
 			var builder = WebApplication.CreateBuilder(args);
 
@@ -142,7 +143,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
 			builder.Services.AddScoped<ICarImageUploadJob, CarImageUploadJob>();
-
+			builder.Services.AddScoped<IDriverStatusJob, DriverStatusJob>();
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -209,7 +210,7 @@ namespace Ftareqi.API
 			}
 
 			app.UseHangfireDashboard("/hangfire"); // Dashboard enabled
-
+			await BackgroundJobsConfig.RegisterJobs(app);
 			app.UseHttpsRedirection();
 
 			app.UseRouting();
@@ -223,8 +224,11 @@ namespace Ftareqi.API
 
 			try
 			{
+
 				Log.Information("Starting Ftareqi web application");
-				app.Run();
+				Log.Information("time rn {DateTime}", DateTime.UtcNow);
+
+				await app.RunAsync();
 			}
 			catch (Exception ex)
 			{

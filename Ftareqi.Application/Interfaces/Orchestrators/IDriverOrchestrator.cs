@@ -14,7 +14,7 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 	{
 		Task<Result<DriverProfileResponseDto>> CreateDriverProfileAsync(DriverProfileCreateDto driverDto);
 		Task<Result<CarResponseDto>> CreateCarForDriverProfile(CarCreateDto carDto);
-		Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(PaginationReqDto page);
+		Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(GenericQueryModel page);
 		Task<Result<DriverWithCarResponseDto>> GetDriverProfileDetails(int driverProfileId);
 		Task<Result> ApproveDriverProfile(int profileId);
 		Task<Result> RejectDriverProfile(int profileId);

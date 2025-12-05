@@ -11,16 +11,13 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 	public class HangfireBackgroundJobService : IBackgroundJobService
 	{
 		private readonly IBackgroundJobClient _hangfireClient;
-		private readonly IRecurringJobManager _recurringJobManager;
 		private readonly ILogger<HangfireBackgroundJobService> _logger;
 
 		public HangfireBackgroundJobService(
 			IBackgroundJobClient hangfireClient,
-			IRecurringJobManager recurringJobManager,
 			ILogger<HangfireBackgroundJobService> logger)
 		{
 			_hangfireClient = hangfireClient;
-			_recurringJobManager = recurringJobManager;
 			_logger = logger;
 		}
 
@@ -38,18 +35,6 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 				jobId, typeof(T).Name, delay);
 			return Task.FromResult(jobId);
 		}
-
-		public Task AddOrUpdateRecurringJobAsync<T>(
-			string jobId,
-			Expression<Func<T, Task>> methodCall,
-			string cronExpression)
-		{
-			_recurringJobManager.AddOrUpdate(jobId, methodCall, cronExpression);
-			_logger.LogInformation("Recurring job {jobId} added/updated with cron: {cron}",
-				jobId, cronExpression);
-			return Task.CompletedTask;
-		}
-
 		public Task<bool> DeleteJobAsync(string jobId)
 		{
 			var result = _hangfireClient.Delete(jobId);

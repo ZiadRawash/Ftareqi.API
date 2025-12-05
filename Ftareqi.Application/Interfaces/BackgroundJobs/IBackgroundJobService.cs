@@ -24,14 +24,6 @@ namespace Ftareqi.Application.Interfaces.Services
 		/// <summary>
 		/// Schedule a recurring job
 		/// </summary>
-		Task AddOrUpdateRecurringJobAsync<T>(
-			string jobId,
-			Expression<Func<T, Task>> methodCall,
-			string cronExpression);
-
-		/// <summary>
-		/// Delete a job
-		/// </summary>
 		Task<bool> DeleteJobAsync(string jobId);
 	}
 }

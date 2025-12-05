@@ -27,7 +27,11 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 		{
 
 			var dateRN = DateTime.UtcNow.AddDays(1);
-			var	varProfilesFound= await _unitOfWork.DriverProfiles.FindAllAsTrackingAsync(x => x.LicenseExpiryDate<=dateRN);
+			var varProfilesFound = await _unitOfWork.DriverProfiles.FindAllAsTrackingAsync(
+				dp => dp.LicenseExpiryDate <= dateRN
+				   || (dp.Car != null && dp.Car.LicenseExpiryDate <= dateRN),
+				x => x.Car!
+			);
 			foreach (var profile  in varProfilesFound)
 			{
 				profile.Status = DriverStatus.Expired;

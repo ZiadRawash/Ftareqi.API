@@ -72,7 +72,6 @@ namespace Ftareqi.Infrastructure.Implementation
 			}
 		}
 
-
 		public async Task<Result> AddRolesAsync(string userId, IEnumerable<string> roles)
 		{
 			if (string.IsNullOrWhiteSpace(userId))
@@ -164,7 +163,6 @@ namespace Ftareqi.Infrastructure.Implementation
 				_logger.LogWarning("GetUserRolesAsync failed: user {UserId} not found.", userId);
 				return Result<IEnumerable<string>>.Failure("User not found.");
 			}
-
 			try
 			{
 				var roles = await _userManager.GetRolesAsync(user);
@@ -177,7 +175,6 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<IEnumerable<string>>.Failure("An error occurred while retrieving user roles.");
 			}
 		}
-
 		public async Task<Result> RemoveClaimAsync(string userId, string claimType)
 		{
 			if (string.IsNullOrWhiteSpace(userId))
@@ -224,6 +221,42 @@ namespace Ftareqi.Infrastructure.Implementation
 				_logger.LogError(ex, "Exception while removing claim {ClaimType} for user {UserId}.", claimType, userId);
 				return Result.Failure("An error occurred while removing the claim.");
 			}
+		}
+		public async Task<Result> RemoveRoleAsync(string userId, string role)
+		{
+			if (string.IsNullOrWhiteSpace(userId))
+			{
+				_logger.LogWarning("RemoveRoleAsync failed: empty userId.");
+				return Result.Failure("UserId is required.");
+			}
+
+			var user = await _userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				_logger.LogWarning("RemoveRoleAsync failed: user {UserId} not found.", userId);
+				return Result.Failure("User not found.");
+			}
+
+			var result = await _userManager.RemoveFromRoleAsync(user, role);
+
+			if (!result.Succeeded)
+			{
+				var errors = string.Join(" | ", result.Errors.Select(e => $"{e.Code}: {e.Description}"));
+				_logger.LogWarning(
+					"RemoveRoleAsync failed for user {UserId} and role {Role}. Errors: {Errors}",
+					userId,
+					role,
+					errors
+				);
+				return Result.Failure("Error happened while removing roles.");
+			}
+			_logger.LogInformation(
+				"Role {Role} removed successfully for user {UserId}.",
+				role,
+				userId
+			);
+
+			return Result.Success("Role removed successfully.");
 		}
 
 	}

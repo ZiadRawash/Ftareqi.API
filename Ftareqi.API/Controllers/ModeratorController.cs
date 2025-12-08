@@ -1,11 +1,13 @@
 ﻿using Ftareqi.Application.Common;
-using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.DriverRegistration;
 using Ftareqi.Application.Interfaces.Orchestrators;
+using Ftareqi.Domain.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Ftareqi.API.Controller
+namespace Ftareqi.API.Controllers
 {
+	[Authorize(Roles =Roles.Moderator)]
 	[Route("api/moderator/driver-requests")]
 	[ApiController]
 	public class ModeratorController : ControllerBase
@@ -18,8 +20,9 @@ namespace Ftareqi.API.Controller
 		}
 
 		// GET: api/moderator/driver-requests/pending
+		[Authorize]
 		[HttpGet("pending")]
-		public async Task<ActionResult<ApiResponse<PaginatedResponse<DriverProfileWithUsernameDto>>>> GetPendingProfiles([FromQuery] GenericQueryModel model)
+		public async Task<ActionResult<ApiResponse<PaginatedResponse<DriverProfileWithUsernameDto>>>> GetPendingProfiles([FromQuery] GenericQueryReq model)
 		{
 			if (!ModelState.IsValid)
 			{

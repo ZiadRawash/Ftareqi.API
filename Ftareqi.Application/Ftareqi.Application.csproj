@@ -19,8 +19,4 @@
     <ProjectReference Include="..\Ftareqi.Domain\Ftareqi.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="DTOs\Files\" />
-  </ItemGroup>
-
 </Project>

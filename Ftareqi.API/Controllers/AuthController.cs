@@ -4,14 +4,14 @@ using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Authentication;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Ftareqi.API.Controller
+namespace Ftareqi.API.Controllers
 {
-	[Route("api/auth")]
+	[Route("api/[controller]")]
 	[ApiController]
-	[Consumes("application/json")]
 	public class AuthController : ControllerBase
 	{
 		private readonly IValidator<RegisterRequestDto> _registerRequestDtoValidator;
@@ -31,6 +31,7 @@ namespace Ftareqi.API.Controller
 		/// <summary>
 		/// Registers a new user account
 		/// </summary>
+		[Authorize]
 		[HttpPost("register")]
 		public async Task<ActionResult<ApiResponse<UserIdDto>>> Register([FromBody] RegisterRequestDto model)
 		{

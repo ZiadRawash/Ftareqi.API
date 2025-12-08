@@ -21,7 +21,7 @@ namespace Ftareqi.Domain.Models
 		public bool IsDeleted { get; set; }
 
 		public int PenaltyCount { get; set; }
-		public ICollection<Image> Images { get; set; } = new List<Image>();
+		public Image? Image { get; set; }
 		public List<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 		public DriverProfile? DriverProfile { get; set; }
 	}

@@ -1,6 +1,5 @@
 ﻿using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
-using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.DriverRegistration;
 using System;
 using System.Collections.Generic;
@@ -14,7 +13,7 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 	{
 		Task<Result<DriverProfileResponseDto>> CreateDriverProfileAsync(DriverProfileCreateDto driverDto);
 		Task<Result<CarResponseDto>> CreateCarForDriverProfile(CarCreateDto carDto);
-		Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(GenericQueryModel page);
+		Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(GenericQueryReq page);
 		Task<Result<DriverWithCarResponseDto>> GetDriverProfileDetails(int driverProfileId);
 		Task<Result> ApproveDriverProfile(int profileId);
 		Task<Result> RejectDriverProfile(int profileId);

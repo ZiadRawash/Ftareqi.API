@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Ftareqi.Persistence.Repositories
 {
@@ -59,6 +60,17 @@ namespace Ftareqi.Persistence.Repositories
 		public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
 		{
 			return await _context.Set<T>().FirstOrDefaultAsync(predicate);
+		}
+		public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, params Expression<Func<T, object>>[] includes)
+		{
+			IQueryable<T> query = _dbSet.Where(predicate);
+			if (query == null)
+				return null;
+			if (includes.Any() || includes != null)
+			{
+				query = includes.Aggregate(query, (current, include) => current.Include(include));
+			}
+			return await query.FirstOrDefaultAsync();
 		}
 
 		public async Task<T?> FirstOrDefaultAsNoTrackingAsync(Expression<Func<T, bool>> predicate)
@@ -147,6 +159,7 @@ namespace Ftareqi.Persistence.Repositories
 
 			return (items, totalCount);
 		}
+
 		public void Update(T entity)
 		{
 			_dbSet.Update(entity);

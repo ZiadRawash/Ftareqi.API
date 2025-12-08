@@ -6,15 +6,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ftareqi.Application.DTOs
+namespace Ftareqi.Application.Common
 {
-	public class GenericQueryModel
+	public class GenericQueryReq
 	{
-		[Range(1, int.MaxValue, ErrorMessage = "Page must be at least 1.")]
+		[Range(1, int.MaxValue)]
 		public int Page { get; set; } = 1;
 
-		[Range(1, 100, ErrorMessage = "PageSize must be between 0 and 100.")]
-		public int PageSize { get; set; }
+		[Range(1, 100)]
+		public int PageSize { get; set; } = 10;
+
 		public bool SortDescending { get; set; } = false;
 	}
 }

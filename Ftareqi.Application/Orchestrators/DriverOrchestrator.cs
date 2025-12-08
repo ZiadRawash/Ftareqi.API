@@ -1,7 +1,6 @@
 ﻿using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.Common.Results;
-using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.BackgroundJobs;
 using Ftareqi.Application.DTOs.DriverRegistration;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
@@ -187,7 +186,7 @@ namespace Ftareqi.Application.Orchestrators
 			}
 		}
 		// Get pending profiles for moderator
-		public async Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(GenericQueryModel page)
+		public async Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(GenericQueryReq page)
 		{
 			// Get paged data from repository
 			var (profilesItems, totalCount) = await _unitOfWork.DriverProfiles.GetPagedAsync(

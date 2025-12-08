@@ -1,7 +1,7 @@
 using DripOut.Application.Common.Settings;
 using FluentValidation;
-using Ftareqi.API.Configurations;
 using Ftareqi.Application.Common;
+using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.Common.Settings;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Orchestrators;
@@ -18,6 +18,7 @@ using Ftareqi.Persistence.Repositories;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,93 +27,53 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Reflection;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace Ftareqi.API
 {
 	public class Program
 	{
-		public static async Task Main(string[] args)
+		public static void Main(string[] args)
 		{
 			var builder = WebApplication.CreateBuilder(args);
 
 			// ---------------------
-			// Serilog
+			// Logging (Serilog)
 			// ---------------------
 			builder.Host.UseSerilog((context, services, configuration) =>
 				configuration.ReadFrom.Configuration(context.Configuration)
 							 .ReadFrom.Services(services));
 
+			// ---------------------
+			// MVC & Controllers
+			// ---------------------
+			builder.Services.AddControllers()
+				.AddJsonOptions(options =>
+				{
+					options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+				});
+
+			// Suppress default model state validation to use FluentValidation or custom handling
 			builder.Services.Configure<ApiBehaviorOptions>(o =>
 			{
 				o.SuppressModelStateInvalidFilter = true;
 			});
 
 			// ---------------------
-			// JWT Settings
+			// Settings & Configuration
 			// ---------------------
 			var jwtSettings = builder.Configuration.GetSection("JWTSettings").Get<JWTSettings>();
 			builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
-
 			builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 			// ---------------------
-			// Authentication
-			// ---------------------
-			builder.Services.AddAuthentication(options =>
-			{
-				options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-				options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-			})
-			.AddJwtBearer(options =>
-			{
-				options.SaveToken = true;
-				options.RequireHttpsMetadata = false;
-				options.TokenValidationParameters = new TokenValidationParameters
-				{
-					ValidateIssuer = true,
-					ValidateAudience = true,
-					ValidateLifetime = true,
-					ValidateIssuerSigningKey = true,
-					ValidIssuer = jwtSettings!.Issuer,
-					ValidAudience = jwtSettings.Audience,
-					IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SignInKey!)),
-					ClockSkew = TimeSpan.Zero
-				};
-			});
-
-			// ---------------------
-			// Hangfire 
-			// ---------------------
-			builder.Services.AddHangfire(config =>
-			{
-				config.UseSqlServerStorage(
-					builder.Configuration.GetConnectionString("HangfireConnection"));
-			});
-
-			// Enable Hangfire server inside the API
-			builder.Services.AddHangfireServer();
-
-			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
-			builder.Services.AddScoped<IDriverImageUploadJob, DriverImageUploadJob>();
-
-			// ---------------------
-			// Authorization
-			// ---------------------
-			builder.Services.AddAuthorization();
-
-			builder.Services.AddExceptionHandler<GlobalErrorHandler>();
-			builder.Services.AddProblemDetails();
-
-			builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestDtoValidator>();
-
-			// ---------------------
-			// DbContext
+			// Database Context
 			// ---------------------
 			builder.Services.AddDbContext<ApplicationDbContext>(options =>
 				options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 			// ---------------------
-			// Identity
+			// Identity & Authentication
 			// ---------------------
 			builder.Services.AddIdentity<User, IdentityRole>(options =>
 			{
@@ -128,27 +89,103 @@ namespace Ftareqi.API
 			.AddEntityFrameworkStores<ApplicationDbContext>()
 			.AddDefaultTokenProviders();
 
+			builder.Services.AddAuthentication(options =>
+			{
+				options.DefaultAuthenticateScheme =
+				options.DefaultChallengeScheme =
+				options.DefaultForbidScheme =
+				options.DefaultScheme =
+				options.DefaultSignInScheme =
+				options.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
+			})
+			.AddJwtBearer(options =>
+			{
+				options.RequireHttpsMetadata = true;
+				options.SaveToken = true;
+				options.TokenValidationParameters = new TokenValidationParameters
+				{
+					ValidateIssuer = true,
+					ValidIssuer = builder.Configuration["JWTSettings:Issuer"],
+					ValidateAudience = true,
+					ValidAudience = builder.Configuration["JWTSettings:Audience"],
+					ValidateIssuerSigningKey = true,
+					IssuerSigningKey = new SymmetricSecurityKey(
+						System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:SignInKey"]!)
+					),
+					ValidateLifetime = true,
+					ClockSkew = TimeSpan.Zero
+				};
+			});
+
+			// ---------------------
+			// Background Jobs (Hangfire)
+			// ---------------------
+			builder.Services.AddHangfire(config =>
+			{
+				config.UseSqlServerStorage(
+					builder.Configuration.GetConnectionString("HangfireConnection"));
+			});
+
+			// Enable Hangfire server inside the API
+			builder.Services.AddHangfireServer();
+
+			// ---------------------
+			// Validators, Exception Handling, CORS
+			// ---------------------
+			builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestDtoValidator>();
+
+			// The custom exception handler 
+			builder.Services.AddExceptionHandler<GlobalErrorHandler>(); 
+			builder.Services.AddProblemDetails();
+
+			builder.Services.AddCors(options =>
+			{
+				options.AddPolicy("_myAllowedOrigins", policy =>
+				{
+					policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+				});
+			});
+
+
+			// ---------------------
+			// Application Services (Repositories, Services, Orchestrators, Jobs)
 			// ---------------------
 			// Services
-			// ---------------------
-			builder.Services.AddControllers();
-
 			builder.Services.AddScoped<ITokensService, TokensService>();
 			builder.Services.AddScoped<IUserService, UserService>();
-			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IOtpService, OtpService>();
 			builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 			builder.Services.AddScoped<IUserClaimsService, UserClaimsService>();
 			builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
+
+			// Orchestrators
+			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
+
+			// Background Job Implementations
+			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
+			builder.Services.AddScoped<IDriverImageUploadJob, DriverImageUploadJob>();
 			builder.Services.AddScoped<ICarImageUploadJob, CarImageUploadJob>();
-			builder.Services.AddScoped<IDriverStatusJob, DriverStatusJob>();
+
+			// Repositories & UoW
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+
+
+			//Customed policies 
+			builder.Services.AddAuthorization(options =>
+			{
+				options.AddPolicy("DriverOnly", policy =>
+				{
+					policy.RequireClaim(CustomClaimTypes.IsDriver, CustomClaimTypes.True);
+				});
+			});
+
+
 			// ---------------------
-			// Swagger
+			// Swagger/OpenAPI
 			// ---------------------
 			builder.Services.AddEndpointsApiExplorer();
 			builder.Services.AddSwaggerGen(options =>
@@ -197,11 +234,12 @@ namespace Ftareqi.API
 				});
 			});
 
+
 			var app = builder.Build();
 
-			app.UseSerilogRequestLogging();
 
-			app.UseExceptionHandler();
+			// Serilog request logging should be early in the pipeline
+			app.UseSerilogRequestLogging();
 
 			if (app.Environment.IsDevelopment())
 			{
@@ -209,8 +247,10 @@ namespace Ftareqi.API
 				app.UseSwaggerUI();
 			}
 
-			app.UseHangfireDashboard("/hangfire"); // Dashboard enabled
-			await BackgroundJobsConfig.RegisterJobs(app);
+			 app.UseExceptionHandler(); 
+
+			app.UseHangfireDashboard("/hangfire");
+
 			app.UseHttpsRedirection();
 
 			app.UseRouting();
@@ -222,22 +262,7 @@ namespace Ftareqi.API
 
 			app.MapControllers();
 
-			try
-			{
-
-				Log.Information("Starting Ftareqi web application");
-				Log.Information("time rn {DateTime}", DateTime.UtcNow);
-
-				await app.RunAsync();
-			}
-			catch (Exception ex)
-			{
-				Log.Fatal(ex, "Ftareqi app terminated unexpectedly");
-			}
-			finally
-			{
-				Log.CloseAndFlush();
-			}
+			app.Run();
 		}
 	}
 }

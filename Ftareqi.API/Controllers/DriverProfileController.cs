@@ -32,7 +32,7 @@ namespace Ftareqi.API.Controllers
 		///	Creates Driver Profile
 		/// </summary>
 		[HttpPost("/api/users/{userId}/driver-profile")]
-		public async Task<IActionResult> CreateDriverProfile([FromRoute] string userId,[FromForm] DriverProfileReqDto request)
+		public async Task<ActionResult<ApiResponse>> CreateDriverProfile([FromRoute] string userId,[FromForm] DriverProfileReqDto request)
 		{
 			var validationResult = await _DriverProfileReqDtoValidator.ValidateAsync(request);
 			if (!validationResult.IsValid|| string.IsNullOrEmpty(userId))
@@ -46,14 +46,14 @@ namespace Ftareqi.API.Controllers
 			if (result.IsFailure)
 			{
 				
-				return BadRequest(new { errors = result.Errors });
+				return BadRequest(new ApiResponse {Errors = result.Errors ,Success=false , Message=result.Message });
 			}
 
-			return Ok(result.Data);
+			return Ok(new ApiResponse { Errors = result.Errors, Success = false, Message = result.Message });
 		}
 
 		[HttpPost("/api/users/{userId}/driver-profile/car")]
-		public async Task<IActionResult> AddCarToDriverProfile([FromRoute] string userId,[FromForm] CarReqDto request)
+		public async Task<ActionResult<ApiResponse>> AddCarToDriverProfile([FromRoute] string userId,[FromForm] CarReqDto request)
 		{
 			var validationResult = await _CarReqDtoValidatorValidator.ValidateAsync(request);
 			if (!validationResult.IsValid)
@@ -66,9 +66,9 @@ namespace Ftareqi.API.Controllers
 
 			if (result.IsFailure)
 			{	
-				return BadRequest(new { errors = result.Errors });
+				return BadRequest(new ApiResponse { Errors = result.Errors, Success = false, Message = result.Message });
 			}
-			return Ok(result.Data);
+			return Ok(new ApiResponse { Errors = result.Errors, Success = false, Message = result.Message });
 		}
 
 	}

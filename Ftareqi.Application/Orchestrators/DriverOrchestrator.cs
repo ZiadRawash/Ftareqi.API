@@ -44,14 +44,19 @@ namespace Ftareqi.Application.Orchestrators
 		{
 
 			// Validate user
-			var userfound = await _unitOfWork.Users.ExistsAsync(x => x.Id == driverDto.UserId);
-			if (userfound == false)
+	
+			
+			var user= await _unitOfWork.Users.FindAllAsNoTrackingAsync(x => x.Id == driverDto.UserId, x=>x.DriverProfile!);
+			if (user==null)
 			{
 				return Result<DriverProfileResponseDto>.Failure("User not found");
 			}
+			if (user.FirstOrDefault()!.DriverProfile!=null) {
+				return Result<DriverProfileResponseDto>.Failure("User already has a driver profile");
+			}
+
 			try
 			{
-				// Create driver profile
 				var driverProfile = new DriverProfile
 				{
 					UserId = driverDto.UserId,
@@ -105,14 +110,16 @@ namespace Ftareqi.Application.Orchestrators
 		public async Task<Result<CarResponseDto>> CreateCarForDriverProfile(CarCreateDto carDto)
 		{
 			//validate DriverProfile
-			var found = await _unitOfWork.DriverProfiles.FirstOrDefaultAsync(x => x.UserId == carDto.UserId);
+			var found = await _unitOfWork.DriverProfiles.FindAllAsNoTrackingAsync(x => x.UserId == carDto.UserId,x=>x.Car!);
 			if (found == null)
-				return Result<CarResponseDto>.Failure("UserProfile is null");
+				return Result<CarResponseDto>.Failure("UserProfile don't exist");
 			// create car itself
+			if (found.FirstOrDefault()!.Car != null)
+				return Result<CarResponseDto>.Failure("Driver profile already has a car");
 			var car = new Car
 			{
 				LicenseExpiryDate=carDto.LicenseExpiryDate,
-				DriverProfileId = found!.Id,
+				DriverProfileId = found.FirstOrDefault()!.Id,
 				Color = carDto.Color!,
 				Model = carDto.Model!,
 				Plate = carDto.Palette!,
@@ -124,7 +131,6 @@ namespace Ftareqi.Application.Orchestrators
 			_logger.LogInformation("Car{carid} Created successfully to driver profile{driver} ", car.Id, car.DriverProfile!.Id);
 
 			//ConvertPhotos
-			//-----------------------------------------------------------
 			var photsList = new List<(IFormFile File, ImageType Type)>
 			{
 				(carDto.CarPhoto!, ImageType.CarPhoto),

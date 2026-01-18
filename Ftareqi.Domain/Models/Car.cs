@@ -13,7 +13,7 @@ namespace Ftareqi.Domain.Models
 		public int Id { get; set; }	
 		public string Model { get; set; } = default!;
 		public string Color { get; set; } = default!;
-		public string palette { get; set; } = default!;
+		public string Plate { get; set; } = default!;
 		public int NumOfSeats { get; set; }
 		public bool IsDeleted { get; set; }
 		public DateTime CreatedAt { get; set; }= DateTime.UtcNow;

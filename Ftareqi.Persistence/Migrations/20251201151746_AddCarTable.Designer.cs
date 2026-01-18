@@ -56,7 +56,7 @@ namespace Ftareqi.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("palette")
+                    b.Property<string>("Plate")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

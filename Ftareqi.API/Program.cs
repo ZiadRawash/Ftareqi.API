@@ -162,6 +162,8 @@ namespace Ftareqi.API
 			// Orchestrators
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
+			builder.Services.AddScoped<IUserOrchestrator, UserOrchestrator>();
+
 
 			// Background Job Implementations
 			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();

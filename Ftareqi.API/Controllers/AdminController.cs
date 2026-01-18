@@ -14,7 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ftareqi.API.Controllers
 {
-	[Authorize(Roles =Roles.Admin)]
+	[Authorize(Roles = Roles.Admin)]
 	[Route("api/admin/")]
 	[ApiController]
 	public class AdminController : ControllerBase

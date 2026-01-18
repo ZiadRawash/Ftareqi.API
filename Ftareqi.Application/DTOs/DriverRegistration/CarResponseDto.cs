@@ -12,7 +12,7 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 		public int DriverProfileId { get; set; }
 		public int NumOfSeats { get; set; }
 		public string? Model { get; set; }
-		public string? palette { get; set; }
+		public string? Plate { get; set; }
 		public string? Color { get; set; }
 		public DateTime CreatedAt { get; set; }
 		public DateTime LicenseExpiryDate { get; set; }

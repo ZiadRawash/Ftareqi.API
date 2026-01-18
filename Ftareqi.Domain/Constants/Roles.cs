@@ -8,8 +8,8 @@ namespace Ftareqi.Domain.Constants
 {
 	public static class Roles
 	{
-		public const string User = "user";
-		public const string Admin = "admin";
-		public const string Moderator = "moderator";
+		public const string User = "User";
+		public const string Admin = "Admin";
+		public const string Moderator = "Moderator";
 	}
 }

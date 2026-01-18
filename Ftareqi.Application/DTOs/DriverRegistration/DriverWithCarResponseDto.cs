@@ -23,7 +23,7 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 		//car 
 		public string Model { get; set; } = default!;
 		public string? Color { get; set; } = default!;
-		public string? palette { get; set; } = default!;
+		public string? Plate { get; set; } = default!;
 		public int NumOfSeats { get; set; }
 		public string? CarPhoto { get; set; }
 		public string? CarLicenseFront { get; set; }

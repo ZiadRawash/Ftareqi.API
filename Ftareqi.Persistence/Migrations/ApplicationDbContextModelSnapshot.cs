@@ -53,12 +53,12 @@ namespace Ftareqi.Persistence.Migrations
                     b.Property<int>("NumOfSeats")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("palette")
+                    b.Property<string>("Plate")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -325,7 +325,7 @@ namespace Ftareqi.Persistence.Migrations
                             PasswordHash = "AQAAAAIAAYagAAAAELdvbbsNSTpjlcUQ5MZpRUQ5N2Bg93tunei18Crmhcqe3/dZJz5UIr9TK/4BXLuyUg==",
                             PenaltyCount = 0,
                             PhoneNumber = "+200000000000",
-                            PhoneNumberConfirmed = false,
+                            PhoneNumberConfirmed = true,
                             SecurityStamp = "44444444-aaaa-bbbb-cccc-444444444444",
                             TwoFactorEnabled = false,
                             UserName = "admin@ftareqi.com"

@@ -1,7 +1,6 @@
 ﻿using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.Common.Results;
-using Ftareqi.Application.DTOs.BackgroundJobs;
 using Ftareqi.Application.DTOs.DriverRegistration;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Orchestrators;
@@ -10,24 +9,13 @@ using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Mappers;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
-using Hangfire.Common;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using static System.Net.WebRequestMethods;
+
 
 namespace Ftareqi.Application.Orchestrators
 {
-	/// <summary>
-	/// Orchestrator in Application Layer
-	/// Depends only on INTERFACES, not concrete implementations
-	/// </summary>
+
 	public class DriverOrchestrator : IDriverOrchestrator
 	{
 		private readonly IFileMapper _fileMapper;
@@ -127,7 +115,7 @@ namespace Ftareqi.Application.Orchestrators
 				DriverProfileId = found!.Id,
 				Color = carDto.Color!,
 				Model = carDto.Model!,
-				palette = carDto.Palette!,
+				Plate = carDto.Palette!,
 				NumOfSeats = carDto.NumOfSeats,
 				CreatedAt = DateTime.UtcNow,
 			};
@@ -158,7 +146,7 @@ namespace Ftareqi.Application.Orchestrators
 				Model = car.Model!,
 				DriverProfileId = car.DriverProfileId!,
 				NumOfSeats = car.NumOfSeats,
-				palette = car.palette!,
+				Plate = car.Plate!,
 				LicenseExpiryDate= car.LicenseExpiryDate!,
 			};
 			return Result<CarResponseDto>.Success(response);

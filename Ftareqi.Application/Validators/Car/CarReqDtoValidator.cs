@@ -15,7 +15,7 @@ namespace Ftareqi.Application.Validators.Car
 				.GreaterThan(0).WithMessage("Seats must be greater than 0.")
 				.LessThanOrEqualTo(5).WithMessage("Maximum allowed seats is 5.");
 
-			RuleFor(x => x.palette)
+			RuleFor(x => x.Plate)
 				.NotEmpty().WithMessage("Plate number is required.")
 				.MinimumLength(3).WithMessage("Plate number is too short.")
 				.MaximumLength(15).WithMessage("Plate number is too long.");

@@ -13,7 +13,7 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 	{
 		public string? Model { get; set; } 
 		public string? Color { get; set; } = default!;
-		public string? palette { get; set; } = default!;
+		public string? Plate { get; set; } = default!;
 		public DateTime LicenseExpiryDate { get; set; }
 		public int NumOfSeats { get; set; }
 		public IFormFile? CarPhoto { get; set; }

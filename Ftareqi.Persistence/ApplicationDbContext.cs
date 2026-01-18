@@ -63,7 +63,7 @@ namespace Ftareqi.Persistence
 					IsDeleted = false,
 
 					PhoneNumber = "+200000000000",
-					PhoneNumberConfirmed = false,
+					PhoneNumberConfirmed = true,
 					TwoFactorEnabled = false,
 
 					PasswordHash = "AQAAAAIAAYagAAAAELdvbbsNSTpjlcUQ5MZpRUQ5N2Bg93tunei18Crmhcqe3/dZJz5UIr9TK/4BXLuyUg==",

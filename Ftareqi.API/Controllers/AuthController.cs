@@ -31,7 +31,6 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Registers a new user account
 		/// </summary>
-		[Authorize]
 		[HttpPost("register")]
 		public async Task<ActionResult<ApiResponse<UserIdDto>>> Register([FromBody] RegisterRequestDto model)
 		{

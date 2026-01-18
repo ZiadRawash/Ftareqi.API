@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ftareqi.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251201194608_AddModeratorRoleAndSeededAdmin")]
-    partial class AddModeratorRoleAndSeededAdmin
+    [Migration("20260118154912_rename")]
+    partial class rename
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -46,6 +46,9 @@ namespace Ftareqi.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime>("LicenseExpiryDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Model")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -53,16 +56,17 @@ namespace Ftareqi.Persistence.Migrations
                     b.Property<int>("NumOfSeats")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Plate")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("DriverProfileId");
+                    b.HasIndex("DriverProfileId")
+                        .IsUnique();
 
                     b.ToTable("Car");
                 });
@@ -142,7 +146,9 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("DriverProfileId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
 
                     b.ToTable("Image");
                 });
@@ -322,7 +328,7 @@ namespace Ftareqi.Persistence.Migrations
                             PasswordHash = "AQAAAAIAAYagAAAAELdvbbsNSTpjlcUQ5MZpRUQ5N2Bg93tunei18Crmhcqe3/dZJz5UIr9TK/4BXLuyUg==",
                             PenaltyCount = 0,
                             PhoneNumber = "+200000000000",
-                            PhoneNumberConfirmed = false,
+                            PhoneNumberConfirmed = true,
                             SecurityStamp = "44444444-aaaa-bbbb-cccc-444444444444",
                             TwoFactorEnabled = false,
                             UserName = "admin@ftareqi.com"
@@ -495,8 +501,8 @@ namespace Ftareqi.Persistence.Migrations
             modelBuilder.Entity("Ftareqi.Domain.Models.Car", b =>
                 {
                     b.HasOne("Ftareqi.Domain.Models.DriverProfile", "DriverProfile")
-                        .WithMany()
-                        .HasForeignKey("DriverProfileId")
+                        .WithOne("Car")
+                        .HasForeignKey("Ftareqi.Domain.Models.Car", "DriverProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -525,8 +531,8 @@ namespace Ftareqi.Persistence.Migrations
                         .HasForeignKey("DriverProfileId");
 
                     b.HasOne("Ftareqi.Domain.Models.User", "User")
-                        .WithMany("Images")
-                        .HasForeignKey("UserId");
+                        .WithOne("Image")
+                        .HasForeignKey("Ftareqi.Domain.Models.Image", "UserId");
 
                     b.Navigation("Car");
 
@@ -615,6 +621,8 @@ namespace Ftareqi.Persistence.Migrations
 
             modelBuilder.Entity("Ftareqi.Domain.Models.DriverProfile", b =>
                 {
+                    b.Navigation("Car");
+
                     b.Navigation("Images");
                 });
 
@@ -622,7 +630,7 @@ namespace Ftareqi.Persistence.Migrations
                 {
                     b.Navigation("DriverProfile");
 
-                    b.Navigation("Images");
+                    b.Navigation("Image");
 
                     b.Navigation("RefreshTokens");
                 });

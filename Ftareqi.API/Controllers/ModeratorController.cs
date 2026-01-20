@@ -49,9 +49,9 @@ namespace Ftareqi.API.Controllers
 			});
 		}
 
-		// GET: api/moderator/driver-requests/{driverId}
-		[HttpGet("{driverId}")]
-		public async Task<ActionResult<ApiResponse<DriverWithCarResponseDto>>> GetDriverDetails([FromRoute] int driverId)
+		// GET: api/moderator/driver-requests/{userId}
+		[HttpGet("{userId}")]
+		public async Task<ActionResult<ApiResponse<DriverWithCarResponseDto>>> GetDriverDetails([FromRoute] string userId)
 		{
 			if (!ModelState.IsValid)
 			{
@@ -68,7 +68,7 @@ namespace Ftareqi.API.Controllers
 				});
 			}
 
-			var response = await _driverOrchestrator.GetDriverProfileDetails(driverId);
+			var response = await _driverOrchestrator.GetDriverProfileDetails(userId);
 			if (response.IsFailure)
 			{
 				return BadRequest(new ApiResponse<DriverWithCarResponseDto>

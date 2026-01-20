@@ -169,6 +169,8 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
 			builder.Services.AddScoped<IDriverImageUploadJob, DriverImageUploadJob>();
 			builder.Services.AddScoped<ICarImageUploadJob, CarImageUploadJob>();
+			builder.Services.AddScoped<ICarImageDeleteJob, CarImageDeleteJob>();
+			builder.Services.AddScoped<IDriverImageDeleteJob, DriverImageDeleteJob>();
 
 			// Repositories & UoW
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));

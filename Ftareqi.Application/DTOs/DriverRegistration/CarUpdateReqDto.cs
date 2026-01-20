@@ -7,16 +7,17 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Application.DTOs.DriverRegistration
 {
-	public class CarCreateDto
+	public class CarUpdateReqDto
 	{
-		public string? UserId { get; set; }
+		public string? Color { get; set; }
 		public string? Model { get; set; }
-		public string? Color { get; set; } = default!;
-		public string? Plate { get; set; } = default!;
-		public int NumOfSeats { get; set; }
+		public string? Plate { get; set; }
+		public int? NumOfSeats { get; set; }
+		public DateTime? LicenseExpiryDate { get; set; }
 		public IFormFile? CarPhoto { get; set; }
-		public IFormFile? CarLicenseFront { get; set; }
 		public IFormFile? CarLicenseBack { get; set; }
-		public DateTime LicenseExpiryDate {  get; set; }
+		public IFormFile? CarLicenseFront { get; set; }
 	}
+
+
 }

@@ -8,7 +8,7 @@ namespace Ftareqi.Domain.Enums
 {
 	public enum ImageType
 	{
-		UserProfile,
+		UserProfile,//0
 		DriverProfilePhoto,
 		DriverLicenseFront,
 		DriverLicenseBack,

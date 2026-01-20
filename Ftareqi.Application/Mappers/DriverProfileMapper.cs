@@ -30,7 +30,7 @@ namespace Ftareqi.Application.Mappers
 				UserId = userId,
 				Model = dto.Model,
 				Color = dto.Color,
-				Palette = dto.Plate,
+				Plate = dto.Plate,
 				NumOfSeats = dto.NumOfSeats,
 				CarPhoto = dto.CarPhoto,
 				CarLicenseFront = dto.CarLicenseFront,
@@ -70,6 +70,32 @@ namespace Ftareqi.Application.Mappers
 		private static string? GetImageUrl(IEnumerable<Image>? images, ImageType type)
 		{
 			return images?.FirstOrDefault(i => i.Type == type)?.Url;
+		}
+		public static DriverProfileUpdateDto ToUpdateDto(this DriverProfileUpdateReqDto reqDto, string userId)
+		{
+			return new DriverProfileUpdateDto
+			{
+				UserId = userId,
+				LicenseExpiryDate = reqDto.LicenseExpiryDate,
+				DriverProfilePhoto = reqDto.DriverProfilePhoto,
+				DriverLicenseFront = reqDto.DriverLicenseFront,
+				DriverLicenseBack = reqDto.DriverLicenseBack
+			};
+		}
+		public static CarUpdateDto ToUpdateDto(this CarUpdateReqDto reqDto, string userId)
+		{
+			return new CarUpdateDto
+			{
+				UserId = userId,
+				Color = reqDto.Color,
+				Model = reqDto.Model,
+				Plate = reqDto.Plate,
+				NumOfSeats = reqDto.NumOfSeats,
+				LicenseExpiryDate = reqDto.LicenseExpiryDate,
+				CarPhoto = reqDto.CarPhoto,
+				CarLicenseBack = reqDto.CarLicenseBack,
+				CarLicenseFront = reqDto.CarLicenseFront
+			};
 		}
 	}
 

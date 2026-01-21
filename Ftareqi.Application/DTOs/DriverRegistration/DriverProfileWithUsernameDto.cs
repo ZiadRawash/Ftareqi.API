@@ -12,5 +12,6 @@ namespace Ftareqi.Application.DTOs.DriverRegistration
 		public string? FullName { get; set; }
 		public string? PhoneNumber { get; set; }
 		public  DateTime CreatedAt { get; set; }
+		public string ? DriverPhoto {  get; set; }
 	}
 }

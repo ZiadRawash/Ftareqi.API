@@ -3,6 +3,7 @@ using Ftareqi.Application.DTOs.Cloudinary;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
+using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
 using Hangfire;
 using Microsoft.Extensions.Logging;
@@ -32,11 +33,13 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 		[AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 30, 60, 120 })]
 		public async Task UploadCarImages(int carId, List<CloudinaryReqDto> images)
 		{
-			_logger.LogInformation("Starting image upload for car {CarId}", carId);
-
 			try
 			{
-				var car = await _unitOfWork.Cars.GetByIdAsync(carId);
+				var cars = await _unitOfWork.Cars.FindAllAsTrackingAsync(
+					x => x.Id == carId,
+					x => x.DriverProfile!);
+
+				var car = cars.FirstOrDefault();
 				if (car == null)
 				{
 					_logger.LogError("Car with ID {CarId} not found. Aborting upload.", carId);
@@ -46,14 +49,15 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 				var cloudinaryResult = await _cloudinaryService.UploadPhotosAsync(images);
 				if (cloudinaryResult.IsFailure)
 				{
-					_logger.LogWarning("Cloudinary upload failed for car {CarId}: {Errors}", carId, cloudinaryResult.Errors);
+					_logger.LogError("Cloudinary upload failed for car {CarId}: {Errors}",
+						carId, cloudinaryResult.Errors);
 					throw new Exception($"Cloudinary upload failed: {cloudinaryResult.Errors}");
 				}
+
 				var newImages = cloudinaryResult.Data!.Select(x => new Image
 				{
-					Car = car, 
+					Car = car,
 					CreatedAt = DateTime.UtcNow,
-					IsDeleted = false,
 					PublicId = x.deleteId!,
 					Type = x.ImageType,
 					Url = x.ImageUrl!
@@ -66,14 +70,20 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 				}
 
 				await _unitOfWork.Images.AddRangeAsync(newImages);
-				await _unitOfWork.SaveChangesAsync();
 
-				_logger.LogInformation("Successfully uploaded {Count} images for car {CarId}", newImages.Count, carId);
+				// Update driver profile status if needed
+				if (car.DriverProfile != null && car.DriverProfile.Status == DriverStatus.PendingImageUpload)
+				{
+					car.DriverProfile.Status = DriverStatus.Pending;
+					car.DriverProfile.UpdatedAt = DateTime.UtcNow;
+				}
+
+				await _unitOfWork.SaveChangesAsync();
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error uploading images for car {CarId}", carId);
-				throw; 
+				throw;
 			}
 		}
 	}

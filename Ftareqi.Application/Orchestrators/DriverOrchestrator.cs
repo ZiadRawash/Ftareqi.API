@@ -113,12 +113,14 @@ namespace Ftareqi.Application.Orchestrators
 		public async Task<Result<CarResponseDto>> CreateCarForDriverProfile(CarCreateDto carDto)
 		{
 			//validate DriverProfile
-			var found = await _unitOfWork.DriverProfiles.FindAllAsNoTrackingAsync(x => x.UserId == carDto.UserId,x=>x.Car!);
+			var found = await _unitOfWork.DriverProfiles.FindAllAsTrackingAsync(x => x.UserId == carDto.UserId,x=>x.Car!);
 			if (!found.Any())
 				return Result<CarResponseDto>.Failure("UserProfile don't exist");
 			// create car itself
 			if (found.FirstOrDefault()!.Car != null)
 				return Result<CarResponseDto>.Failure("Driver profile already has a car");
+			var driverProfile = found.FirstOrDefault()!;
+
 			var car = new Car
 			{
 				LicenseExpiryDate=carDto.LicenseExpiryDate,
@@ -129,6 +131,10 @@ namespace Ftareqi.Application.Orchestrators
 				NumOfSeats = carDto.NumOfSeats,
 				CreatedAt = DateTime.UtcNow,
 			};
+			driverProfile.Status = DriverStatus.PendingImageUpload;
+			driverProfile.UpdatedAt = DateTime.UtcNow;
+			_unitOfWork.DriverProfiles.Update(driverProfile);
+
 			await _unitOfWork.Cars.AddAsync(car);
 			await _unitOfWork.SaveChangesAsync();
 			_logger.LogInformation("Car{carid} Created successfully to driver profile", car.Id);
@@ -162,16 +168,20 @@ namespace Ftareqi.Application.Orchestrators
 		}
 
 		// Get details for driver profile
-		public async Task<Result<DriverWithCarResponseDto>> GetDriverProfileDetails(string UserId)
+		public async Task<Result<DriverWithCarResponseDto>> GetDriverProfileDetails(int driverId)
 		{
-			if (string.IsNullOrEmpty(UserId))
+			if (driverId<0)
 				return Result<DriverWithCarResponseDto>.Failure("Invalid driver profile id ");
 			try
 			{
-				var profile = await _unitOfWork.DriverProfiles.GetDriverProfilesWithCarAsync(x => x.Status == DriverStatus.Pending&& x.UserId == UserId);
+				var profile = await _unitOfWork.DriverProfiles.GetDriverProfilesWithCarAsync(x=> x.Id == driverId);
 				if (profile == null)
 				{
 					return Result<DriverWithCarResponseDto>.Failure("User Not Found");
+				}
+				if (profile.Status != DriverStatus.Pending)
+				{
+					return Result<DriverWithCarResponseDto>.Failure("User updating his profile");
 				}
 				var result = DriverProfileMapper.ToDto(profile);
 				return Result<DriverWithCarResponseDto>.Success(result);
@@ -192,7 +202,9 @@ namespace Ftareqi.Application.Orchestrators
 				x => x.CreatedAt,
 				x => x.Status == DriverStatus.Pending,
 				page.SortDescending,
-				x => x.User!);
+				x => x.User!,
+				x=>x.Images,
+				x=>x.Car!);
 
 			// Map to DTO
 			var results = profilesItems.Select(x => new DriverProfileWithUsernameDto
@@ -201,6 +213,10 @@ namespace Ftareqi.Application.Orchestrators
 				CreatedAt = x.CreatedAt,
 				PhoneNumber = x.User!.PhoneNumber,
 				FullName = x.User!.FullName,
+				DriverPhoto = x.Images
+			   .Where(img => img.Type == ImageType.DriverProfilePhoto)
+			   .Select(img => img.Url)
+			   .FirstOrDefault()
 			}).ToList();
 
 			// Calculate total pages

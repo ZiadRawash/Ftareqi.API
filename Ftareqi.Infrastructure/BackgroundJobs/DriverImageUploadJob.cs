@@ -50,7 +50,6 @@ public class DriverImageUploadJob : IDriverImageUploadJob
 				Url = img.ImageUrl!,
 				PublicId = img.deleteId!,
 				Type = img.ImageType,
-				IsDeleted = false,
 				CreatedAt = DateTime.UtcNow,
 				DriverProfileId = driverProfileId
 			}).ToList();

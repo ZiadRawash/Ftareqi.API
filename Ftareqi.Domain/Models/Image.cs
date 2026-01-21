@@ -15,7 +15,6 @@ namespace Ftareqi.Domain.Models
 		public string Url { get; set; } = default!;
 		public string PublicId { get; set; } = default!;
 		public ImageType Type { get; set; }
-		public bool IsDeleted { get; set; } = false;
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
 		public User? User { get; set; }

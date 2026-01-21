@@ -20,7 +20,7 @@ namespace Ftareqi.API.Controllers
 		}
 
 		// GET: api/moderator/driver-requests/pending
-		[Authorize]
+
 		[HttpGet("pending")]
 		public async Task<ActionResult<ApiResponse<PaginatedResponse<DriverProfileWithUsernameDto>>>> GetPendingProfiles([FromQuery] GenericQueryReq model)
 		{
@@ -50,8 +50,8 @@ namespace Ftareqi.API.Controllers
 		}
 
 		// GET: api/moderator/driver-requests/{userId}
-		[HttpGet("{userId}")]
-		public async Task<ActionResult<ApiResponse<DriverWithCarResponseDto>>> GetDriverDetails([FromRoute] string userId)
+		[HttpGet("{driverId}")]
+		public async Task<ActionResult<ApiResponse<DriverWithCarResponseDto>>> GetDriverDetails([FromRoute] int driverId)
 		{
 			if (!ModelState.IsValid)
 			{
@@ -68,7 +68,7 @@ namespace Ftareqi.API.Controllers
 				});
 			}
 
-			var response = await _driverOrchestrator.GetDriverProfileDetails(userId);
+			var response = await _driverOrchestrator.GetDriverProfileDetails(driverId);
 			if (response.IsFailure)
 			{
 				return BadRequest(new ApiResponse<DriverWithCarResponseDto>

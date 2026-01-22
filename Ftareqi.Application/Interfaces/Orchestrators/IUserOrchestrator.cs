@@ -12,7 +12,10 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 {
 	public interface IUserOrchestrator
 	{
-		 Task<Result<PaginatedResponse<UserDriveStatusDto>>> GetUserWithDriverStatus(UserQueryDto reqModel);
+		Task<Result<PaginatedResponse<UserDriveStatusDto>>> GetUserWithDriverStatus(UserQueryDto reqModel);
 		Task<Result<UserWithRolesDto>> GetUserDetails(string userId);
+
+		//Get User Profile 
+		Task<Result<ProfileResponseDto>> GetProfile(string userId);
 	}
 }

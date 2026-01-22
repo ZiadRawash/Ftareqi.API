@@ -68,7 +68,7 @@ namespace Ftareqi.API.Controllers
 				});
 			}
 
-			var response = await _driverOrchestrator.GetDriverProfileDetails(driverId);
+			var response = await _driverOrchestrator.GetDriverDetails(driverId);
 			if (response.IsFailure)
 			{
 				return BadRequest(new ApiResponse<DriverWithCarResponseDto>

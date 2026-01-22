@@ -67,24 +67,46 @@ namespace Ftareqi.Application.Orchestrators
 			);
 		}
 
-		public async Task<Result<UserWithRolesDto>>GetUserDetails(string userId)
+		public async Task<Result<UserWithRolesDto>> GetUserDetails(string userId)
 		{
-			
+
 			if (string.IsNullOrWhiteSpace(userId))
 				return Result<UserWithRolesDto>.Failure("UserId is required");
-			var user = await _unitOfWork.Users.FirstOrDefaultAsync(u=>u.Id==userId,u=>u.Image!);
-			if (user==null)
+			var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == userId, u => u.Image!);
+			if (user == null)
 				return Result<UserWithRolesDto>.Failure("User isn't found");
 
 			var roles = await _userClaimsService.GetUserRolesAsync(userId);
-			var returnResult = new UserWithRolesDto {
-				Id=user!.Id,
+			var returnResult = new UserWithRolesDto
+			{
+				Id = user!.Id,
 				Image = user.Image?.Url ?? null,
 				FullName = user!.FullName,
 				PhoneNumber = user!.PhoneNumber,
-				Roles= roles.Data!,
+				Roles = roles.Data!,
 			};
 			return Result<UserWithRolesDto>.Success(returnResult);
+		}
+
+		public async Task<Result<ProfileResponseDto>> GetProfile(string userId)
+		{
+			var user= await _unitOfWork.Users.FirstOrDefaultAsync(x=>x.Id==userId,x=>x.Image!,x=>x.DriverProfile!);
+			if (user == null)
+				return Result<ProfileResponseDto>.Failure("User not found");
+		
+			var profileResponse = new ProfileResponseDto
+			{
+				Id=user.Id,
+				CreatedAt = user.CreatedAt,
+				FullName = user.FullName,
+				PhoneNumber = user.PhoneNumber,
+				Gender = user.Gender,
+				UserImage = user.Image?.Url ?? null,
+				IsDriver= user.DriverProfile==null?false:true,
+				PhoneNumberConfirmed = user.PhoneNumberConfirmed,
+				DriverId= user.DriverProfile?.Id??null
+			};
+			return Result<ProfileResponseDto>.Success(profileResponse);
 		}
 	}
 }

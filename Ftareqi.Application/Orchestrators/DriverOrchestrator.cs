@@ -2,6 +2,7 @@
 using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.DriverRegistration;
+using Ftareqi.Application.DTOs.Profile;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
@@ -10,6 +11,7 @@ using Ftareqi.Application.Mappers;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 
 
@@ -168,7 +170,7 @@ namespace Ftareqi.Application.Orchestrators
 		}
 
 		// Get details for driver profile
-		public async Task<Result<DriverWithCarResponseDto>> GetDriverProfileDetails(int driverId)
+		public async Task<Result<DriverWithCarResponseDto>> GetDriverDetails(int driverId)
 		{
 			if (driverId<0)
 				return Result<DriverWithCarResponseDto>.Failure("Invalid driver profile id ");
@@ -192,6 +194,7 @@ namespace Ftareqi.Application.Orchestrators
 				return Result < DriverWithCarResponseDto>.Failure("Unexpected error happened");
 			}
 		}
+
 		// Get pending profiles for moderator
 		public async Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(GenericQueryReq page)
 		{
@@ -279,6 +282,8 @@ namespace Ftareqi.Application.Orchestrators
 
 			return Result.Success("Driver Profile rejected successfully and driver claims removed.");
 		}
+
+		//Update Driver Profile
 
 		public async Task<Result<DriverProfileResponseDto>> UpdateDriverProfileAsync(DriverProfileUpdateDto driverDto)
 		{
@@ -449,6 +454,7 @@ namespace Ftareqi.Application.Orchestrators
 			}
 		}
 
+		//Update car Profile
 
 		public async Task<Result<CarResponseDto>> UpdateCarAsync(CarUpdateDto carDto)
 		{
@@ -637,5 +643,68 @@ namespace Ftareqi.Application.Orchestrators
 				throw;
 			}
 		}
+
+		public async Task<Result<DriverProfileResponse>> GetDriverProfile(string id)
+		{
+			if (string.IsNullOrEmpty(id))
+				return Result<DriverProfileResponse>.Failure("No such id");
+			var driverProfile = await _unitOfWork.DriverProfiles.FirstOrDefaultAsync(x=>x.UserId == id, x=>x.Images);
+			if (driverProfile == null)
+			{
+				return Result<DriverProfileResponse>.Failure("Driver profile doesn't exist");
+			}
+			var images = driverProfile.Images;
+
+			var response = new DriverProfileResponse
+			{
+				Id=driverProfile.Id,
+				CreatedAt = driverProfile.CreatedAt,
+				Status = driverProfile.Status,
+				LicenseExpiryDate = driverProfile.LicenseExpiryDate,
+				DriverProfilePhoto = images?
+					.FirstOrDefault(x => x.Type == ImageType.DriverProfilePhoto)
+					?.Url,
+				DriverLicenseFront = images?
+					.FirstOrDefault(x => x.Type == ImageType.DriverLicenseFront)
+					?.Url,
+				DriverLicenseBack = images?
+					.FirstOrDefault(x => x.Type == ImageType.DriverLicenseBack)
+					?.Url
+			};
+			return Result<DriverProfileResponse>.Success(response);
+		}
+		public async Task<Result<CarProfileResponseDto>> GetCarByDriverProfileId(int driverProfileId)
+		{
+			var car = await _unitOfWork.Cars
+				.FirstOrDefaultAsync(x => x.DriverProfileId == driverProfileId, x => x.Images);
+
+			if (car == null)
+				return Result<CarProfileResponseDto>.Failure("Car not found for this driver");
+
+			var images = car.Images;
+
+			var response = new CarProfileResponseDto
+			{
+				Id = car.Id,
+				Model = car.Model,
+				Color = car.Color,
+				Plate = car.Plate,
+				NumOfSeats = car.NumOfSeats,
+				LicenseExpiryDate = car.LicenseExpiryDate,
+				CreatedAt = car.CreatedAt,
+				CarPhoto = images?
+					.FirstOrDefault(x => x.Type == ImageType.CarPhoto)
+					?.Url,
+				CarLicenseFront = images?
+					.FirstOrDefault(x => x.Type == ImageType.CarLicenseFront)
+					?.Url,
+				CarLicenseBack = images?
+					.FirstOrDefault(x => x.Type == ImageType.CarLicenseBack)
+					?.Url
+			};
+
+			return Result<CarProfileResponseDto>.Success(response);
+		}
+
 	}
 }

@@ -1,38 +1,61 @@
-﻿using CloudinaryDotNet.Actions;
-using Ftareqi.Application.DTOs.Cloudinary;
+﻿using Ftareqi.Application.DTOs.Cloudinary;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Enums;
-using Ftareqi.Domain.Models;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Ftareqi.Domain.Models;
 
 namespace Ftareqi.Infrastructure.BackgroundJobs
 {
-	public class CarImageUploadJob : ICarImageUploadJob
+	public class CarJobs : ICarJobs
 	{
 		private readonly ICloudinaryService _cloudinaryService;
 		private readonly IUnitOfWork _unitOfWork;
-		private readonly ILogger<CarImageUploadJob> _logger;
+		private readonly ILogger<CarJobs> _logger;
 
-		public CarImageUploadJob(
+		public CarJobs(
 			ICloudinaryService cloudinaryService,
 			IUnitOfWork unitOfWork,
-			ILogger<CarImageUploadJob> logger)
+			ILogger<CarJobs> logger)
 		{
 			_cloudinaryService = cloudinaryService;
 			_unitOfWork = unitOfWork;
 			_logger = logger;
 		}
 
-		[AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 30, 60, 120 })]
-		public async Task UploadCarImages(int carId, List<CloudinaryReqDto> images)
+		// Delete car images from Cloudinary
+		public async Task DeleteCarImagesAsync(List<string> publicIds)
 		{
+			_logger.LogInformation("Starting deletion of {Count} car images from Cloudinary", publicIds.Count());
+
+			var result = await _cloudinaryService.DeleteImagesAsync(publicIds);
+
+			if (result.IsFailure)
+			{
+				_logger.LogError("Failed to delete car images from Cloudinary: {Message}", result.Message);
+				throw new Exception($"Failed to delete car images: {result.Message}");
+			}
+
+			_logger.LogInformation("Successfully deleted car images from Cloudinary: {Message}", result.Message);
+		}
+
+		// Upload car images with automatic retry
+		[AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 30, 60, 120 })]
+		public async Task UploadCarImagesAsync(int carId, List<CloudinaryReqDto> images)
+		{
+			_logger.LogInformation("Starting image upload for car {CarId}", carId);
+
 			try
 			{
 				var cars = await _unitOfWork.Cars.FindAllAsTrackingAsync(
@@ -40,6 +63,7 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 					x => x.DriverProfile!);
 
 				var car = cars.FirstOrDefault();
+
 				if (car == null)
 				{
 					_logger.LogError("Car with ID {CarId} not found. Aborting upload.", carId);
@@ -47,6 +71,7 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 				}
 
 				var cloudinaryResult = await _cloudinaryService.UploadPhotosAsync(images);
+
 				if (cloudinaryResult.IsFailure)
 				{
 					_logger.LogError("Cloudinary upload failed for car {CarId}: {Errors}",
@@ -79,6 +104,11 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 				}
 
 				await _unitOfWork.SaveChangesAsync();
+
+				_logger.LogInformation(
+					"Successfully uploaded {Count} images for car {CarId}",
+					newImages.Count(),
+					carId);
 			}
 			catch (Exception ex)
 			{

@@ -1,12 +1,11 @@
-﻿
-using Ftareqi.Application.Interfaces.Services;
+﻿using Ftareqi.Application.Interfaces.Services;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
-namespace Ftareqi.Infrastructure.BackgroundJobs
+namespace Ftareqi.Infrastructure.Implementation
 {
 	public class HangfireBackgroundJobService : IBackgroundJobService
 	{

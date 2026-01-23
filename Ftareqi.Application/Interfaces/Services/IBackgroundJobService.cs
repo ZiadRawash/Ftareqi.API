@@ -1,5 +1,4 @@
-﻿// Ftareqi.Application/Interfaces/Services/IBackgroundJobService.cs
-using System;
+﻿using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 

@@ -151,8 +151,8 @@ namespace Ftareqi.Application.Orchestrators
 			};
 			var photosSerialized = _fileMapper.MapFilesWithTypes(photsList);
 			//create images 
-			var jobId = await _backgroundJobService.EnqueueAsync<ICarImageUploadJob>(
-				job => job.UploadCarImages(car.Id, photosSerialized));
+			var jobId = await _backgroundJobService.EnqueueAsync<ICarJobs>(
+				job => job.UploadCarImagesAsync(car.Id, photosSerialized));
 			_logger.LogInformation("Background job {jobId} queued for car {carid}", jobId, car.Id);
 
 			//return carDto
@@ -595,7 +595,7 @@ namespace Ftareqi.Application.Orchestrators
 					// Enqueue background job to delete old images from Cloudinary
 					if (oldImagePublicIds.Any())
 					{
-						var deleteJobId = await _backgroundJobService.EnqueueAsync<ICarImageDeleteJob>(
+						var deleteJobId = await _backgroundJobService.EnqueueAsync<ICarJobs>(
 							job => job.DeleteCarImagesAsync(oldImagePublicIds));
 
 						_logger.LogInformation("Background job {jobId} queued for deleting {count} car images from Cloudinary",
@@ -617,8 +617,8 @@ namespace Ftareqi.Application.Orchestrators
 					var photosSerialized = _fileMapper.MapFilesWithTypes(imagesToUpload);
 
 					// Enqueue background job for uploading new images
-					var uploadJobId = await _backgroundJobService.EnqueueAsync<ICarImageUploadJob>(
-						job => job.UploadCarImages(car.Id, photosSerialized));
+					var uploadJobId = await _backgroundJobService.EnqueueAsync<ICarJobs>(
+						job => job.UploadCarImagesAsync(car.Id, photosSerialized));
 
 					_logger.LogInformation("Background job {jobId} queued for uploading new car images to car {carId}",
 						uploadJobId, car.Id);

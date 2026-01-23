@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 
 
+
 namespace Ftareqi.Application.Orchestrators
 {
 
@@ -85,7 +86,7 @@ namespace Ftareqi.Application.Orchestrators
 
 
 
-				var jobId = await _backgroundJobService.EnqueueAsync<IDriverImageUploadJob>(
+				var jobId = await _backgroundJobService.EnqueueAsync<IDriverJobs>(
 					job => job.UploadDriverImagesAsync(
 						driverProfile.Id,
 						driverDto.UserId,
@@ -403,7 +404,7 @@ namespace Ftareqi.Application.Orchestrators
 					// Enqueue background job to delete old images from Cloudinary
 					if (oldImagePublicIds.Any())
 					{
-						var deleteJobId = await _backgroundJobService.EnqueueAsync<IDriverImageDeleteJob>(
+						var deleteJobId = await _backgroundJobService.EnqueueAsync<IDriverJobs>(
 							job => job.DeleteDriverImagesAsync(oldImagePublicIds));
 
 						_logger.LogInformation("Background job {jobId} queued for deleting {count} driver images from Cloudinary",
@@ -425,7 +426,7 @@ namespace Ftareqi.Application.Orchestrators
 					var photosSerialized = _fileMapper.MapFilesWithTypes(imagesToUpload);
 
 					// Enqueue background job for uploading new images
-					var uploadJobId = await _backgroundJobService.EnqueueAsync<IDriverImageUploadJob>(
+					var uploadJobId = await _backgroundJobService.EnqueueAsync<IDriverJobs>(
 						job => job.UploadDriverImagesAsync(
 							driverProfile.Id,
 							driverDto.UserId,

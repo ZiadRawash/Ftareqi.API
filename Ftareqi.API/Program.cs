@@ -1,5 +1,6 @@
 using DripOut.Application.Common.Settings;
 using FluentValidation;
+using Ftareqi.API.Configurations;
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.Common.Settings;
@@ -160,6 +161,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
 
 			// Orchestrators
+			builder.Services.AddScoped<DriverJobs>();
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
 			builder.Services.AddScoped<IUserOrchestrator, UserOrchestrator>();
@@ -167,10 +169,9 @@ namespace Ftareqi.API
 
 			// Background Job Implementations
 			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
-			builder.Services.AddScoped<IDriverImageUploadJob, DriverImageUploadJob>();
 			builder.Services.AddScoped<ICarImageUploadJob, CarImageUploadJob>();
 			builder.Services.AddScoped<ICarImageDeleteJob, CarImageDeleteJob>();
-			builder.Services.AddScoped<IDriverImageDeleteJob, DriverImageDeleteJob>();
+			builder.Services.AddScoped<IDriverJobs, DriverJobs>();
 
 			// Repositories & UoW
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
@@ -240,7 +241,7 @@ namespace Ftareqi.API
 
 
 			var app = builder.Build();
-
+			BackgroundJobsConfig.RegisterJobs(app);
 
 			// Serilog request logging should be early in the pipeline
 			app.UseSerilogRequestLogging();

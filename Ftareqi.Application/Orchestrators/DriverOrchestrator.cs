@@ -645,11 +645,11 @@ namespace Ftareqi.Application.Orchestrators
 			}
 		}
 
-		public async Task<Result<DriverProfileResponse>> GetDriverProfile(string id)
+		public async Task<Result<DriverProfileResponse>> GetDriverProfile(string userId)
 		{
-			if (string.IsNullOrEmpty(id))
+			if (string.IsNullOrEmpty(userId))
 				return Result<DriverProfileResponse>.Failure("No such id");
-			var driverProfile = await _unitOfWork.DriverProfiles.FirstOrDefaultAsync(x=>x.UserId == id, x=>x.Images);
+			var driverProfile = await _unitOfWork.DriverProfiles.FirstOrDefaultAsync(x=>x.UserId == userId, x=>x.Images);
 			if (driverProfile == null)
 			{
 				return Result<DriverProfileResponse>.Failure("Driver profile doesn't exist");
@@ -674,10 +674,19 @@ namespace Ftareqi.Application.Orchestrators
 			};
 			return Result<DriverProfileResponse>.Success(response);
 		}
-		public async Task<Result<CarProfileResponseDto>> GetCarByDriverProfileId(int driverProfileId)
+		public async Task<Result<CarProfileResponseDto>> GetCarProfile(string userId)
 		{
+			var driverProfile = await _unitOfWork.DriverProfiles
+					.FirstOrDefaultAsync(dp => dp.UserId == userId);
+			if (driverProfile == null)
+				return Result<CarProfileResponseDto>.Failure("Driver profile not found");
+
 			var car = await _unitOfWork.Cars
-				.FirstOrDefaultAsync(x => x.DriverProfileId == driverProfileId, x => x.Images);
+			.FirstOrDefaultAsync(
+				x => x.DriverProfileId == driverProfile.Id,
+				x => x.Images,
+				x => x.DriverProfile!
+			);
 
 			if (car == null)
 				return Result<CarProfileResponseDto>.Failure("Car not found for this driver");

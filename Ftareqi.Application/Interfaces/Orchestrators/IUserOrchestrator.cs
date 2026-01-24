@@ -1,5 +1,6 @@
 ﻿using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs.Profile;
 using Ftareqi.Application.DTOs.User;
 using Ftareqi.Application.QueryEnums;
 using System;
@@ -14,8 +15,8 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 	{
 		Task<Result<PaginatedResponse<UserDriveStatusDto>>> GetUserWithDriverStatus(UserQueryDto reqModel);
 		Task<Result<UserWithRolesDto>> GetUserDetails(string userId);
-
-		//Get User Profile 
 		Task<Result<ProfileResponseDto>> GetProfile(string userId);
+		Task<Result> UploadProfileImage(string userId, ProfileImageReqDto image);
+		Task<Result> UpdateProfileImage(string userId, ProfileImageReqDto imageDto);
 	}
 }

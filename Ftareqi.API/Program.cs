@@ -161,15 +161,17 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
 
 			// Orchestrators
-			builder.Services.AddScoped<DriverJobs>();
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
 			builder.Services.AddScoped<IUserOrchestrator, UserOrchestrator>();
 
 
 			// Background Job Implementations
+			builder.Services.AddScoped<DriverJobs>();
+
 			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
 			builder.Services.AddScoped<ICarJobs, CarJobs>();
+			builder.Services.AddScoped<IUserJobs, UserJobs>();
 			builder.Services.AddScoped<IDriverJobs, DriverJobs>();
 
 			// Repositories & UoW

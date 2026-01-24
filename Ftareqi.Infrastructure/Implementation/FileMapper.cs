@@ -5,19 +5,6 @@ using Microsoft.AspNetCore.Http;
 
 public class FileMapper : IFileMapper
 {
-    public List<CloudinaryReqDto> MapFilesWithTypes(List<IFormFile> files, List<ImageType> imageTypes)
-    {
-        if (files.Count != imageTypes.Count)
-            throw new ArgumentException("Number of files must match number of image types.");
-
-        var result = new List<CloudinaryReqDto>();
-
-        for (int i = 0; i < files.Count; i++)
-            result.Add(MapFile(files[i], imageTypes[i]));
-
-        return result;
-    }
-
     public CloudinaryReqDto MapFile(IFormFile file, ImageType imageType)
     {
         if (file == null)

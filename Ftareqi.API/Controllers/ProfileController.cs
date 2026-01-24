@@ -1,12 +1,13 @@
-﻿using Ftareqi.Application.Common;
+﻿using FluentValidation;
+using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.DTOs.Profile;
 using Ftareqi.Application.DTOs.User;
 using Ftareqi.Application.Interfaces.Orchestrators;
+using Ftareqi.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-
 namespace Ftareqi.API.Controllers
 {
 	[Route("api/[controller]")]
@@ -16,10 +17,12 @@ namespace Ftareqi.API.Controllers
 	{
 		private readonly IUserOrchestrator _userOrchestrator;
 		private readonly IDriverOrchestrator _driverOrchestrator;
-		public ProfileController(IUserOrchestrator userOrchestrator, IDriverOrchestrator driverOrchestrator)
+		private readonly IValidator<ProfileImageReqDto> _profileImageReqDtoValidator;
+		public ProfileController(IUserOrchestrator userOrchestrator, IDriverOrchestrator driverOrchestrator, IValidator<ProfileImageReqDto> ProfileImageReqDtoValidator)
 		{
 			_userOrchestrator = userOrchestrator;
 			_driverOrchestrator = driverOrchestrator;
+			_profileImageReqDtoValidator = ProfileImageReqDtoValidator;
 		}
 		[HttpGet()]
 		public async Task<ActionResult<ApiResponse<ProfileResponseDto>>> GetProfile()
@@ -40,13 +43,13 @@ namespace Ftareqi.API.Controllers
 				Errors = result.Errors,
 				Success = result.IsSuccess,
 				Message = result.Message,
-				Data= result.Data
+				Data = result.Data
 			});
 		}
 		[HttpGet("driver")]
 		public async Task<ActionResult<ApiResponse<DriverProfileResponse>>> GetDriverProfile()
 		{
-			var id = User.GetUserId();	
+			var id = User.GetUserId();
 			if (id == null)
 				return NotFound();
 			var result = await _driverOrchestrator.GetDriverProfile(id);
@@ -62,21 +65,18 @@ namespace Ftareqi.API.Controllers
 				Errors = result.Errors,
 				Success = result.IsSuccess,
 				Message = result.Message,
-				Data= result.Data
+				Data = result.Data
 			});
 		}
-		[HttpGet("car/{driverId}")]
+		[HttpGet("driver/car")]
 
-		public async Task<ActionResult<ApiResponse<CarProfileResponseDto>>> GetCarProfile([FromRoute] int driverId)
+		public async Task<ActionResult<ApiResponse<CarProfileResponseDto>>> GetCarProfile()
 		{
-			if (driverId <= 0)
-				return BadRequest(new ApiResponse
-				{
-					Message = "invalid input",
-					Errors = ["invalid input"],
-					Success = false
-				});
-			var car= await _driverOrchestrator.GetCarByDriverProfileId(driverId);
+			var id = User.GetUserId();
+			if (id == null)
+				return NotFound();
+
+			var car = await _driverOrchestrator.GetCarProfile(id);
 			if (car.IsFailure)
 				return BadRequest(new ApiResponse
 				{
@@ -90,8 +90,52 @@ namespace Ftareqi.API.Controllers
 				Success = car.IsSuccess,
 				Message = car.Message,
 				Data = car.Data
-			});		
+			});
+		}
+		[HttpPost("image")]
+		public async Task<ActionResult<ApiResponse>> UploadProfileImage([FromForm] ProfileImageReqDto imageReqDto)
+		{
+			var id = User.GetUserId();
+			if (id == null) return NotFound();
+
+			var response = new ApiResponse();
+			var validationResult = _profileImageReqDtoValidator.Validate(imageReqDto);
+
+			if (!validationResult.IsValid)
+			{
+				response.Message = "Validation Error";
+				response.Success = false;
+				response.Errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+				return BadRequest(response);
+			}
+
+			var result = await _userOrchestrator.UploadProfileImage(id, imageReqDto);
+
+			response.Message = result.Message;
+			response.Success = result.IsSuccess;
+			response.Errors = result.IsFailure ? result.Errors : null;
+
+			return result.IsSuccess ? Ok(response) : BadRequest(response);
 		}
 
+		[HttpPut("image")]
+		public async Task<ActionResult<ApiResponse>> UpdateProfileImage([FromForm] ProfileImageReqDto imageReqDto)
+		{
+			var id = User.GetUserId();
+			var response = new ApiResponse();
+			var validationResult = _profileImageReqDtoValidator.Validate(imageReqDto);
+			if (!validationResult.IsValid)
+			{
+				response.Message = "Validation Error";
+				response.Success = false;
+				response.Errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+				return BadRequest(response);
+			}
+			var result = await _userOrchestrator.UpdateProfileImage(id, imageReqDto);
+			response.Message = result.Message;
+			response.Success = result.IsSuccess;
+			response.Errors = result.IsFailure ? result.Errors : null;
+			return result.IsSuccess ? Ok(response) : BadRequest(response);
+		}
 	}
 }

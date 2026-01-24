@@ -20,8 +20,8 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		Task<Result> RejectDriverProfile(int profileId);
 		Task<Result<DriverProfileResponseDto>> UpdateDriverProfileAsync(DriverProfileUpdateDto driverDto);
 		Task<Result<CarResponseDto>> UpdateCarAsync(CarUpdateDto carDto);
-		Task<Result<DriverProfileResponse>> GetDriverProfile(string id);
-		Task<Result<CarProfileResponseDto>> GetCarByDriverProfileId(int driverProfileId);
+		Task<Result<DriverProfileResponse>> GetDriverProfile(string userId);
+		Task<Result<CarProfileResponseDto>> GetCarProfile(string userId);
 
 	}
 }

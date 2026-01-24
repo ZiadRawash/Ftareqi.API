@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ftareqi.API.Controllers
 {
-	[Authorize(Roles =Roles.Moderator)]
+	[Authorize(Roles = $"{Roles.Admin},{Roles.Moderator}")]
 	[Route("api/moderator/driver-requests")]
 	[ApiController]
 	public class ModeratorController : ControllerBase

@@ -19,6 +19,7 @@ namespace Ftareqi.Application.Orchestrators
 {
 	public class AuthOrchestrator : IAuthOrchestrator
 	{
+		private readonly IWalletService _walletService;
 		private readonly IUserService _userService;
 		private readonly ITokensService _tokensService;
 		private readonly IOtpService _otpService;
@@ -31,7 +32,8 @@ namespace Ftareqi.Application.Orchestrators
 			ILogger<AuthOrchestrator> logger,
 			IOtpService otpService,
 			IRefreshTokenService refreshTokenService,
-			IUserClaimsService userClaimsService)
+			IUserClaimsService userClaimsService,
+			IWalletService walletService)
 		{
 			_refreshTokenService = refreshTokenService;
 			_otpService = otpService;
@@ -39,6 +41,7 @@ namespace Ftareqi.Application.Orchestrators
 			_tokensService = tokensService;
 			_userClaimsService = userClaimsService;
 			_logger = logger;
+			_walletService = walletService;
 		}
 
 		//  helper method to generate tokens for a user
@@ -198,7 +201,7 @@ namespace Ftareqi.Application.Orchestrators
 				_logger.LogWarning("Failed to send OTP for user {UserId}: {Error}", userId, otpResult.Errors.ToString());
 				return Result<string>.Failure(otpResult.Errors);
 			}
-
+		     await _walletService.CreateWalletAsync(userId!);
 			//sms function
 			return Result<string>.Success(data: userId!, message: "User registered successfully");
 		}

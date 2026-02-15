@@ -15,6 +15,7 @@ namespace Ftareqi.Persistence
 
 		public DbSet<RefreshToken> RefreshTokens { get; set; }
 		public DbSet<OTP> OTPs { get; set; }
+		public DbSet<WalletTransaction> WalletTransactions { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder builder)
 		{

@@ -19,6 +19,8 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		IBaseRepository <Image> Images { get; }
 		IBaseRepository <UserWallet> UserWallets {  get; }
 		IBaseRepository <WalletTransaction> WalletTransactions { get; }
+		IBaseRepository <PaymentTransaction> PaymentTransactions { get; }
+
 
 		Task<IDbContextTransaction> BeginTransactionAsync();
 		Task<int> SaveChangesAsync();

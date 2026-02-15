@@ -66,6 +66,7 @@ namespace Ftareqi.API
 			var jwtSettings = builder.Configuration.GetSection("JWTSettings").Get<JWTSettings>();
 			builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
 			builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+			builder.Services.Configure<PaymobSettings>(builder.Configuration.GetSection("PaymobSettings"));
 
 			// ---------------------
 			// Database Context
@@ -160,6 +161,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
 			builder.Services.AddScoped<IWalletService, WalletService>();
+			builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
 
 			// Orchestrators
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();

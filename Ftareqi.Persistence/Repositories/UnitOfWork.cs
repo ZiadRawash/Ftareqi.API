@@ -21,6 +21,7 @@ namespace Ftareqi.Persistence.Repositories
 		public IBaseRepository<Car> Cars {  get; private set; }
 		public IBaseRepository <UserWallet> UserWallets { get; private set;}
 		public IBaseRepository <WalletTransaction> WalletTransactions { get; private set; }
+		public IBaseRepository <PaymentTransaction> PaymentTransactions { get; private set; }
 
 		public UnitOfWork(ApplicationDbContext applicationDbContext)
 		{
@@ -33,6 +34,8 @@ namespace Ftareqi.Persistence.Repositories
 			Cars= new BaseRepository<Car>(_applicationDbContext);
 			UserWallets = new BaseRepository<UserWallet>(_applicationDbContext);
 			WalletTransactions = new BaseRepository<WalletTransaction> (_applicationDbContext);
+			PaymentTransactions=new BaseRepository<PaymentTransaction> (_applicationDbContext);
+
 		}
 		public ValueTask DisposeAsync()
 		{

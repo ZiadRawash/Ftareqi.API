@@ -21,5 +21,8 @@ namespace Ftareqi.Domain.Models
 		public UserWallet UserWallet { get; set; }
 		[ForeignKey(nameof(UserWallet))]
 		public int UserWalletId {  get; set; }
+		public int? PaymentTransactionId { get; set; }
+		[ForeignKey(nameof(PaymentTransactionId))]
+		public  PaymentTransaction PaymentTransaction { get; set; }
 	}
 }

@@ -129,10 +129,8 @@ namespace Ftareqi.Application.Orchestrators
 			var image =  _fileMapper.MapFile(imageDto.Image!, ImageType.UserProfile);
 			//upload
 			var jobId = _backgroundJobService.EnqueueAsync<IUserJobs>(job => job.UploadProfileImage(image, userId));
-			return Result.Success("ImageUploaded successfully");
-				
+			return Result.Success("ImageUploaded successfully");		
 		}
-
 		public async Task<Result> UpdateProfileImage(string userId, ProfileImageReqDto imageDto)
 		{
 			_logger.LogInformation("Starting profile image update for user {UserId}", userId);
@@ -191,7 +189,5 @@ namespace Ftareqi.Application.Orchestrators
 
 			return Result.Success("Profile image updated successfully. New image is being uploaded in the background.");
 		}
-
-		
 	}
 }

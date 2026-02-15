@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Enums\PaymentEnums\**" />
+    <EmbeddedResource Remove="Enums\PaymentEnums\**" />
+    <None Remove="Enums\PaymentEnums\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.22" />
   </ItemGroup>
 

@@ -10,7 +10,7 @@ namespace Ftareqi.Domain.Models
 		public required string FullName { get; set; }
 
 		public Gender Gender { get; set; }
-
+		 
 
 		public required DateTime DateOfBirth { get; set; }
 
@@ -24,5 +24,6 @@ namespace Ftareqi.Domain.Models
 		public Image? Image { get; set; }
 		public List<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 		public DriverProfile? DriverProfile { get; set; }
+		public UserWallet UserWallet { get; set; }
 	}
 }

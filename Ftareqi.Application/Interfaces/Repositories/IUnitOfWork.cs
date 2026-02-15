@@ -10,12 +10,15 @@ namespace Ftareqi.Application.Interfaces.Repositories
 {
 	public interface IUnitOfWork: IAsyncDisposable	
 	{
+
 		IBaseRepository<Car> Cars { get; }
 		IBaseRepository<User> Users {  get; }
 		IBaseRepository <RefreshToken > RefreshTokens { get; }
 		IBaseRepository <OTP > OTPs { get; }
 		IDriverProfileRepository DriverProfiles { get; }
 		IBaseRepository <Image> Images { get; }
+		IBaseRepository <UserWallet> UserWallets {  get; }
+		IBaseRepository <WalletTransaction> WalletTransactions { get; }
 
 		Task<IDbContextTransaction> BeginTransactionAsync();
 		Task<int> SaveChangesAsync();

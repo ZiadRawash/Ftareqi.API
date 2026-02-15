@@ -19,6 +19,8 @@ namespace Ftareqi.Persistence.Repositories
 		public IDriverProfileRepository DriverProfiles {  get; private set; }
 		public IBaseRepository<Image> Images {  get; private set; }
 		public IBaseRepository<Car> Cars {  get; private set; }
+		public IBaseRepository <UserWallet> UserWallets { get; private set;}
+		public IBaseRepository <WalletTransaction> WalletTransactions { get; private set; }
 
 		public UnitOfWork(ApplicationDbContext applicationDbContext)
 		{
@@ -29,6 +31,8 @@ namespace Ftareqi.Persistence.Repositories
 			DriverProfiles= new DriverProfileRepository(_applicationDbContext);
 			Images= new BaseRepository<Image>(_applicationDbContext);
 			Cars= new BaseRepository<Car>(_applicationDbContext);
+			UserWallets = new BaseRepository<UserWallet>(_applicationDbContext);
+			WalletTransactions = new BaseRepository<WalletTransaction> (_applicationDbContext);
 		}
 		public ValueTask DisposeAsync()
 		{

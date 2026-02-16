@@ -11,9 +11,9 @@ namespace Ftareqi.Application.Interfaces.Services
 {
 	public interface IPaymentGateway
 	{
-		Task<Result<PaymentResponseDto>> InitiateCardPaymentAsync(PaymentCardRequestDto requestData );
+		Task<PaymentInitiationResult> InitiateCardPaymentAsync(PaymentCardRequestDto requestData );
 
-		Task<Result<PaymentResponseDto>> InitiateWalletPaymentAsync(PaymentWalletRequestDto requestData);
+		Task<PaymentInitiationResult> InitiateWalletPaymentAsync(PaymentWalletRequestDto requestData);
 
 		bool VerifyHmac(string receivedHmac, PaymobCallback payload);
 	}

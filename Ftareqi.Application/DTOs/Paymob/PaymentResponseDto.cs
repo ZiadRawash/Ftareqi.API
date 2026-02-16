@@ -12,6 +12,7 @@ namespace Ftareqi.Application.DTOs.Paymob
 		public string PaymentUrl { get; set; }=string.Empty;
 		public int PaymobOrderId { get; set; }    
 		public string Reference { get; set; } = string.Empty;
+		public string Status { get; set; }= string.Empty;
 
 	}
 }

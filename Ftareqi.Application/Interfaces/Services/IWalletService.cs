@@ -1,5 +1,6 @@
 ﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs;
+using Ftareqi.Application.DTOs.Paymob;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,5 +13,14 @@ namespace Ftareqi.Application.Interfaces.Services
 	{
 		public Task<Result<WalletTransactionDto>> GetWalletTransactions(int walletId);
 		public Task CreateWalletAsync(string userId);
+		Task<Result<PaymentResponseDto>> TopUpWithCardAsync(
+			string userId,
+			decimal amount,
+			Func<Task<PaymentInitiationResult>>  initiateCardPayment);
+
+		Task<Result<PaymentResponseDto>> TopUpWithWalletAsync(
+			string userId,
+			decimal amount,
+			Func<Task<PaymentInitiationResult>> initiateWalletPayment);
 	}
 }

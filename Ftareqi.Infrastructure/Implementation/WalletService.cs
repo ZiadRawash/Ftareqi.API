@@ -33,23 +33,47 @@ namespace Ftareqi.Infrastructure.Implementation
 				var wallet = new UserWallet
 				{
 					UserId = userId,
-					balance = 0,
+					Balance= 0,
 					CreatedAt = DateTime.UtcNow,
 					IsLocked = false,
-					PendingBalance = 0,
+					LockedBalance = 0,
 				};
 				await _unitOfWork.UserWallets.AddAsync(wallet);
 				await _unitOfWork.SaveChangesAsync();
 			}
 		}
 
-		public async Task<Result<WalletTransactionDto>> GetWalletTransactions(int walletId)
+		public async Task<Result<WalletTransactionDto>> GetWalletTransactions(string userId)
 		{
-			var transactions = await _unitOfWork.WalletTransactions
-				.FindAllAsNoTrackingAsync(x => x.UserWalletId == walletId);
+			if(userId == null)
+				return Result<WalletTransactionDto>.Failure("No user is found");
+			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsync(x => x.UserId == userId, x => x.WalletTransactions);
 
-			var result = WalletMapper.ToDto(walletId, transactions ?? Enumerable.Empty<WalletTransaction>());
+			if (wallet == null) 
+				return Result<WalletTransactionDto>.Failure("No wallet is found");
+
+			var result = WalletMapper.ToDto(wallet!.Id, wallet.WalletTransactions ?? Enumerable.Empty<WalletTransaction>());
 			return Result<WalletTransactionDto>.Success(result);
+		}
+
+		public async Task<Result<WalletResDto>> GetWallet(string userId)
+		{
+			if (userId == null)
+				return Result<WalletResDto>.Failure("No user is found");
+			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
+
+			if (wallet == null)
+				return Result<WalletResDto>.Failure("No wallet is found");
+
+			return Result<WalletResDto>.Success(new WalletResDto
+			{
+				Id = wallet.Id,
+				Balance= wallet.Balance,
+				CreatedAt = wallet.CreatedAt,
+				IsLocked = wallet.IsLocked,
+				LockedBalance = wallet.LockedBalance,
+				UpdatedAt = wallet.UpdatedAt,
+			});
 		}
 
 		public async Task<Result<PaymentResponseDto>> TopUpWithCardAsync(
@@ -96,7 +120,7 @@ namespace Ftareqi.Infrastructure.Implementation
 
 		/// <summary>
 		/// Marks both PaymentTransaction and WalletTransaction as Failed.
-		/// Does NOT touch the wallet balance or pending balance.
+		/// Does NOT touch the wallet Balanceor pending balance.
 		/// </summary>
 		private async Task HandleFailedPaymentAsync(PaymentCallbackResultDto? dto)
 		{
@@ -126,7 +150,7 @@ namespace Ftareqi.Infrastructure.Implementation
 
 				// Map enum explicitly — never rely on implicit string-to-enum conversion
 				paymentTrnx.Status = PaymentStatus.Failed;
-
+				paymentTrnx.UpdatedAt= DateTime.UtcNow;
 				var walletTrnx = await _unitOfWork.WalletTransactions
 					.FirstOrDefaultAsync(
 						x => x.PaymentTransactionId == paymentTrnx.Id,
@@ -164,7 +188,7 @@ namespace Ftareqi.Infrastructure.Implementation
 		}
 
 		/// <summary>
-		/// Credits the wallet balance and marks both transactions as Completed/Success.
+		/// Credits the wallet Balanceand marks both transactions as Completed/Success.
 		/// </summary>
 		private async Task HandleSuccessfulPaymentAsync(PaymentCallbackResultDto dto)
 		{
@@ -218,7 +242,7 @@ namespace Ftareqi.Infrastructure.Implementation
 
 				walletTrnx.UserWallet.UpdatedAt = DateTime.UtcNow;
 
-				walletTrnx.UserWallet.balance += paymentTrnx.Amount;
+				walletTrnx.UserWallet.Balance+= paymentTrnx.Amount;
 
 				_unitOfWork.WalletTransactions.Update(walletTrnx);
 				_unitOfWork.PaymentTransactions.Update(paymentTrnx);
@@ -231,7 +255,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					"Wallet credited. UserId={UserId}, Amount={Amount}, NewBalance={Balance}",
 					walletTrnx.UserWallet.UserId,
 					paymentTrnx.Amount,
-					walletTrnx.UserWallet.balance);
+					walletTrnx.UserWallet.Balance);
 			}
 			catch (Exception ex)
 			{
@@ -290,11 +314,13 @@ namespace Ftareqi.Infrastructure.Implementation
 				{
 					Amount = amount,
 					CreatedAt = DateTime.UtcNow,
-					method = method,                   
+					Method = method,                   
 					PaymentType = PaymentType.Credit,   
 					Reference = initiation.Reference,
 					Status = PaymentStatus.Pending,     
-					UserId = userId
+					UserId = userId,
+					UpdatedAt = DateTime.UtcNow,
+					
 				};
 
 				await _unitOfWork.PaymentTransactions.AddAsync(paymentTrnx);
@@ -304,8 +330,8 @@ namespace Ftareqi.Infrastructure.Implementation
 				{
 					Type = TransactionType.Deposit,         
 					Amount = amount,
-					BalanceBefore = wallet.balance,
-					BalanceAfter = wallet.balance + amount,
+					BalanceBefore = wallet.Balance,
+					BalanceAfter = wallet.Balance+ amount,
 					Status = TransactionStatus.Pending,     
 					CreatedAt = DateTime.UtcNow,
 					UserWalletId = wallet.Id,
@@ -323,9 +349,6 @@ namespace Ftareqi.Infrastructure.Implementation
 				var response = new PaymentResponseDto
 				{
 					PaymentUrl = initiation.RedirectUrl ?? string.Empty,
-					PaymobOrderId = initiation.PaymobOrderId,
-					Reference = initiation.Reference,
-					Status = initiation.Status ?? "pending"
 				};
 
 				return Result<PaymentResponseDto>.Success(response, "Payment initiated successfully");

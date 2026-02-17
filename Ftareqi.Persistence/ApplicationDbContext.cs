@@ -73,6 +73,33 @@ namespace Ftareqi.Persistence
 				}
 			);
 
+			builder.Entity<UserWallet>()
+				.Property(x => x.Balance)
+				.HasPrecision(18, 2);
+
+
+
+			builder.Entity<WalletTransaction>()
+				.Property(x => x.BalanceAfter)
+				.HasPrecision(18, 2);
+			builder.Entity<WalletTransaction>()
+				.Property(x => x.BalanceBefore)
+				.HasPrecision(18,2);
+			builder.Entity<WalletTransaction>()
+				.Property(x => x.Amount)
+				.HasPrecision(18,2);
+
+			builder.Entity<UserWallet>()
+			.Property(x => x.LockedBalance)
+			.HasPrecision(18, 2);
+
+			builder.Entity<PaymentTransaction>()
+				.Property(x => x.Amount)
+				.HasPrecision(18,2);
+
+
+
+			
 			builder.Entity<IdentityUserRole<string>>().HasData(
 				new IdentityUserRole<string>
 				{

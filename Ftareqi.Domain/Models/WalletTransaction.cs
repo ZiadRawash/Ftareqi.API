@@ -17,7 +17,7 @@ namespace Ftareqi.Domain.Models
 		public decimal BalanceAfter { get; set; }
 		public  TransactionStatus Status { get; set; }//Pending,Completed,Failed
 		public DateTime CreatedAt {  get; set; }
-		public DateTime UpdatedAt {  get; set; }
+		public DateTime? UpdatedAt {  get; set; }
 		public UserWallet UserWallet { get; set; }
 		[ForeignKey(nameof(UserWallet))]
 		public int UserWalletId {  get; set; }

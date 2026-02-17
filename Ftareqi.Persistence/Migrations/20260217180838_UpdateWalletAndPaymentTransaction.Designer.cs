@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ftareqi.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260118154243_RenamedPlattetoPlate")]
-    partial class RenamedPlattetoPlate
+    [Migration("20260217180838_UpdateWalletAndPaymentTransaction")]
+    partial class UpdateWalletAndPaymentTransaction
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -123,9 +123,6 @@ namespace Ftareqi.Persistence.Migrations
                     b.Property<int?>("DriverProfileId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<string>("PublicId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -189,6 +186,48 @@ namespace Ftareqi.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("OTPs");
+                });
+
+            modelBuilder.Entity("Ftareqi.Domain.Models.PaymentTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PaymentType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PaymentTransactions");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.RefreshToken", b =>
@@ -333,6 +372,90 @@ namespace Ftareqi.Persistence.Migrations
                             TwoFactorEnabled = false,
                             UserName = "admin@ftareqi.com"
                         });
+                });
+
+            modelBuilder.Entity("Ftareqi.Domain.Models.UserWallet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Balance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("LockedBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserWallet");
+                });
+
+            modelBuilder.Entity("Ftareqi.Domain.Models.WalletTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BalanceAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BalanceBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("PaymentTransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserWalletId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentTransactionId");
+
+                    b.HasIndex("UserWalletId");
+
+                    b.ToTable("WalletTransactions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -552,6 +675,17 @@ namespace Ftareqi.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Ftareqi.Domain.Models.PaymentTransaction", b =>
+                {
+                    b.HasOne("Ftareqi.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Ftareqi.Domain.Models.RefreshToken", b =>
                 {
                     b.HasOne("Ftareqi.Domain.Models.User", "User")
@@ -561,6 +695,34 @@ namespace Ftareqi.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Ftareqi.Domain.Models.UserWallet", b =>
+                {
+                    b.HasOne("Ftareqi.Domain.Models.User", "User")
+                        .WithOne("UserWallet")
+                        .HasForeignKey("Ftareqi.Domain.Models.UserWallet", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Ftareqi.Domain.Models.WalletTransaction", b =>
+                {
+                    b.HasOne("Ftareqi.Domain.Models.PaymentTransaction", "PaymentTransaction")
+                        .WithMany()
+                        .HasForeignKey("PaymentTransactionId");
+
+                    b.HasOne("Ftareqi.Domain.Models.UserWallet", "UserWallet")
+                        .WithMany("WalletTransactions")
+                        .HasForeignKey("UserWalletId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PaymentTransaction");
+
+                    b.Navigation("UserWallet");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -633,6 +795,14 @@ namespace Ftareqi.Persistence.Migrations
                     b.Navigation("Image");
 
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("UserWallet")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Ftareqi.Domain.Models.UserWallet", b =>
+                {
+                    b.Navigation("WalletTransactions");
                 });
 #pragma warning restore 612, 618
         }

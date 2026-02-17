@@ -1,5 +1,6 @@
 ﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Paymob;
+using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
@@ -15,7 +16,7 @@ namespace Ftareqi.Application.Interfaces.Services
 
 		Task<PaymentInitiationResult> InitiateWalletPaymentAsync(PaymentWalletRequestDto requestData);
 
-		bool VerifyHmac(string receivedHmac, PaymobCallback payload);
+		Result<PaymentCallbackResultDto> Callback(string hmac, PaymobCallbackDto callback);
 	}
 	
 }

@@ -2,9 +2,12 @@
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.Common.Settings;
 using Ftareqi.Application.DTOs.Paymob;
+using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -140,14 +143,59 @@ public class PaymobPaymentGateway : IPaymentGateway
 		}
 	}
 
-	public bool VerifyHmac(string receivedHmac, PaymobCallback payload)
+	public  Result<PaymentCallbackResultDto> Callback(string hmac, PaymobCallbackDto callback)
+	{
+		try
+		{
+			var serialized = JsonConvert.SerializeObject(callback, Formatting.Indented);
+			_logger.LogInformation("Callback payload: {Payload}", serialized);
+			_logger.LogInformation("Received HMAC: {Hmac}", hmac);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Failed to serialize callback payload");
+		}
+
+		if (callback?.obj == null)
+		{
+			_logger.LogError("Invalid or empty callback payload");
+			return Result<PaymentCallbackResultDto>.Failure("Invalid payload");
+
+		}
+		// Verify HMAC
+		var isValid = VerifyHmac(hmac, callback.obj);
+		if (!isValid)
+		{
+			_logger.LogWarning("HMAC verification failed for transaction {TransactionId}", callback.obj.id);
+			return Result<PaymentCallbackResultDto>.Failure(" HMAC mismatch");
+		}
+
+		// Process result
+		if (callback.obj.success)
+		{
+			_logger.LogInformation("Payment successful. OrderId: {OrderId}, MerchantId: {MerchantId}", callback.obj.order?.id, callback.obj.order?.merchant_id);
+			return Result<PaymentCallbackResultDto>.Success(
+				new PaymentCallbackResultDto
+				{
+					MerchantId = callback.obj.order?.merchant_id,
+					OrderId = callback.obj.order?.id ?? callback.obj.id,
+					AmountCents = callback.obj.amount_cents,
+			});
+		}
+		else
+		{
+			_logger.LogInformation("Payment failed. OrderId: {OrderId}, MerchantId: {MerchantId}", callback.obj.order?.id, callback.obj.order?.merchant_id);
+			return Result<PaymentCallbackResultDto>.Failure("Invalid payload");
+		}
+	}
+	private bool VerifyHmac(string receivedHmac, PaymobTransactionDto payload)
 	{
 		try
 		{
 			string concatenatedData = string.Concat(
 				payload.amount_cents,
-				payload.created_at,
-				payload.currency,
+				payload.created_at ?? string.Empty,
+				payload.currency ?? string.Empty,
 				payload.error_occured.ToString().ToLower(),
 				payload.has_parent_transaction.ToString().ToLower(),
 				payload.id,
@@ -158,32 +206,31 @@ public class PaymobPaymentGateway : IPaymentGateway
 				payload.is_refunded.ToString().ToLower(),
 				payload.is_standalone_payment.ToString().ToLower(),
 				payload.is_voided.ToString().ToLower(),
-				payload.order.id,
+				payload.order?.id.ToString() ?? string.Empty,
 				payload.owner,
 				payload.pending.ToString().ToLower(),
-				payload.source_data.pan ?? "",
-				payload.source_data.sub_type,
-				payload.source_data.type,
+				payload.source_data?.pan ?? string.Empty,
+				payload.source_data?.sub_type ?? string.Empty,
+				payload.source_data?.type ?? string.Empty,
 				payload.success.ToString().ToLower()
 			);
 
-			var keyBytes = Encoding.UTF8.GetBytes(_paymobSettings.HMAC!);
+			var keyBytes = Encoding.UTF8.GetBytes(_paymobSettings.HMAC ?? string.Empty);
 			var messageBytes = Encoding.UTF8.GetBytes(concatenatedData);
 
 			using var hmac = new HMACSHA512(keyBytes);
 			var hash = hmac.ComputeHash(messageBytes);
-			var calculatedHmac = BitConverter.ToString(hash).Replace("-", "").ToLower();
+			var calculatedHmac = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
 
-			var isValid = calculatedHmac.Equals(receivedHmac, StringComparison.OrdinalIgnoreCase);
+			var isValid = calculatedHmac.Equals(receivedHmac ?? string.Empty, StringComparison.OrdinalIgnoreCase);
 
-			_logger.LogInformation("HMAC verification: {Result}, TransactionId: {Id}",
-				isValid ? "VALID" : "INVALID", payload.id);
+			_logger.LogInformation("HMAC verification result: {Result} for transaction {TransactionId}", isValid ? "VALID" : "INVALID", payload.id);
 
 			return isValid;
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "HMAC verification exception. TransactionId: {Id}", payload.id);
+			_logger.LogError(ex, "HMAC verification exception for transaction {TransactionId}", payload.id);
 			return false;
 		}
 	}

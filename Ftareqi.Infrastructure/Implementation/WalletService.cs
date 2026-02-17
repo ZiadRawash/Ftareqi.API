@@ -92,7 +92,6 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<PaymentResponseDto>.Failure(initiation?.Message ?? "Payment initiation failed");
 			}
 
-			// Load user (no-tracking is fine for validation) and wallet (we will update it)
 			var user = await _unitOfWork.Users.FirstOrDefaultAsNoTrackingAsync(x => x.Id == userId);
 			if (user == null)
 			{
@@ -100,7 +99,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<PaymentResponseDto>.Failure("User not found");
 			}
 
-			// get wallet (tracking) - we need to update pending balance
+			// get wallet 
 			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsync(x => x.UserId == userId);
 			if (wallet == null)
 			{
@@ -108,11 +107,11 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<PaymentResponseDto>.Failure("Wallet not found");
 			}
 
-			// Begin transaction to persist payment transaction and wallet transaction atomically
+			// Begin transaction 
 			await using var tx = await _unitOfWork.BeginTransactionAsync();
 			try
 			{
-				// Create payment transaction record
+				// Create payment transaction 
 				var paymentTrnx = new PaymentTransaction
 				{
 					Amount = amount,
@@ -136,7 +135,6 @@ namespace Ftareqi.Infrastructure.Implementation
 					BalanceAfter = wallet.balance + amount, // expected balance after successful completion
 					Status = Domain.Enums.TransactionStatus.Pending,
 					CreatedAt = DateTime.UtcNow,
-					UpdatedAt = DateTime.UtcNow,
 					UserWalletId = wallet.Id,
 					PaymentTransactionId = paymentTrnx.Id,
 				};
@@ -147,10 +145,9 @@ namespace Ftareqi.Infrastructure.Implementation
 				//wallet.PendingBalance += amount;
 				//wallet.UpdatedAt = DateTime.UtcNow;
 				//_unitOfWork.UserWallets.Update(wallet);
-
+				 
 				await _unitOfWork.SaveChangesAsync();
 
-				// commit transaction
 				await tx.CommitAsync();
 
 				_logger.LogInformation("TopUp initiated for user {UserId}. PaymentRef={Ref}, WalletTrxId={WalletTrxId}", userId, initiation.Reference, walletTrnx.Id);

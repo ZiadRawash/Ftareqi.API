@@ -18,5 +18,4 @@ namespace Ftareqi.Application.Interfaces.Services
 
 		Result<PaymentCallbackResultDto> Callback(string hmac, PaymobCallbackDto callback);
 	}
-	
 }

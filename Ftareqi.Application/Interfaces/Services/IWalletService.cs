@@ -1,6 +1,7 @@
 ﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.Paymob;
+using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,5 +23,7 @@ namespace Ftareqi.Application.Interfaces.Services
 			string userId,
 			decimal amount,
 			Func<Task<PaymentInitiationResult>> initiateWalletPayment);
+
+		Task ProcessPaymentCallBack(string hmac, PaymobCallbackDto callback);
 	}
 }

@@ -1,10 +1,8 @@
-﻿using DripOut.Application.Common.Settings;
-using Ftareqi.Application.Common.Results;
+﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.Common.Settings;
 using Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.Interfaces.Services;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
@@ -143,7 +141,7 @@ public class PaymobPaymentGateway : IPaymentGateway
 		}
 	}
 
-	public  Result<PaymentCallbackResultDto> Callback(string hmac, PaymobCallbackDto callback)
+	public Result<PaymentCallbackResultDto> Callback(string hmac, PaymobCallbackDto callback)
 	{
 		try
 		{
@@ -159,35 +157,45 @@ public class PaymobPaymentGateway : IPaymentGateway
 		if (callback?.obj == null)
 		{
 			_logger.LogError("Invalid or empty callback payload");
-			return Result<PaymentCallbackResultDto>.Failure("Invalid payload");
-
+			// Use a dedicated error code so the caller knows this is a bad request, not a failed payment
+			return Result<PaymentCallbackResultDto>.Failure("HMAC_INVALID");
 		}
-		// Verify HMAC
+
+		// Verify HMAC first — if this fails the request is tampered/corrupt
 		var isValid = VerifyHmac(hmac, callback.obj);
 		if (!isValid)
 		{
 			_logger.LogWarning("HMAC verification failed for transaction {TransactionId}", callback.obj.id);
-			return Result<PaymentCallbackResultDto>.Failure(" HMAC mismatch");
+			return Result<PaymentCallbackResultDto>.Failure("HMAC_INVALID");
 		}
 
-		// Process result
+		// Build the result DTO — valid for both success and failure paths
+		var resultDto = new PaymentCallbackResultDto
+		{
+			MerchantId = callback.obj.order?.merchant_order_id,
+			OrderId = callback.obj.order?.id ?? callback.obj.id,
+			AmountCents = callback.obj.amount_cents,
+			PaymentSucceeded = callback.obj.success
+		};
+
 		if (callback.obj.success)
 		{
-			_logger.LogInformation("Payment successful. OrderId: {OrderId}, MerchantId: {MerchantId}", callback.obj.order?.id, callback.obj.order?.merchant_id);
-			return Result<PaymentCallbackResultDto>.Success(
-				new PaymentCallbackResultDto
-				{
-					MerchantId = callback.obj.order?.merchant_id,
-					OrderId = callback.obj.order?.id ?? callback.obj.id,
-					AmountCents = callback.obj.amount_cents,
-			});
+			_logger.LogInformation("Payment successful. OrderId: {OrderId}, MerchantId: {MerchantId}",
+				callback.obj.order?.id, callback.obj.order?.merchant_id);
+
+			return Result<PaymentCallbackResultDto>.Success(resultDto);
 		}
 		else
 		{
-			_logger.LogInformation("Payment failed. OrderId: {OrderId}, MerchantId: {MerchantId}", callback.obj.order?.id, callback.obj.order?.merchant_id);
-			return Result<PaymentCallbackResultDto>.Failure("Invalid payload");
+			// Legitimate Paymob failure (e.g. insufficient funds, card declined).
+			// Returned as Success so the DTO reaches WalletService — check dto.PaymentSucceeded there.
+			_logger.LogInformation("Payment failed by Paymob. OrderId: {OrderId}, MerchantId: {MerchantId}",
+				callback.obj.order?.id, callback.obj.order?.merchant_id);
+
+			return Result<PaymentCallbackResultDto>.Success(resultDto);
 		}
 	}
+
 	private bool VerifyHmac(string receivedHmac, PaymobTransactionDto payload)
 	{
 		try
@@ -224,7 +232,8 @@ public class PaymobPaymentGateway : IPaymentGateway
 
 			var isValid = calculatedHmac.Equals(receivedHmac ?? string.Empty, StringComparison.OrdinalIgnoreCase);
 
-			_logger.LogInformation("HMAC verification result: {Result} for transaction {TransactionId}", isValid ? "VALID" : "INVALID", payload.id);
+			_logger.LogInformation("HMAC verification result: {Result} for transaction {TransactionId}",
+				isValid ? "VALID" : "INVALID", payload.id);
 
 			return isValid;
 		}
@@ -235,34 +244,33 @@ public class PaymobPaymentGateway : IPaymentGateway
 		}
 	}
 
-	private async Task<(string paymentToken, int orderId)> PreparePaymentFlow(decimal amount, string reference, string userId, string integrationId)
+	private async Task<(string paymentToken, int orderId)> PreparePaymentFlow(
+		decimal amount, string reference, string userId, string integrationId)
 	{
 		try
 		{
 			// Step 1: Authentication
-			var authResponse = await _httpClient.PostAsJsonAsync("https://accept.paymob.com/api/auth/tokens",
+			var authResponse = await _httpClient.PostAsJsonAsync(
+				"https://accept.paymob.com/api/auth/tokens",
 				new { api_key = _paymobSettings.APIKey });
 
 			if (!authResponse.IsSuccessStatusCode)
-			{
 				throw new Exception($"Authentication failed with status: {authResponse.StatusCode}");
-			}
 
 			var authData = await authResponse.Content.ReadFromJsonAsync<PaymobAuthResponse>();
 			if (authData == null || string.IsNullOrEmpty(authData.token))
-			{
 				throw new Exception("Authentication response missing token");
-			}
 
 			// Step 2: Create Order
-			var orderResponse = await _httpClient.PostAsJsonAsync("https://accept.paymob.com/api/ecommerce/orders", new
-			{
-				auth_token = authData.token,
-				amount_cents = (int)(amount * 100),
-				currency = "EGP",
-				merchant_order_id = reference,
-				items = new List<object>()
-			});
+			var orderResponse = await _httpClient.PostAsJsonAsync(
+				"https://accept.paymob.com/api/ecommerce/orders", new
+				{
+					auth_token = authData.token,
+					amount_cents = (int)(amount * 100),
+					currency = "EGP",
+					merchant_order_id = reference,
+					items = new List<object>()
+				});
 
 			if (!orderResponse.IsSuccessStatusCode)
 			{
@@ -272,44 +280,39 @@ public class PaymobPaymentGateway : IPaymentGateway
 
 			var orderData = await orderResponse.Content.ReadFromJsonAsync<PaymobOrderResponse>();
 			if (orderData == null || orderData.id == 0)
-			{
 				throw new Exception("Order response missing ID");
-			}
 
 			// Step 3: Generate Payment Key
-			var keyResponse = await _httpClient.PostAsJsonAsync("https://accept.paymob.com/api/acceptance/payment_keys", new
-			{
-				auth_token = authData.token,
-				amount_cents = (int)(amount * 100),
-				expiration = 3600,
-				order_id = orderData.id,
-				billing_data = new
+			var keyResponse = await _httpClient.PostAsJsonAsync(
+				"https://accept.paymob.com/api/acceptance/payment_keys", new
 				{
-					first_name = userId,
-					last_name = "NA",
-					email = "test@test.com",
-					phone_number = "NA",
-					city = "Cairo",
-					country = "EG",
-					apartment = "NA",
-					floor = "NA",
-					street = "NA",
-					building = "NA"
-				},
-				currency = "EGP",
-				integration_id = int.Parse(integrationId)
-			});
+					auth_token = authData.token,
+					amount_cents = (int)(amount * 100),
+					expiration = 3600,
+					order_id = orderData.id,
+					billing_data = new
+					{
+						first_name = userId,
+						last_name = "NA",
+						email = "test@test.com",
+						phone_number = "NA",
+						city = "Cairo",
+						country = "EG",
+						apartment = "NA",
+						floor = "NA",
+						street = "NA",
+						building = "NA"
+					},
+					currency = "EGP",
+					integration_id = int.Parse(integrationId)
+				});
 
 			if (!keyResponse.IsSuccessStatusCode)
-			{
 				throw new Exception($"Payment key generation failed with status: {keyResponse.StatusCode}");
-			}
 
 			var keyData = await keyResponse.Content.ReadFromJsonAsync<PaymobKeyResponse>();
 			if (keyData == null || string.IsNullOrEmpty(keyData.token))
-			{
 				throw new Exception("Payment key response missing token");
-			}
 
 			return (keyData.token, orderData.id);
 		}

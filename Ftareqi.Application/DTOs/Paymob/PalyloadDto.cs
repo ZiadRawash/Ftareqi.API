@@ -43,11 +43,13 @@ namespace Ftareqi.Application.DTOs.Paymob
 		public class PaymobOrderDto
 		{
 			public int id { get; set; }
-			public string? created_at { get; set; }
-			public bool delivery_needed { get; set; }
-			public string? merchant_id { get; set; }
-			public string? collector { get; set; }
-			public int amount_cents { get; set; }
+
+			// This is YOUR reference — the guid you passed as merchant_order_id when creating the order
+			[JsonProperty("merchant_order_id")]
+			public string? merchant_order_id { get; set; }
+
+			// Remove or keep merchant_id — it's Paymob's internal merchant account id, not your reference
+			public int? merchant_id { get; set; }
 		}
 
 		public class PaymobSourceDataDto
@@ -59,11 +61,22 @@ namespace Ftareqi.Application.DTOs.Paymob
 
 		public class PaymentCallbackResultDto
 		{
+			/// <summary>
+			/// Your internal merchant order reference stored in PaymentTransaction.Reference.
+			/// </summary>
 			public string? MerchantId { get; set; }
 
 			public int OrderId { get; set; }
+
+			/// <summary>Amount in cents as received from Paymob.</summary>
 			public int AmountCents { get; set; }
 
+			/// <summary>
+			/// True  → Paymob confirmed the charge went through.
+			/// False → Paymob reported a failure (card declined, insufficient funds, etc.).
+			/// Populated for both success and PAYMENT_FAILED result codes.
+			/// </summary>
+			public bool PaymentSucceeded { get; set; }
 		}
 	}
 }

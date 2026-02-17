@@ -1,18 +1,14 @@
-﻿using CloudinaryDotNet;
-using Ftareqi.Application.Common.Results;
+﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.Paymob;
+using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Mappers;
+using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Enums.PaymentEnums;
 using Ftareqi.Domain.Models;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Ftareqi.Infrastructure.Implementation
 {
@@ -21,7 +17,8 @@ namespace Ftareqi.Infrastructure.Implementation
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<WalletService> _logger;
 		private readonly IPaymentGateway _paymentGateway;
-		public WalletService(IUnitOfWork unitOfWork , ILogger<WalletService> logger , IPaymentGateway paymentGateway)
+
+		public WalletService(IUnitOfWork unitOfWork, ILogger<WalletService> logger, IPaymentGateway paymentGateway)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
@@ -30,10 +27,10 @@ namespace Ftareqi.Infrastructure.Implementation
 
 		public async Task CreateWalletAsync(string userId)
 		{
-			var walletCreated = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
-			if (walletCreated == null)
+			var existing = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
+			if (existing == null)
 			{
-				var CreateWallet = new UserWallet
+				var wallet = new UserWallet
 				{
 					UserId = userId,
 					balance = 0,
@@ -41,33 +38,212 @@ namespace Ftareqi.Infrastructure.Implementation
 					IsLocked = false,
 					PendingBalance = 0,
 				};
-				await _unitOfWork.UserWallets.AddAsync(CreateWallet);
+				await _unitOfWork.UserWallets.AddAsync(wallet);
 				await _unitOfWork.SaveChangesAsync();
 			}
 		}
 
 		public async Task<Result<WalletTransactionDto>> GetWalletTransactions(int walletId)
 		{
-			var transactions = await _unitOfWork.WalletTransactions.FindAllAsNoTrackingAsync(x=>x.UserWalletId == walletId);
+			var transactions = await _unitOfWork.WalletTransactions
+				.FindAllAsNoTrackingAsync(x => x.UserWalletId == walletId);
+
 			var result = WalletMapper.ToDto(walletId, transactions ?? Enumerable.Empty<WalletTransaction>());
 			return Result<WalletTransactionDto>.Success(result);
-
 		}
 
-		public async Task<Result<PaymentResponseDto>> TopUpWithCardAsync(string userId, decimal amount, Func<Task<PaymentInitiationResult>> initiateCardPayment)
+		public async Task<Result<PaymentResponseDto>> TopUpWithCardAsync(
+			string userId, decimal amount, Func<Task<PaymentInitiationResult>> initiateCardPayment)
 		{
-			if (initiateCardPayment == null) 
+			if (initiateCardPayment == null)
 				throw new ArgumentNullException(nameof(initiateCardPayment));
-			return await TopUpCoreAsync(userId, amount, initiateCardPayment,PaymentMethod.Card);	
+
+			return await TopUpCoreAsync(userId, amount, initiateCardPayment, PaymentMethod.Card);
 		}
 
-		public async Task<Result<PaymentResponseDto>> TopUpWithWalletAsync(string userId, decimal amount, Func<Task<PaymentInitiationResult>> initiateWalletPayment)
+		public async Task<Result<PaymentResponseDto>> TopUpWithWalletAsync(
+			string userId, decimal amount, Func<Task<PaymentInitiationResult>> initiateWalletPayment)
 		{
 			if (initiateWalletPayment == null)
 				throw new ArgumentNullException(nameof(initiateWalletPayment));
+
 			return await TopUpCoreAsync(userId, amount, initiateWalletPayment, PaymentMethod.MobileWallet);
 		}
-		private async Task<Result<PaymentResponseDto>> TopUpCoreAsync(string userId, decimal amount, Func<Task<PaymentInitiationResult>> initiatePayment, PaymentMethod method)
+
+		/// <summary>
+		/// Entry point for Paymob's server-side callback (transaction.processed webhook or redirect).
+		///
+		/// Two outcomes from the gateway:
+		///   Failure → HMAC_INVALID: request is tampered/corrupt → log and stop, do NOT touch any records
+		///   Success → dto.PaymentSucceeded drives whether we credit or mark failed
+		/// </summary>
+		public async Task ProcessPaymentCallBack(string hmac, PaymobCallbackDto callback)
+		{
+			var callbackResult = _paymentGateway.Callback(hmac, callback);
+
+			if (callbackResult.IsFailure)
+			{
+				_logger.LogWarning("Callback rejected: HMAC invalid or empty payload. No records updated.");
+				return;
+			}
+
+
+			if (callbackResult.Data!.PaymentSucceeded)
+				await HandleSuccessfulPaymentAsync(callbackResult.Data);
+			else
+				await HandleFailedPaymentAsync(callbackResult.Data);
+		}
+
+		/// <summary>
+		/// Marks both PaymentTransaction and WalletTransaction as Failed.
+		/// Does NOT touch the wallet balance or pending balance.
+		/// </summary>
+		private async Task HandleFailedPaymentAsync(PaymentCallbackResultDto? dto)
+		{
+			if (dto == null)
+			{
+				_logger.LogError("HandleFailedPaymentAsync called with null dto — cannot update records.");
+				return;
+			}
+
+			_logger.LogInformation(
+				"Handling failed payment. MerchantId (Reference): {MerchantId}", dto.MerchantId);
+
+			await using var tx = await _unitOfWork.BeginTransactionAsync();
+			try
+			{
+				var paymentTrnx = await _unitOfWork.PaymentTransactions
+					.FirstOrDefaultAsync(x => x.Reference == dto.MerchantId);
+
+				if (paymentTrnx == null)
+				{
+					_logger.LogWarning(
+						"HandleFailedPaymentAsync: PaymentTransaction not found for Reference={Reference}",
+						dto.MerchantId);
+					await tx.RollbackAsync();
+					return;
+				}
+
+				// Map enum explicitly — never rely on implicit string-to-enum conversion
+				paymentTrnx.Status = PaymentStatus.Failed;
+
+				var walletTrnx = await _unitOfWork.WalletTransactions
+					.FirstOrDefaultAsync(
+						x => x.PaymentTransactionId == paymentTrnx.Id,
+						x => x.UserWallet);
+
+				if (walletTrnx == null)
+				{
+					_logger.LogWarning(
+						"HandleFailedPaymentAsync: WalletTransaction not found for PaymentTransactionId={Id}",
+						paymentTrnx.Id);
+					_unitOfWork.PaymentTransactions.Update(paymentTrnx);
+					await _unitOfWork.SaveChangesAsync();
+					await tx.CommitAsync();
+					return;
+				}
+
+				walletTrnx.Status = TransactionStatus.Failed;
+				walletTrnx.UpdatedAt = DateTime.UtcNow;
+
+				_unitOfWork.PaymentTransactions.Update(paymentTrnx);
+				_unitOfWork.WalletTransactions.Update(walletTrnx);
+
+				await _unitOfWork.SaveChangesAsync();
+				await tx.CommitAsync();
+
+				_logger.LogInformation(
+					"Records marked as Failed. PaymentTrnxId={PaymentId}, WalletTrnxId={WalletId}",
+					paymentTrnx.Id, walletTrnx.Id);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "HandleFailedPaymentAsync threw — rolling back.");
+				await tx.RollbackAsync();
+			}
+		}
+
+		/// <summary>
+		/// Credits the wallet balance and marks both transactions as Completed/Success.
+		/// </summary>
+		private async Task HandleSuccessfulPaymentAsync(PaymentCallbackResultDto dto)
+		{
+			_logger.LogInformation(
+				"Handling successful payment. MerchantId (Reference): {MerchantId}", dto.MerchantId);
+
+			await using var tx = await _unitOfWork.BeginTransactionAsync();
+			try
+			{
+				var paymentTrnx = await _unitOfWork.PaymentTransactions
+					.FirstOrDefaultAsync(x => x.Reference == dto.MerchantId);
+
+				if (paymentTrnx == null)
+				{
+					_logger.LogWarning(
+						"HandleSuccessfulPaymentAsync: PaymentTransaction not found for Reference={Reference}",
+						dto.MerchantId);
+					await tx.RollbackAsync();
+					return;
+				}
+
+				if (paymentTrnx.Status == PaymentStatus.Success)
+				{
+					_logger.LogWarning(
+						"Duplicate callback received for already-succeeded PaymentTransaction {Id} — ignoring.",
+						paymentTrnx.Id);
+					await tx.RollbackAsync();
+					return;
+				}
+
+				// Map enum explicitly
+				paymentTrnx.Status = PaymentStatus.Success;
+
+				var walletTrnx = await _unitOfWork.WalletTransactions
+					.FirstOrDefaultAsync(
+						x => x.PaymentTransactionId == paymentTrnx.Id,
+						x => x.UserWallet);
+
+				if (walletTrnx == null)
+				{
+					_logger.LogWarning(
+						"HandleSuccessfulPaymentAsync: WalletTransaction not found for PaymentTransactionId={Id}",
+						paymentTrnx.Id);
+					await tx.RollbackAsync();
+					return;
+				}
+
+				// Map enum explicitly
+				walletTrnx.Status = TransactionStatus.Completed;
+				walletTrnx.UpdatedAt = DateTime.UtcNow;
+
+				walletTrnx.UserWallet.UpdatedAt = DateTime.UtcNow;
+
+				walletTrnx.UserWallet.balance += paymentTrnx.Amount;
+
+				_unitOfWork.WalletTransactions.Update(walletTrnx);
+				_unitOfWork.PaymentTransactions.Update(paymentTrnx);
+				_unitOfWork.UserWallets.Update(walletTrnx.UserWallet);
+
+				await _unitOfWork.SaveChangesAsync();
+				await tx.CommitAsync();
+
+				_logger.LogInformation(
+					"Wallet credited. UserId={UserId}, Amount={Amount}, NewBalance={Balance}",
+					walletTrnx.UserWallet.UserId,
+					paymentTrnx.Amount,
+					walletTrnx.UserWallet.balance);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "HandleSuccessfulPaymentAsync threw — rolling back.");
+				await tx.RollbackAsync();
+			}
+		}
+
+		private async Task<Result<PaymentResponseDto>> TopUpCoreAsync(
+			string userId, decimal amount,
+			Func<Task<PaymentInitiationResult>> initiatePayment,
+			PaymentMethod method)
 		{
 			if (string.IsNullOrWhiteSpace(userId))
 				return Result<PaymentResponseDto>.Failure("UserId is required");
@@ -88,7 +264,8 @@ namespace Ftareqi.Infrastructure.Implementation
 
 			if (initiation == null || !initiation.Success)
 			{
-				_logger.LogWarning("Payment initiation failed for user {UserId}. Message: {Message}", userId, initiation?.Message);
+				_logger.LogWarning("Payment initiation failed for user {UserId}. Message: {Message}",
+					userId, initiation?.Message);
 				return Result<PaymentResponseDto>.Failure(initiation?.Message ?? "Payment initiation failed");
 			}
 
@@ -99,58 +276,49 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<PaymentResponseDto>.Failure("User not found");
 			}
 
-			// get wallet 
 			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsync(x => x.UserId == userId);
 			if (wallet == null)
 			{
 				_logger.LogWarning("TopUp failed: Wallet for user {UserId} not found", userId);
 				return Result<PaymentResponseDto>.Failure("Wallet not found");
 			}
-
-			// Begin transaction 
 			await using var tx = await _unitOfWork.BeginTransactionAsync();
 			try
 			{
-				// Create payment transaction 
+
 				var paymentTrnx = new PaymentTransaction
 				{
 					Amount = amount,
 					CreatedAt = DateTime.UtcNow,
-					method = method,
-					PaymentType = PaymentType.Credit,
+					method = method,                   
+					PaymentType = PaymentType.Credit,   
 					Reference = initiation.Reference,
-					Status = PaymentStatus.Pending,
+					Status = PaymentStatus.Pending,     
 					UserId = userId
 				};
 
 				await _unitOfWork.PaymentTransactions.AddAsync(paymentTrnx);
 				await _unitOfWork.SaveChangesAsync();
 
-				// Create wallet transaction (pending)
 				var walletTrnx = new WalletTransaction
 				{
-					Type = Domain.Enums.TransactionType.Deposit,
+					Type = TransactionType.Deposit,         
 					Amount = amount,
 					BalanceBefore = wallet.balance,
-					BalanceAfter = wallet.balance + amount, // expected balance after successful completion
-					Status = Domain.Enums.TransactionStatus.Pending,
+					BalanceAfter = wallet.balance + amount,
+					Status = TransactionStatus.Pending,     
 					CreatedAt = DateTime.UtcNow,
 					UserWalletId = wallet.Id,
 					PaymentTransactionId = paymentTrnx.Id,
 				};
 
 				await _unitOfWork.WalletTransactions.AddAsync(walletTrnx);
-
-				// update wallet pending balance
-				//wallet.PendingBalance += amount;
-				//wallet.UpdatedAt = DateTime.UtcNow;
-				//_unitOfWork.UserWallets.Update(wallet);
-				 
 				await _unitOfWork.SaveChangesAsync();
-
 				await tx.CommitAsync();
 
-				_logger.LogInformation("TopUp initiated for user {UserId}. PaymentRef={Ref}, WalletTrxId={WalletTrxId}", userId, initiation.Reference, walletTrnx.Id);
+				_logger.LogInformation(
+					"TopUp initiated for user {UserId}. PaymentRef={Ref}, WalletTrxId={WalletTrxId}",
+					userId, initiation.Reference, walletTrnx.Id);
 
 				var response = new PaymentResponseDto
 				{
@@ -165,10 +333,7 @@ namespace Ftareqi.Infrastructure.Implementation
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "TopUpCoreAsync failed for user {UserId}", userId);
-				try
-				{
-					await tx.RollbackAsync();
-				}
+				try { await tx.RollbackAsync(); }
 				catch (Exception rbEx)
 				{
 					_logger.LogError(rbEx, "Rollback failed after TopUpCoreAsync error for user {UserId}", userId);

@@ -17,7 +17,7 @@ namespace Ftareqi.Persistence.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    balance = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Balance= table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     PendingBalance = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     IsLocked = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),

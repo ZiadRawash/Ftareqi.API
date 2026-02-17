@@ -25,26 +25,27 @@ public class PaymobPaymentGateway : IPaymentGateway
 
 	public async Task<PaymentInitiationResult> InitiateCardPaymentAsync(PaymentCardRequestDto requestData)
 	{
-		_logger.LogInformation("Initiating card payment. Ref: {Reference}, Amount: {Amount}",
-			requestData.Reference, requestData.Amount);
+		var reference = CreateKey();
+
+		_logger.LogInformation("Initiating card payment. Amount: {Amount}", requestData.Amount);
 
 		try
 		{
 			var (paymentToken, paymobOrderId) = await PreparePaymentFlow(
 				requestData.Amount,
-				requestData.Reference,
+				reference,
 				requestData.UserId,
 				_paymobSettings.CardIntegrationId!);
 
 			var iframeUrl = $"https://accept.paymob.com/api/acceptance/iframes/{_paymobSettings.IframeId}?payment_token={paymentToken}";
 
 			_logger.LogInformation("Card payment initiated successfully. Ref: {Reference}, OrderId: {OrderId}",
-				requestData.Reference, paymobOrderId);
+				reference, paymobOrderId);
 
 			return new PaymentInitiationResult
 			{
 				Success = true,
-				Reference = requestData.Reference,
+				Reference = reference,
 				RedirectUrl = iframeUrl,
 				PaymobOrderId = paymobOrderId,
 				Status = "pending",
@@ -53,12 +54,12 @@ public class PaymobPaymentGateway : IPaymentGateway
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Card payment failed. Ref: {Ref}", requestData.Reference);
+			_logger.LogError(ex, "Card payment failed. Ref: {Ref}", reference);
 
 			return new PaymentInitiationResult
 			{
 				Success = false,
-				Reference = requestData.Reference,
+				Reference = reference,
 				Message = ex.Message,
 				Status = "failed"
 			};
@@ -67,14 +68,16 @@ public class PaymobPaymentGateway : IPaymentGateway
 
 	public async Task<PaymentInitiationResult> InitiateWalletPaymentAsync(PaymentWalletRequestDto requestData)
 	{
-		_logger.LogInformation("Initiating wallet payment. Ref: {Reference}, Amount: {Amount}, Wallet: {WalletNumber}",
-			requestData.reference, requestData.Amount, requestData.WalletNumber);
+		var reference = CreateKey();
+
+		_logger.LogInformation("Initiating wallet payment. Amount: {Amount}, Wallet: {WalletNumber}",
+			requestData.Amount, requestData.WalletNumber);
 
 		try
 		{
 			var (paymentToken, paymobOrderId) = await PreparePaymentFlow(
 				requestData.Amount,
-				requestData.reference,
+				reference,
 				requestData.UserId,
 				_paymobSettings.WalletIntegrationId!);
 
@@ -88,12 +91,12 @@ public class PaymobPaymentGateway : IPaymentGateway
 			{
 				var errorContent = await response.Content.ReadAsStringAsync();
 				_logger.LogError("Wallet payment rejected. Ref: {Reference}, StatusCode: {StatusCode}",
-					requestData.reference, response.StatusCode);
+					reference, response.StatusCode);
 
 				return new PaymentInitiationResult
 				{
 					Success = false,
-					Reference = requestData.reference,
+					Reference = reference,
 					Message = $"Payment request rejected. Status: {response.StatusCode}",
 					Status = "failed"
 				};
@@ -103,24 +106,24 @@ public class PaymobPaymentGateway : IPaymentGateway
 
 			if (result == null || string.IsNullOrEmpty(result.redirect_url))
 			{
-				_logger.LogError("Missing redirect URL. Ref: {Reference}", requestData.reference);
+				_logger.LogError("Missing redirect URL. Ref: {Reference}", reference);
 
 				return new PaymentInitiationResult
 				{
 					Success = false,
-					Reference = requestData.reference,
+					Reference = reference,
 					Message = "Failed to get redirect URL from Paymob",
 					Status = "failed"
 				};
 			}
 
 			_logger.LogInformation("Wallet payment initiated successfully. Ref: {Reference}, OrderId: {OrderId}",
-				requestData.reference, paymobOrderId);
+				reference, paymobOrderId);
 
 			return new PaymentInitiationResult
 			{
 				Success = true,
-				Reference = requestData.reference,
+				Reference = reference,
 				RedirectUrl = result.redirect_url,
 				PaymobOrderId = paymobOrderId,
 				Status = "pending",
@@ -129,18 +132,17 @@ public class PaymobPaymentGateway : IPaymentGateway
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Wallet payment failed. Ref: {Ref}", requestData.reference);
+			_logger.LogError(ex, "Wallet payment failed. Ref: {Ref}", reference);
 
 			return new PaymentInitiationResult
 			{
 				Success = false,
-				Reference = requestData.reference,
+				Reference = reference,
 				Message = ex.Message,
 				Status = "failed"
 			};
 		}
 	}
-
 	public Result<PaymentCallbackResultDto> Callback(string hmac, PaymobCallbackDto callback)
 	{
 		try
@@ -157,11 +159,9 @@ public class PaymobPaymentGateway : IPaymentGateway
 		if (callback?.obj == null)
 		{
 			_logger.LogError("Invalid or empty callback payload");
-			// Use a dedicated error code so the caller knows this is a bad request, not a failed payment
 			return Result<PaymentCallbackResultDto>.Failure("HMAC_INVALID");
 		}
 
-		// Verify HMAC first — if this fails the request is tampered/corrupt
 		var isValid = VerifyHmac(hmac, callback.obj);
 		if (!isValid)
 		{
@@ -169,7 +169,6 @@ public class PaymobPaymentGateway : IPaymentGateway
 			return Result<PaymentCallbackResultDto>.Failure("HMAC_INVALID");
 		}
 
-		// Build the result DTO — valid for both success and failure paths
 		var resultDto = new PaymentCallbackResultDto
 		{
 			MerchantId = callback.obj.order?.merchant_order_id,
@@ -187,8 +186,6 @@ public class PaymobPaymentGateway : IPaymentGateway
 		}
 		else
 		{
-			// Legitimate Paymob failure (e.g. insufficient funds, card declined).
-			// Returned as Success so the DTO reaches WalletService — check dto.PaymentSucceeded there.
 			_logger.LogInformation("Payment failed by Paymob. OrderId: {OrderId}, MerchantId: {MerchantId}",
 				callback.obj.order?.id, callback.obj.order?.merchant_id);
 
@@ -322,6 +319,8 @@ public class PaymobPaymentGateway : IPaymentGateway
 			throw;
 		}
 	}
+
+	private string CreateKey() => Guid.NewGuid().ToString();
 
 	private class PaymobAuthResponse { public string? token { get; set; } }
 	private class PaymobOrderResponse { public int id { get; set; } }

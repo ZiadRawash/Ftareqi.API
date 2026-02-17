@@ -18,7 +18,7 @@ namespace Ftareqi.Application.DTOs
 		public decimal BalanceAfter { get; set; }
 		public TransactionStatus Status { get; set; }//Pending,Completed,Failed
 		public DateTime CreatedAt { get; set; }
-		public DateTime UpdatedAt { get; set; }
+		public DateTime? UpdatedAt { get; set; }
 
 
 	}

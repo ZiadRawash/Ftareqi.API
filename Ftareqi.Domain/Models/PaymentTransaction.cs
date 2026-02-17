@@ -13,10 +13,11 @@ namespace Ftareqi.Domain.Models
 		public int Id { get; set; }
 		public decimal Amount { get; set; }
 		public PaymentType PaymentType { get; set; }//Credit,Debit
-		public PaymentMethod method { get; set; }//Card,MobileWallet
+		public PaymentMethod Method { get; set; }//Card,MobileWallet
 		public PaymentStatus Status { get; set; }//Success,Failed,Pending
-		public string Reference { get; set; }
+		public required string  Reference { get; set; }
 		public DateTime CreatedAt { get; set; }
+		public DateTime? UpdatedAt  { get; set; }
 
 		public User User { get; set; }
 		[ForeignKey(nameof(User))]

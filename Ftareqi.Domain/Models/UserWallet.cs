@@ -10,15 +10,17 @@ namespace Ftareqi.Domain.Models
 	public class UserWallet
 	{
 		public int Id { get; set; }
-		public decimal balance { get; set; }
-		public decimal PendingBalance { get; set; }
+		public decimal Balance { get; set; }
+		public decimal LockedBalance { get; set; }
 		public bool IsLocked {  get; set; }
 		public DateTime CreatedAt { get; set; }
-		public DateTime UpdatedAt { get; set; }
+		public DateTime? UpdatedAt { get; set; }
 
 		public User User { get; set; }
 		[ForeignKey(nameof(User))]
 		public string UserId {  get; set; }
+
+		public List<WalletTransaction>WalletTransactions { get; set; }= new List<WalletTransaction>();
 
 	}
 }

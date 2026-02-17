@@ -10,7 +10,6 @@ namespace Ftareqi.Application.DTOs.Paymob
 	{
 		public required string  UserId { get; set; }
 		public decimal Amount {  get; set; }
-		public required string Reference { get; set; }
 
 	}
 }

@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Ftareqi.Application.DTOs.Paymob
 {
-	public class PaymentResponseDto
+	public class TopUpWithCardReqDto
 	{
 
-		public string PaymentUrl { get; set; }=string.Empty;
-
+		[Required]
+		[Range(1, 10000)]
+		public decimal Amount { get; set; }
 	}
 }

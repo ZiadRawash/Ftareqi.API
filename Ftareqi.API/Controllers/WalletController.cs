@@ -122,6 +122,7 @@ namespace Ftareqi.API.Controllers
 				Message = result.Message,
 				Data = result.Data,
 				Success = result.IsSuccess,
+
 			});
 		}
 

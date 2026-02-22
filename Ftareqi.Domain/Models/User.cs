@@ -25,5 +25,6 @@ namespace Ftareqi.Domain.Models
 		public List<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 		public DriverProfile? DriverProfile { get; set; }
 		public UserWallet UserWallet { get; set; }
+		public List<Notification> Notifications { get; set; }= new List<Notification>();
 	}
 }

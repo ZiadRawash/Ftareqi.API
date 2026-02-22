@@ -14,6 +14,7 @@ using Ftareqi.Domain.Models;
 using Ftareqi.Infrastructure.BackgroundJobs;
 using Ftareqi.Infrastructure.Implementation;
 using Ftareqi.Infrastructure.Services;
+using Ftareqi.Infrastructure.SignalR;
 using Ftareqi.Persistence;
 using Ftareqi.Persistence.Repositories;
 using Hangfire;
@@ -58,6 +59,19 @@ namespace Ftareqi.API
 			builder.Services.Configure<ApiBehaviorOptions>(o =>
 			{
 				o.SuppressModelStateInvalidFilter = true;
+			});
+
+			// ---------------------
+			// SignalR Configuration (BEFORE Services Registration)
+			// ---------------------
+			builder.Services.AddSignalR(options =>
+			{
+				options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+				options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+			})
+			.AddJsonProtocol(options =>
+			{
+				options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 			});
 
 			// ---------------------
@@ -117,6 +131,23 @@ namespace Ftareqi.API
 					ValidateLifetime = true,
 					ClockSkew = TimeSpan.Zero
 				};
+
+				// Add support for JWT in WebSocket connections (SignalR)
+				options.Events = new JwtBearerEvents
+				{
+					OnMessageReceived = context =>
+					{
+						var accessToken = context.Request.Query["access_token"];
+
+						if (!string.IsNullOrEmpty(accessToken) &&
+							(context.HttpContext.WebSockets.IsWebSocketRequest || context.Request.Headers["Connection"] == "Upgrade"))
+						{
+							context.Token = accessToken;
+						}
+
+						return Task.CompletedTask;
+					}
+				};
 			});
 
 			// ---------------------
@@ -137,14 +168,18 @@ namespace Ftareqi.API
 			builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestDtoValidator>();
 
 			// The custom exception handler 
-			builder.Services.AddExceptionHandler<GlobalErrorHandler>(); 
+			builder.Services.AddExceptionHandler<GlobalErrorHandler>();
 			builder.Services.AddProblemDetails();
 
 			builder.Services.AddCors(options =>
 			{
-				options.AddPolicy("_myAllowedOrigins", policy =>
+				options.AddPolicy("FlexiblePolicy", policy =>
 				{
-					policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+					policy
+						.SetIsOriginAllowed(_ => true) 
+						.AllowAnyHeader()
+						.AllowAnyMethod()
+						.AllowCredentials(); 
 				});
 			});
 
@@ -181,6 +216,9 @@ namespace Ftareqi.API
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+			// Notifications
+			builder.Services.AddScoped<INotificationBuilder, NotificationBuilder>();
+			builder.Services.AddScoped<INotificationService, NotificationService>();
 
 
 			//Customed policies 
@@ -235,19 +273,10 @@ namespace Ftareqi.API
 				options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 			});
 
-			builder.Services.AddCors(options =>
-			{
-				options.AddPolicy("_myAllowedOrigins", policy =>
-				{
-					policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
-				});
-			});
-
 
 			var app = builder.Build();
 			BackgroundJobsConfig.RegisterJobs(app);
 
-			// Serilog request logging should be early in the pipeline
 			app.UseSerilogRequestLogging();
 
 			if (app.Environment.IsDevelopment())
@@ -256,7 +285,7 @@ namespace Ftareqi.API
 				app.UseSwaggerUI();
 			}
 
-			 app.UseExceptionHandler(); 
+			app.UseExceptionHandler();
 
 			app.UseHangfireDashboard("/hangfire");
 
@@ -264,11 +293,12 @@ namespace Ftareqi.API
 
 			app.UseRouting();
 
-			app.UseCors("_myAllowedOrigins");
+			app.UseCors("FlexiblePolicy");
 
-			app.UseAuthentication();
-			app.UseAuthorization();
+			app.UseAuthentication();       
+			app.UseAuthorization();        
 
+			app.MapHub<NotificationHub>("/notificationHub");
 			app.MapControllers();
 
 			app.Run();

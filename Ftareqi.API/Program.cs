@@ -26,10 +26,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Serilog;
-using System.Reflection;
 using System.Text;
-using System.Text.Json.Serialization;
 
 namespace Ftareqi.API
 {
@@ -47,37 +47,43 @@ namespace Ftareqi.API
 							 .ReadFrom.Services(services));
 
 			// ---------------------
-			// MVC & Controllers
+			//Controllers 
 			// ---------------------
 			builder.Services.AddControllers()
-				.AddJsonOptions(options =>
+				.AddNewtonsoftJson(options =>
 				{
-					options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+					options.SerializerSettings.TypeNameHandling = TypeNameHandling.Auto;
+					options.SerializerSettings.MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead;
+					options.SerializerSettings.Converters.Add(new StringEnumConverter());
+					options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+					options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
 				});
 
-			// Suppress default model state validation to use FluentValidation or custom handling
 			builder.Services.Configure<ApiBehaviorOptions>(o =>
 			{
 				o.SuppressModelStateInvalidFilter = true;
 			});
 
 			// ---------------------
-			// SignalR Configuration (BEFORE Services Registration)
+			// SignalR Configuration 
 			// ---------------------
 			builder.Services.AddSignalR(options =>
 			{
 				options.HandshakeTimeout = TimeSpan.FromSeconds(15);
 				options.KeepAliveInterval = TimeSpan.FromSeconds(30);
 			})
-			.AddJsonProtocol(options =>
+			.AddNewtonsoftJsonProtocol(options =>
 			{
-				options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+				options.PayloadSerializerSettings.TypeNameHandling = TypeNameHandling.Auto;
+				options.PayloadSerializerSettings.MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead;
+				options.PayloadSerializerSettings.Converters.Add(new StringEnumConverter());
+				options.PayloadSerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+				options.PayloadSerializerSettings.NullValueHandling = NullValueHandling.Ignore;
 			});
 
 			// ---------------------
 			// Settings & Configuration
 			// ---------------------
-			var jwtSettings = builder.Configuration.GetSection("JWTSettings").Get<JWTSettings>();
 			builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
 			builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 			builder.Services.Configure<PaymobSettings>(builder.Configuration.GetSection("PaymobSettings"));
@@ -107,12 +113,8 @@ namespace Ftareqi.API
 
 			builder.Services.AddAuthentication(options =>
 			{
-				options.DefaultAuthenticateScheme =
-				options.DefaultChallengeScheme =
-				options.DefaultForbidScheme =
-				options.DefaultScheme =
-				options.DefaultSignInScheme =
-				options.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
+				options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+				options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 			})
 			.AddJwtBearer(options =>
 			{
@@ -126,25 +128,22 @@ namespace Ftareqi.API
 					ValidAudience = builder.Configuration["JWTSettings:Audience"],
 					ValidateIssuerSigningKey = true,
 					IssuerSigningKey = new SymmetricSecurityKey(
-						System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:SignInKey"]!)
+						Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:SignInKey"]!)
 					),
 					ValidateLifetime = true,
 					ClockSkew = TimeSpan.Zero
 				};
 
-				// Add support for JWT in WebSocket connections (SignalR)
 				options.Events = new JwtBearerEvents
 				{
 					OnMessageReceived = context =>
 					{
 						var accessToken = context.Request.Query["access_token"];
-
 						if (!string.IsNullOrEmpty(accessToken) &&
 							(context.HttpContext.WebSockets.IsWebSocketRequest || context.Request.Headers["Connection"] == "Upgrade"))
 						{
 							context.Token = accessToken;
 						}
-
 						return Task.CompletedTask;
 					}
 				};
@@ -155,19 +154,14 @@ namespace Ftareqi.API
 			// ---------------------
 			builder.Services.AddHangfire(config =>
 			{
-				config.UseSqlServerStorage(
-					builder.Configuration.GetConnectionString("HangfireConnection"));
+				config.UseSqlServerStorage(builder.Configuration.GetConnectionString("HangfireConnection"));
 			});
-
-			// Enable Hangfire server inside the API
 			builder.Services.AddHangfireServer();
 
 			// ---------------------
 			// Validators, Exception Handling, CORS
 			// ---------------------
 			builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestDtoValidator>();
-
-			// The custom exception handler 
 			builder.Services.AddExceptionHandler<GlobalErrorHandler>();
 			builder.Services.AddProblemDetails();
 
@@ -175,19 +169,16 @@ namespace Ftareqi.API
 			{
 				options.AddPolicy("FlexiblePolicy", policy =>
 				{
-					policy
-						.SetIsOriginAllowed(_ => true) 
-						.AllowAnyHeader()
-						.AllowAnyMethod()
-						.AllowCredentials(); 
+					policy.SetIsOriginAllowed(_ => true)
+						  .AllowAnyHeader()
+						  .AllowAnyMethod()
+						  .AllowCredentials();
 				});
 			});
 
-
 			// ---------------------
-			// Application Services (Repositories, Services, Orchestrators, Jobs)
+			// Application Services
 			// ---------------------
-			// Services
 			builder.Services.AddScoped<ITokensService, TokensService>();
 			builder.Services.AddScoped<IUserService, UserService>();
 			builder.Services.AddScoped<IOtpService, OtpService>();
@@ -198,30 +189,23 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IWalletService, WalletService>();
 			builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
 
-			// Orchestrators
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
 			builder.Services.AddScoped<IUserOrchestrator, UserOrchestrator>();
-
-
-			// Background Job Implementations
-			builder.Services.AddScoped<DriverJobs>();
+			builder.Services.AddScoped<INotificationOrchestrator, NotificationOrchestrator>();
 
 			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
 			builder.Services.AddScoped<ICarJobs, CarJobs>();
 			builder.Services.AddScoped<IUserJobs, UserJobs>();
 			builder.Services.AddScoped<IDriverJobs, DriverJobs>();
+			builder.Services.AddScoped<DriverJobs>();
 
-			// Repositories & UoW
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-			// Notifications
 			builder.Services.AddScoped<INotificationBuilder, NotificationBuilder>();
 			builder.Services.AddScoped<INotificationService, NotificationService>();
 
-
-			//Customed policies 
 			builder.Services.AddAuthorization(options =>
 			{
 				options.AddPolicy("DriverOnly", policy =>
@@ -230,53 +214,31 @@ namespace Ftareqi.API
 				});
 			});
 
-
 			// ---------------------
-			// Swagger/OpenAPI
+			// Swagger
 			// ---------------------
 			builder.Services.AddEndpointsApiExplorer();
 			builder.Services.AddSwaggerGen(options =>
 			{
-				options.SwaggerDoc("v1", new OpenApiInfo
-				{
-					Version = "v1",
-					Title = "Ftareqi API",
-					Description = "An ASP.NET Core Web API for Carpooling"
-				});
-
+				options.SwaggerDoc("v1", new OpenApiInfo { Title = "Ftareqi API", Version = "v1" });
 				options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
 				{
 					Name = "Authorization",
 					Type = SecuritySchemeType.Http,
 					Scheme = "Bearer",
-					BearerFormat = "JWT",
-					In = ParameterLocation.Header,
-					Description = "Enter: Bearer {your token}"
+					In = ParameterLocation.Header
 				});
-
-				options.AddSecurityRequirement(new OpenApiSecurityRequirement
-				{
+				options.AddSecurityRequirement(new OpenApiSecurityRequirement {
 					{
-						new OpenApiSecurityScheme
-						{
-							Reference = new OpenApiReference
-							{
-								Type = ReferenceType.SecurityScheme,
-								Id = "Bearer"
-							}
-						},
-						Array.Empty<string>()
+						new OpenApiSecurityScheme {
+							Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+						}, Array.Empty<string>()
 					}
 				});
-
-				var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-				options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 			});
-
 
 			var app = builder.Build();
 			BackgroundJobsConfig.RegisterJobs(app);
-
 			app.UseSerilogRequestLogging();
 
 			if (app.Environment.IsDevelopment())
@@ -286,17 +248,12 @@ namespace Ftareqi.API
 			}
 
 			app.UseExceptionHandler();
-
 			app.UseHangfireDashboard("/hangfire");
-
 			app.UseHttpsRedirection();
-
 			app.UseRouting();
-
 			app.UseCors("FlexiblePolicy");
-
-			app.UseAuthentication();       
-			app.UseAuthorization();        
+			app.UseAuthentication();
+			app.UseAuthorization();
 
 			app.MapHub<NotificationHub>("/notificationHub");
 			app.MapControllers();

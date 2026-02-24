@@ -6,9 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ftareqi.Domain.Models
+namespace Ftareqi.Application.DTOs.Notification
 {
-	public class Notification
+	public class NotificationDto
 	{
 		public int Id { get; set; }
 		public string Title { get; set; } = default!;
@@ -17,14 +17,13 @@ namespace Ftareqi.Domain.Models
 
 		public NotificationEventCode EventCode { get; set; }
 
-		public string? RelatedEntityId { get; set; } 
+		public string? RelatedEntityId { get; set; }
 
-		public string Data { get; set; } 
+		public object  Data { get; set; } 
 
 		public bool IsRead { get; set; }
 
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-		public string UserId { get; set; } = default!;
-		public User User { get; set; }
+
 	}
 }

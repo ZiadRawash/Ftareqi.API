@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ftareqi.Application.DTOs.Notification
+namespace Ftareqi.Domain.ValueObjects
 {
 	public class WalletTransactionMetadata: NotificationMetadata
 	{

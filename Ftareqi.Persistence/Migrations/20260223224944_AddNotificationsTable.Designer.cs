@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ftareqi.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260221225552_AddNotificationsTable")]
+    [Migration("20260223224944_AddNotificationsTable")]
     partial class AddNotificationsTable
     {
         /// <inheritdoc />
@@ -152,9 +152,11 @@ namespace Ftareqi.Persistence.Migrations
 
             modelBuilder.Entity("Ftareqi.Domain.Models.Notification", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("Category")
                         .HasColumnType("int");
@@ -163,6 +165,7 @@ namespace Ftareqi.Persistence.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Data")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("EventCode")

@@ -1,40 +1,67 @@
-﻿using Ftareqi.Application.DTOs.Notification;
+﻿using Ftareqi.Application.Common.Helpers;
+using Ftareqi.Application.DTOs;
+using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Ftareqi.Infrastructure.Implementation
 {
 	public class NotificationBuilder : INotificationBuilder
 	{
+		private readonly ILogger<NotificationBuilder> _logger;
 
-		public  Notification CreateNotificationAsync(string userId, NotificationCategory category, NotificationEventCode eventCode, string relatedEntityId, NotificationMetadata metaData)
+		public NotificationBuilder(ILogger<NotificationBuilder> logger)
 		{
-			var notification = new Notification
-			{
-				UserId = userId,
-				Category = category,
-				CreatedAt = DateTime.UtcNow,
-				Title = GetTitleForEventCode(eventCode),
-				IsRead = false,
-				RelatedEntityId = relatedEntityId,
-				EventCode = eventCode,
-				Data = JsonSerializer.Serialize(metaData)
-
-			};
-			return notification;
+			_logger = logger;
 		}
-		private string GetTitleForEventCode(NotificationEventCode eventCode) => eventCode switch
+
+		public Notification CreateNotification(NotificationInput builderDto)
 		{
-			NotificationEventCode.WalletCharged => "Wallet charged",
-			NotificationEventCode.WalletWithdrawn => "wallet withdrawn",
-			_ => "Notification"
-		};
+			try
+			{
+				_logger.LogInformation("Building notification for User: {UserId}, EventCode: {EventCode}",
+					builderDto.UserId, builderDto.EventCode);
+				var title = GetTitleForEventCode(builderDto.EventCode);
+				var notification = new Notification
+				{
+					UserId = builderDto.UserId,
+					Category = builderDto.Category,
+					CreatedAt = DateTime.UtcNow,
+					Title = title,
+					IsRead = false,
+					RelatedEntityId = builderDto.RelatedEntityId,
+					EventCode = builderDto.EventCode,
+					Data = NotificationDataHelper.SerializeData(builderDto.MetaData)
+				};
+
+				_logger.LogInformation("Notification object created successfully with Title: '{Title}'", title);
+				return notification;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Failed to build notification for User: {UserId}. Error: {Message}",
+					builderDto.UserId, ex.Message);
+				throw;
+			}
+		}
+
+		private string GetTitleForEventCode(NotificationEventCode eventCode)
+		{
+			var title = eventCode switch
+			{
+				NotificationEventCode.WalletCharged => "Wallet charged",
+				NotificationEventCode.WalletWithdrawn => "Wallet withdrawn",
+				_ => "Notification"
+			};
+
+			if (title == "Notification")
+			{
+				_logger.LogWarning("EventCode {EventCode} hit the default title case.", eventCode);
+			}
+
+			return title;
+		}
 	}
 }

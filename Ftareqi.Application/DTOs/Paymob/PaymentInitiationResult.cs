@@ -10,7 +10,7 @@ namespace Ftareqi.Application.DTOs.Paymob
 	{
 		public bool Success { get; set; }
 		public string Reference { get; set; }      // transaction id أو payment intent
-		public string RedirectUrl { get; set; }    // لو محتاج إعادة توجيه
+		public string RedirectUrl { get; set; }    
 		public string Message { get; set; }
 		public int PaymobOrderId { get; set; }
 		public string Status { get; set; } = string.Empty;

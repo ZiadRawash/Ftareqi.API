@@ -1,8 +1,9 @@
-using System;
 using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System;
 
 namespace Ftareqi.Persistence
 {
@@ -12,7 +13,6 @@ namespace Ftareqi.Persistence
 			: base(options)
 		{
 		}
-
 		public DbSet<RefreshToken> RefreshTokens { get; set; }
 		public DbSet<OTP> OTPs { get; set; }
 		public DbSet<WalletTransaction> WalletTransactions { get; set; }
@@ -46,6 +46,7 @@ namespace Ftareqi.Persistence
 					ConcurrencyStamp = "33333333-aaaa-bbbb-cccc-333333333333"
 				}
 			);
+
 			//password is Admin@123
 			builder.Entity<User>().HasData(
 				new User
@@ -57,18 +58,15 @@ namespace Ftareqi.Persistence
 					NormalizedEmail = "ADMIN@FTAREQI.COM",
 					EmailConfirmed = true,
 					SecurityStamp = "44444444-aaaa-bbbb-cccc-444444444444",
-
 					FullName = "Ziad Rawash",
 					Gender = Ftareqi.Domain.Enums.Gender.Male,
 					DateOfBirth = new DateTime(2004, 8, 11),
 					CreatedAt = new DateTime(2025, 12, 1, 0, 0, 0, DateTimeKind.Utc),
 					PenaltyCount = 0,
 					IsDeleted = false,
-
 					PhoneNumber = "+200000000000",
 					PhoneNumberConfirmed = true,
 					TwoFactorEnabled = false,
-
 					PasswordHash = "AQAAAAIAAYagAAAAELdvbbsNSTpjlcUQ5MZpRUQ5N2Bg93tunei18Crmhcqe3/dZJz5UIr9TK/4BXLuyUg==",
 					ConcurrencyStamp = "55555555-aaaa-bbbb-cccc-555555555555"
 				}
@@ -78,29 +76,26 @@ namespace Ftareqi.Persistence
 				.Property(x => x.Balance)
 				.HasPrecision(18, 2);
 
-
-
 			builder.Entity<WalletTransaction>()
 				.Property(x => x.BalanceAfter)
 				.HasPrecision(18, 2);
+
 			builder.Entity<WalletTransaction>()
 				.Property(x => x.BalanceBefore)
-				.HasPrecision(18,2);
+				.HasPrecision(18, 2);
+
 			builder.Entity<WalletTransaction>()
 				.Property(x => x.Amount)
-				.HasPrecision(18,2);
+				.HasPrecision(18, 2);
 
 			builder.Entity<UserWallet>()
-			.Property(x => x.LockedBalance)
-			.HasPrecision(18, 2);
+				.Property(x => x.LockedBalance)
+				.HasPrecision(18, 2);
 
 			builder.Entity<PaymentTransaction>()
 				.Property(x => x.Amount)
-				.HasPrecision(18,2);
+				.HasPrecision(18, 2);
 
-
-
-			
 			builder.Entity<IdentityUserRole<string>>().HasData(
 				new IdentityUserRole<string>
 				{
@@ -108,6 +103,12 @@ namespace Ftareqi.Persistence
 					RoleId = "role-admin"
 				}
 			);
+
+			//  Data is just a normal string column - no converter needed
+			builder.Entity<Notification>()
+				.Property(e => e.Data)
+				.HasColumnType("nvarchar(max)")
+				.IsRequired();
 		}
 	}
 }

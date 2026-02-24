@@ -54,6 +54,7 @@ namespace Ftareqi.Infrastructure.SignalR
 			catch (Exception ex)
 			{
 				_logger.LogError($"Error in OnDisconnectedAsync: {ex.Message}");
+				throw ;
 			}
 		}
 	}

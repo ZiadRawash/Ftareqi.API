@@ -1,4 +1,5 @@
-﻿using Ftareqi.Domain.Models;
+﻿using Ftareqi.Application.DTOs.Notification;
+using Ftareqi.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +10,6 @@ namespace Ftareqi.Infrastructure.SignalR
 {
 	public interface INotificationClient
 	{
-		Task ReceiveNotification(Notification notification);
+		Task ReceiveNotification(NotificationDto notification);
 	}
 }

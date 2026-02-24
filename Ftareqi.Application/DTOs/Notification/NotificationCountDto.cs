@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Application.DTOs.Notification
 {
-	public class NotificationMetadata
+	public class NotificationCountDto
 	{
-		public required string preview {  get; set; }
+		public int Count {  get; set; }
 	}
 }

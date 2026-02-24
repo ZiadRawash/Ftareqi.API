@@ -1,4 +1,5 @@
-﻿using Ftareqi.Domain.Models;
+﻿using Ftareqi.Application.DTOs.Notification;
+using Ftareqi.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,8 +10,8 @@ namespace Ftareqi.Application.Interfaces.Services
 {
 	public interface INotificationService
 	{
-		Task NotifyAllAsync(Notification notification);
-		Task NotifyUserAsync(string userId, Notification notification);
-		Task NotifyGroupAsync(string groupName, Notification notification);
+		Task NotifyAllAsync(NotificationDto notification);
+		Task NotifyUserAsync(string userId, NotificationDto notification);
+		Task NotifyGroupAsync(string groupName, NotificationDto notification);
 	}
 }

@@ -3,9 +3,11 @@ using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.DTOs.User;
 using Ftareqi.Application.Interfaces.Orchestrators;
+using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
 using Ftareqi.Domain.ValueObjects;
+using Ftareqi.Infrastructure.Implementation;
 using Ftareqi.Infrastructure.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,13 +19,18 @@ using Microsoft.AspNetCore.SignalR;
 public class NotificationController : ControllerBase
 {
 	private readonly INotificationOrchestrator _notificationOrchestrator;
+	private readonly IUserService _userService;
+	private readonly IFcmTokenService _fcmTokenService;
 
 	public NotificationController(
+		IFcmTokenService fcmTokenService,
+	IUserService userService,
 		INotificationOrchestrator notificationOrchestrator)
 	{
+		_fcmTokenService = fcmTokenService;
+		_userService = userService;
 		_notificationOrchestrator = notificationOrchestrator;
 	}
-
 	[HttpGet]
 	public async Task<ActionResult<ApiResponse<PaginatedResponse<NotificationDto>>>> GetAll([FromQuery] GenericQueryReq queryRequest)
 	{
@@ -65,7 +72,6 @@ public class NotificationController : ControllerBase
 		var userId = User.GetUserId();
 		if (userId == null)
 			return Unauthorized();
-
 		var response = await _notificationOrchestrator.GetByIdAsync(id, userId);
 		if (!response.IsSuccess)
 			return BadRequest(new ApiResponse
@@ -74,7 +80,6 @@ public class NotificationController : ControllerBase
 				Message = response.Message,
 				Success = response.IsSuccess
 			});
-
 		return Ok(new ApiResponse<NotificationDto>
 		{
 			Errors = response.Errors,
@@ -83,7 +88,6 @@ public class NotificationController : ControllerBase
 			Data = response.Data
 		});
 	}
-
 	[HttpPut("{id}/mark-as-read")]
 	public async Task<ActionResult<ApiResponse>> MarkAsRead(int id)
 	{
@@ -103,7 +107,6 @@ public class NotificationController : ControllerBase
 			Success = response.IsSuccess
 		});
 	}
-
 	[HttpPut("mark-all-as-read")]
 	public async Task<ActionResult<ApiResponse>> MarkAllAsRead()
 	{
@@ -127,7 +130,6 @@ public class NotificationController : ControllerBase
 			Success = response.IsSuccess
 		});
 	}
-
 	[HttpGet("unread-count")]
 	public async Task<ActionResult<ApiResponse<NotificationCountDto>>> GetUnreadCount()
 	{
@@ -152,7 +154,6 @@ public class NotificationController : ControllerBase
 			Data = response.Data
 		});
 	}
-
 	[HttpDelete("{id}")]
 	public async Task<ActionResult<ApiResponse>> DeleteNotification(int id)
 	{
@@ -172,4 +173,39 @@ public class NotificationController : ControllerBase
 			Success = response.IsSuccess
 		});
 	}
+		[HttpPost("register-fcm-token")]
+		public async Task<ActionResult<ApiResponse>>
+		RegisterFcmToken([FromBody] FcmTokenReqDto request)
+		{
+			var userId = User.GetUserId();
+			if (string.IsNullOrEmpty(userId))
+				return Unauthorized();
+			if (string.IsNullOrWhiteSpace(
+				request?.Token))
+			{
+				return BadRequest(new ApiResponse
+					{
+						Success = false,
+						Message =	
+						"FCM token is required"
+				});
+			}
+			var result =await _fcmTokenService.RegisterDeviceAsync(userId,request.Token);
+			if (!result.IsSuccess)
+			{
+				return BadRequest(
+					new ApiResponse
+					{
+						Success = false,
+						Message =
+						result.Message
+				});
+			}
+			return Ok(new ApiResponse
+				{
+					Success = true,
+					Message =
+					"Device registered successfully"
+			});
+		}
 }

@@ -26,5 +26,6 @@ namespace Ftareqi.Domain.Models
 		public DriverProfile? DriverProfile { get; set; }
 		public UserWallet UserWallet { get; set; }
 		public List<Notification> Notifications { get; set; }= new List<Notification>();
+		public ICollection<FcmToken> FcmTokens { get; set; } = new List<FcmToken>();
 	}
 }

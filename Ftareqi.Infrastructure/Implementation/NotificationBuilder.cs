@@ -46,7 +46,50 @@ namespace Ftareqi.Infrastructure.Implementation
 				throw;
 			}
 		}
+		public Notification CreateBroadcastNotification(
+			BroadcastNotificationInput builderDto)
+		{
+			try
+			{
+				_logger.LogInformation(
+					"Building BROADCAST notification. EventCode: {EventCode}",
+					builderDto.EventCode);
 
+				var title =
+					GetTitleForEventCode(
+						builderDto.EventCode);
+
+				var notification =
+					new Notification
+					{
+						UserId = null!,
+
+						Category =builderDto.Category,
+
+						CreatedAt =DateTime.UtcNow,
+
+						Title =title,
+
+						IsRead =false,
+
+						RelatedEntityId =builderDto.RelatedEntityId,
+
+						EventCode =builderDto.EventCode,
+
+						Data =NotificationDataHelper.SerializeData(builderDto.MetaData),
+						IsBroadcast = true
+					};
+				_logger.LogInformation(
+					"Broadcast notification created successfully");
+				return notification;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex,
+					"Failed building broadcast notification");
+				throw;
+			}
+		}
 		private string GetTitleForEventCode(NotificationEventCode eventCode)
 		{
 			var title = eventCode switch

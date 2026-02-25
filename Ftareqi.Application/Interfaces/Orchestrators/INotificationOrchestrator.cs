@@ -14,6 +14,7 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 	public interface INotificationOrchestrator
 	{
 		Task <Result> NotifyAsync (NotificationInput notificationInput);
+		Task<Result> NotifyAnnouncementAsync(BroadcastNotificationInput input);
 		Task<Result<PaginatedResponse<NotificationDto>>> GetAllNotifications(GenericQueryReq queryRequest, string userId);
 		Task <Result<NotificationDto>> GetByIdAsync(int notificationId, string userId);
 		Task<Result> MarkAllAsReadAsync(string userId);

@@ -13,5 +13,6 @@ namespace Ftareqi.Application.Interfaces.Services
 	public interface INotificationBuilder
 	{
 		public	Notification CreateNotification(NotificationInput builderDto);
+		public Notification CreateBroadcastNotification(BroadcastNotificationInput input);
 	}
 }

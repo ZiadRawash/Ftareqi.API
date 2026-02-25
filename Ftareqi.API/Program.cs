@@ -1,4 +1,5 @@
 using DripOut.Application.Common.Settings;
+using FirebaseAdmin;
 using FluentValidation;
 using Ftareqi.API.Configurations;
 using Ftareqi.Application.Common;
@@ -17,6 +18,7 @@ using Ftareqi.Infrastructure.Services;
 using Ftareqi.Infrastructure.SignalR;
 using Ftareqi.Persistence;
 using Ftareqi.Persistence.Repositories;
+using Google.Apis.Auth.OAuth2;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -87,7 +89,10 @@ namespace Ftareqi.API
 			builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
 			builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 			builder.Services.Configure<PaymobSettings>(builder.Configuration.GetSection("PaymobSettings"));
+			
 
+			// In "Application Services" section:
+			builder.Services.AddScoped<IFcmService, FcmService>();
 			// ---------------------
 			// Database Context
 			// ---------------------
@@ -188,24 +193,21 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
 			builder.Services.AddScoped<IWalletService, WalletService>();
 			builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
-
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
 			builder.Services.AddScoped<IUserOrchestrator, UserOrchestrator>();
 			builder.Services.AddScoped<INotificationOrchestrator, NotificationOrchestrator>();
-
 			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
 			builder.Services.AddScoped<ICarJobs, CarJobs>();
 			builder.Services.AddScoped<IUserJobs, UserJobs>();
 			builder.Services.AddScoped<IDriverJobs, DriverJobs>();
 			builder.Services.AddScoped<DriverJobs>();
-
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
 			builder.Services.AddScoped<INotificationBuilder, NotificationBuilder>();
 			builder.Services.AddScoped<INotificationService, NotificationService>();
-
+			builder.Services.AddScoped<IFcmService, FcmService>();
+			builder.Services.AddScoped<IFcmTokenService, FcmTokenService>();
 			builder.Services.AddAuthorization(options =>
 			{
 				options.AddPolicy("DriverOnly", policy =>
@@ -213,6 +215,46 @@ namespace Ftareqi.API
 					policy.RequireClaim(CustomClaimTypes.IsDriver, CustomClaimTypes.True);
 				});
 			});
+			////FCM Configurations 
+			builder.Services.Configure<FirebaseSettings>(builder.Configuration.GetSection("FirebaseSettings"));
+			var firebaseSettings = builder.Configuration
+			.GetSection("FirebaseSettings")
+			.Get<FirebaseSettings>();
+
+			if (firebaseSettings != null && !string.IsNullOrEmpty(firebaseSettings.ProjectId))
+			{
+				try
+				{
+					var json = JsonConvert.SerializeObject(new
+					{
+						type = "service_account",
+						project_id = firebaseSettings.ProjectId,
+						private_key_id = firebaseSettings.PrivateKeyId,
+						private_key = firebaseSettings.PrivateKey?.Replace("\\n", "\n"),
+						client_email = firebaseSettings.ClientEmail,
+						client_id = firebaseSettings.ClientId,
+						auth_uri = firebaseSettings.AuthUri,
+						token_uri = firebaseSettings.TokenUri,
+						auth_provider_x509_cert_url = firebaseSettings.AuthProviderX509CertUrl,
+						client_x509_cert_url = firebaseSettings.ClientX509CertUrl
+					});
+					FirebaseApp.Create(new AppOptions
+					{
+						Credential = GoogleCredential.FromJson(json)
+					});
+
+					Console.WriteLine(" Firebase initialized successfully");
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine($" Firebase initialization failed: {ex.Message}");
+					// Don't throw - let app run without FCM
+				}
+			}
+			else
+			{
+				Console.WriteLine(" Firebase configuration not found");
+			}
 
 			// ---------------------
 			// Swagger

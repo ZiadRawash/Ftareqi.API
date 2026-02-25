@@ -24,7 +24,8 @@ namespace Ftareqi.Domain.Models
 		public bool IsRead { get; set; }
 
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-		public string UserId { get; set; } = default!;
-		public User User { get; set; }
+		public string? UserId { get; set; } = default!;
+		public User? User { get; set; }
+		public bool IsBroadcast { get; set; } = false;
 	}
 }

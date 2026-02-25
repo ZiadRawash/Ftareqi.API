@@ -20,7 +20,7 @@ namespace Ftareqi.Application.Common.Helpers
 		public static object DeserializeData(string dataJson)
 		{
 			if (string.IsNullOrEmpty(dataJson))
-				return null;
+				return null!;
 
 			return JsonConvert.DeserializeObject(dataJson, JsonSettings);
 		}

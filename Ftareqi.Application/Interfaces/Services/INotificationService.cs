@@ -12,6 +12,5 @@ namespace Ftareqi.Application.Interfaces.Services
 	{
 		Task NotifyAllAsync(NotificationDto notification);
 		Task NotifyUserAsync(string userId, NotificationDto notification);
-		Task NotifyGroupAsync(string groupName, NotificationDto notification);
 	}
 }

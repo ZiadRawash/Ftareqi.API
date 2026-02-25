@@ -4,6 +4,7 @@ using Ftareqi.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ftareqi.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260224191948_AddFcmTokenToUser")]
+    partial class AddFcmTokenToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -103,38 +106,6 @@ namespace Ftareqi.Persistence.Migrations
                     b.ToTable("DriverProfile");
                 });
 
-            modelBuilder.Entity("Ftareqi.Domain.Models.FcmToken", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("FcmToken");
-                });
-
             modelBuilder.Entity("Ftareqi.Domain.Models.Image", b =>
                 {
                     b.Property<int>("Id")
@@ -200,9 +171,6 @@ namespace Ftareqi.Persistence.Migrations
                     b.Property<int>("EventCode")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsBroadcast")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
@@ -214,6 +182,7 @@ namespace Ftareqi.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
+                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
@@ -359,6 +328,12 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("FcmToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("FcmTokenUpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("FullName")
                         .IsRequired()
@@ -716,17 +691,6 @@ namespace Ftareqi.Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Ftareqi.Domain.Models.FcmToken", b =>
-                {
-                    b.HasOne("Ftareqi.Domain.Models.User", "User")
-                        .WithMany("FcmTokens")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Ftareqi.Domain.Models.Image", b =>
                 {
                     b.HasOne("Ftareqi.Domain.Models.Car", "Car")
@@ -752,7 +716,9 @@ namespace Ftareqi.Persistence.Migrations
                 {
                     b.HasOne("Ftareqi.Domain.Models.User", "User")
                         .WithMany("Notifications")
-                        .HasForeignKey("UserId");
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -884,8 +850,6 @@ namespace Ftareqi.Persistence.Migrations
             modelBuilder.Entity("Ftareqi.Domain.Models.User", b =>
                 {
                     b.Navigation("DriverProfile");
-
-                    b.Navigation("FcmTokens");
 
                     b.Navigation("Image");
 

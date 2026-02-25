@@ -29,10 +29,10 @@ namespace Ftareqi.Application.Orchestrators
 		}
 		public async Task<Result<PaginatedResponse<NotificationDto>>> GetAllNotifications(GenericQueryReq queryRequest, string userId)
 		{
-			var userFound = await _unitOfWork.Users.FirstOrDefaultAsNoTrackingAsync(x=>x.Id== userId);
+			var userFound = await _unitOfWork.Users.FirstOrDefaultAsNoTrackingAsync(x=>x.Id== userId );
 			if (userFound == null)
 				return Result<PaginatedResponse<NotificationDto>>.Failure("Invalid userId");
-			var (paginatedNotifications, TotalCount) = await _unitOfWork.Notifications.GetPagedAsync(queryRequest.Page, queryRequest.PageSize, x => x.CreatedAt, x=>x.UserId== userId, true);
+			var (paginatedNotifications, TotalCount) = await _unitOfWork.Notifications.GetPagedAsync(queryRequest.Page, queryRequest.PageSize, x => x.CreatedAt, x=>x.UserId== userId || x.IsBroadcast , true);
 			var response = new PaginatedResponse<NotificationDto>
 			{
 				Items = paginatedNotifications.Select(NotificationMapper.ToDto).ToList(),
@@ -108,6 +108,23 @@ namespace Ftareqi.Application.Orchestrators
 			await _unitOfWork.SaveChangesAsync();
 			await _notificationService.NotifyUserAsync(notificationInput.UserId, NotificationMapper.ToDto(notification));
 			return Result.Success();
+		}
+		public async Task<Result> NotifyAnnouncementAsync(
+	BroadcastNotificationInput input)
+		{
+			try
+			{
+				var notification =_notificationBuilder.CreateBroadcastNotification(input);
+				await _unitOfWork.Notifications.AddAsync(notification);
+				await _unitOfWork.SaveChangesAsync();
+				await _notificationService.NotifyAllAsync(NotificationMapper.ToDto(notification));
+				return Result.Success("Announcement sent successfully");
+			}
+			catch (Exception ex)
+			{
+				return Result.Failure($"{ex.Message},Failed sending announcement");
+				throw;
+			}
 		}
 	}
 }

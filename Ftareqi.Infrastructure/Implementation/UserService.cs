@@ -1,5 +1,6 @@
 ﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Authentication;
+using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Mappers;
 using Ftareqi.Domain.Models;
@@ -20,14 +21,18 @@ namespace Ftareqi.Infrastructure.Implementation
 		private readonly UserManager<User> _userManager;
 		private readonly SignInManager<User> _signInManager;
 		private readonly ILogger<UserService> _logger;
+		private readonly IUnitOfWork _unitOfWork;
+
 		public UserService(
 			UserManager<User> userManager,
 			SignInManager<User> signInManager,
-			ILogger<UserService> logger)
+			ILogger<UserService> logger,
+			IUnitOfWork unitOfWork)
 		{
 			_userManager = userManager;
 			_signInManager = signInManager;
 			_logger = logger;
+			_unitOfWork = unitOfWork;
 		}
 		public async Task<Result<UserDto>> CreateUserAsync(RegisterRequestDto model)
 		{
@@ -278,5 +283,32 @@ namespace Ftareqi.Infrastructure.Implementation
 			_logger.LogInformation("Password changed successfully for UserId={UserId}", userId);
 			return Result.Success("Password changed successfully.");
 		}
+
+	
+
+		public async Task<Result> RemoveFcmTokenAsync(string userId, string fcmToken)
+		{
+			try
+			{
+				var token = await _unitOfWork.FcmTokens.FirstOrDefaultAsync(
+					x => x.UserId == userId && x.Token == fcmToken
+				);
+
+				if (token == null)
+					return Result.Failure("Token not found");
+
+				_unitOfWork.FcmTokens.Delete(token);
+				await _unitOfWork.SaveChangesAsync();
+
+				_logger.LogInformation("FCM token removed for user: {UserId}", userId);
+				return Result.Success("FCM token removed successfully");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error removing FCM token");
+				return Result.Failure(ex.Message);
+			}
+		}
+
 	}
 }

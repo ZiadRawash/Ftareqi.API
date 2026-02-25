@@ -1,6 +1,5 @@
 ﻿using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.Interfaces.Services;
-using Ftareqi.Domain.Models;
 using Ftareqi.Infrastructure.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -12,55 +11,162 @@ namespace Ftareqi.Infrastructure.Implementation
 	{
 		private readonly IHubContext<NotificationHub, INotificationClient> _hubContext;
 		private readonly ILogger<NotificationService> _logger;
-
+		private readonly IFcmService _fcmService;
+		private readonly IFcmTokenService _fcmTokenService;
 		public NotificationService(
 			IHubContext<NotificationHub, INotificationClient> hubContext,
-			ILogger<NotificationService> logger)
+			ILogger<NotificationService> logger,
+			IFcmService fcmService,
+			IFcmTokenService fcmTokenService)
 		{
 			_hubContext = hubContext;
 			_logger = logger;
+			_fcmService = fcmService;
+			_fcmTokenService = fcmTokenService;
 		}
 
 		public async Task NotifyAllAsync(NotificationDto notification)
 		{
 			try
 			{
-				await _hubContext.Clients.All.ReceiveNotification(notification);
+				// SignalR Broadcast
+				try
+				{
+					await _hubContext.Clients.All.ReceiveNotification(notification);
+					_logger.LogInformation("SignalR broadcast sent successfully.");
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex,
+						"SignalR broadcast failed");
+				}
+				//  Get All Tokens
+				var tokens =
+					await _fcmTokenService
+					.GetAllActiveTokensAsync();
+				if (!tokens.Any())
+				{
+					_logger.LogWarning(
+						"No active FCM tokens found");
+					return;
+				}
+				//  Prepare Data
+				var fcmData =
+					new Dictionary<string, string>
+					{
+						{ "id", notification.Id.ToString() },
+						{ "title", notification.Title },
+						{ "category",notification.Category.ToString() },
+						{ "eventCode",notification.EventCode.ToString() },
+						{ "relatedEntityId",notification.RelatedEntityId ?? "" },
+						{ "isRead",notification.IsRead.ToString() },
+						{ "createdAt",notification.CreatedAt.ToString("O") },
+						{ "data", Newtonsoft.Json.JsonConvert.SerializeObject(notification.Data)}
+					};
+				// Send FCM
+				var result =
+					await _fcmService
+					.SendMultipleNotificationsAsync(
+						tokens,
+						notification.Title,
+						"You have a new notification",
+						fcmData
+					);
 
-				_logger.LogInformation("Notification broadcasted successfully.");
+				// Cleanup invalid tokens
+
+				if (result.InvalidTokens.Any())
+				{
+					foreach (var token in result.InvalidTokens)
+					{
+						await _fcmTokenService.MarkTokenInvalidAsync(token);
+					}
+
+					_logger.LogInformation("Removed {Count} invalid tokens",result.InvalidTokens.Count);
+				}
+				// Final Log
+				_logger.LogInformation(
+					"NotifyAll → Success:{S} Invalid:{I} Failed:{F}",
+					result.SuccessTokens.Count,
+					result.InvalidTokens.Count,
+					result.FailedTokens.Count);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Critical error occurred while broadcasting notification to all users.");
-				throw; 
-			}
-		}
-
-		public async Task NotifyUserAsync(string userId, NotificationDto notification)
-		{
-			try
-			{
-				await _hubContext.Clients.User(userId).ReceiveNotification(notification);
-				_logger.LogInformation("Notification sent to SignalR pipeline for User: {UserId}", userId);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to send notification to user: {UserId}", userId);
+				_logger.LogError(ex,"Critical error in NotifyAllAsync");
 				throw;
 			}
 		}
-
-		public async Task NotifyGroupAsync(string groupName, NotificationDto notification)
+		public async Task NotifyUserAsync(
+			string userId,
+			NotificationDto notificationDto)
 		{
 			try
 			{
-				await _hubContext.Clients.Group(groupName).ReceiveNotification(notification);
-
-				_logger.LogInformation("Notification delivered to group: {GroupName} pipeline.", groupName);
+				//SignalR
+				try
+				{
+					await _hubContext
+						.Clients
+						.User(userId)
+						.ReceiveNotification(notificationDto);
+					_logger.LogInformation("SignalR notification sent → User {UserId}",userId);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex,"SignalR failed → User {UserId}",userId);
+				}
+				// FCM
+				var tokens =
+					await _fcmTokenService
+					.GetActiveTokensAsync(userId);
+				if (!tokens.Any())
+				{
+					_logger.LogWarning("No FCM tokens for user {UserId}",userId);
+					return;
+				}
+				var fcmData =
+					new Dictionary<string, string>
+					{
+						{ "id", notificationDto.Id.ToString() },
+						{ "title", notificationDto.Title },
+						{ "category", notificationDto.Category.ToString() },
+						{ "eventCode", notificationDto.EventCode.ToString() },
+						{ "relatedEntityId",
+							notificationDto.RelatedEntityId ?? "" },
+						{ "isRead",notificationDto.IsRead.ToString() },
+						{ "createdAt",notificationDto.CreatedAt.ToString("O") },
+						{ "data", JsonConvert.SerializeObject( notificationDto.Data)}
+					};
+				var previewText = "You have a new notification";
+				// Send FCM
+				var result =
+					await _fcmService
+					.SendMultipleNotificationsAsync(
+						tokens,
+						notificationDto.Title,
+						previewText,
+						fcmData
+					);
+				// Remove invalid tokens
+				if (result.InvalidTokens.Any())
+				{
+					foreach (var token in result.InvalidTokens)
+					{
+						await _fcmTokenService.MarkTokenInvalidAsync(token);
+					}
+					_logger.LogInformation("Invalid tokens removed: {Count}",result.InvalidTokens.Count);
+				}
+				_logger.LogInformation(
+					"FCM → Success:{S} Invalid:{I} Failed:{F}",
+					result.SuccessTokens.Count,
+					result.InvalidTokens.Count,
+					result.FailedTokens.Count
+				);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error occurred while sending notification to group: {GroupName}", groupName);
+				_logger.LogError(ex,"Error in NotifyUserAsync");
 				throw;
 			}
 		}

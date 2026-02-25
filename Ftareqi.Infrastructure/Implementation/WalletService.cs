@@ -1,13 +1,17 @@
-﻿using Ftareqi.Application.Common.Results;
+﻿using Ftareqi.Application.Common;
+using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs;
+using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Mappers;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Enums.PaymentEnums;
 using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace Ftareqi.Infrastructure.Implementation
@@ -17,12 +21,14 @@ namespace Ftareqi.Infrastructure.Implementation
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<WalletService> _logger;
 		private readonly IPaymentGateway _paymentGateway;
+		private readonly INotificationOrchestrator _notificationOrchestrator;
 
-		public WalletService(IUnitOfWork unitOfWork, ILogger<WalletService> logger, IPaymentGateway paymentGateway)
+		public WalletService(IUnitOfWork unitOfWork, ILogger<WalletService> logger, IPaymentGateway paymentGateway, INotificationOrchestrator notificationOrchestrator)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
 			_paymentGateway = paymentGateway;
+			_notificationOrchestrator = notificationOrchestrator;
 		}
 
 		public async Task CreateWalletAsync(string userId)
@@ -43,19 +49,39 @@ namespace Ftareqi.Infrastructure.Implementation
 			}
 		}
 
-		public async Task<Result<WalletTransactionDto>> GetWalletTransactions(string userId)
+
+		public async Task<Result<PaginatedResponse<TransactionDto>>> GetWalletTransactionsPaginated(string userId, GenericQueryReq queryReq)
 		{
-			if(userId == null)
-				return Result<WalletTransactionDto>.Failure("No user is found");
-			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsync(x => x.UserId == userId, x => x.WalletTransactions);
+			if (string.IsNullOrEmpty(userId))
+				return Result<PaginatedResponse<TransactionDto>>.Failure("No user is found");
 
-			if (wallet == null) 
-				return Result<WalletTransactionDto>.Failure("No wallet is found");
+			var walletFound = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
 
-			var result = WalletMapper.ToDto(wallet!.Id, wallet.WalletTransactions ?? Enumerable.Empty<WalletTransaction>());
-			return Result<WalletTransactionDto>.Success(result);
+			if (walletFound == null) // Fixed the duplicate userId check logic here
+				return Result<PaginatedResponse<TransactionDto>>.Failure("No wallet is found");
+
+			var (walletTransactions, count) = await _unitOfWork.WalletTransactions.GetPagedAsync(
+				queryReq.Page,
+				queryReq.PageSize,
+				x => x.CreatedAt,
+				x => x.UserWalletId == walletFound.Id,
+				true);
+
+			var totalPages = (int)Math.Ceiling((double)count / queryReq.PageSize);
+
+			var items = walletTransactions.Select(WalletMapper.ToTransactionDto).ToList();
+
+			var response = new PaginatedResponse<TransactionDto>
+			{
+				Page = queryReq.Page,
+				PageSize = queryReq.PageSize,
+				TotalCount = count,
+				TotalPages = totalPages,
+				Items = items
+			};
+
+			return Result<PaginatedResponse<TransactionDto>>.Success(response);
 		}
-
 		public async Task<Result<WalletResDto>> GetWallet(string userId)
 		{
 			if (userId == null)
@@ -111,7 +137,6 @@ namespace Ftareqi.Infrastructure.Implementation
 				return;
 			}
 
-
 			if (callbackResult.Data!.PaymentSucceeded)
 				await HandleSuccessfulPaymentAsync(callbackResult.Data);
 			else
@@ -120,7 +145,7 @@ namespace Ftareqi.Infrastructure.Implementation
 
 		/// <summary>
 		/// Marks both PaymentTransaction and WalletTransaction as Failed.
-		/// Does NOT touch the wallet Balanceor pending balance.
+		/// Does NOT touch the wallet Balancer pending balance.
 		/// </summary>
 		private async Task HandleFailedPaymentAsync(PaymentCallbackResultDto? dto)
 		{
@@ -148,7 +173,6 @@ namespace Ftareqi.Infrastructure.Implementation
 					return;
 				}
 
-				// Map enum explicitly — never rely on implicit string-to-enum conversion
 				paymentTrnx.Status = PaymentStatus.Failed;
 				paymentTrnx.UpdatedAt= DateTime.UtcNow;
 				var walletTrnx = await _unitOfWork.WalletTransactions
@@ -166,7 +190,6 @@ namespace Ftareqi.Infrastructure.Implementation
 					await tx.CommitAsync();
 					return;
 				}
-
 				walletTrnx.Status = TransactionStatus.Failed;
 				walletTrnx.UpdatedAt = DateTime.UtcNow;
 
@@ -176,10 +199,29 @@ namespace Ftareqi.Infrastructure.Implementation
 				await _unitOfWork.SaveChangesAsync();
 				await tx.CommitAsync();
 
+				// notification
+				var metadata = new WalletTransactionMetadata
+				{
+					Preview = "Wallet charge failed",
+					Amount = paymentTrnx.Amount,
+					Type = walletTrnx.Type
+				};
+
+				var notification = new NotificationInput(
+					paymentTrnx.UserId,
+					NotificationCategory.Wallet,
+					NotificationEventCode.WalletCharged, 
+					walletTrnx.UserWalletId.ToString(),
+					metadata);
+
+				await _notificationOrchestrator.NotifyAsync(notification);
 				_logger.LogInformation(
 					"Records marked as Failed. PaymentTrnxId={PaymentId}, WalletTrnxId={WalletId}",
 					paymentTrnx.Id, walletTrnx.Id);
 			}
+
+			
+
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "HandleFailedPaymentAsync threw — rolling back.");
@@ -188,7 +230,7 @@ namespace Ftareqi.Infrastructure.Implementation
 		}
 
 		/// <summary>
-		/// Credits the wallet Balanceand marks both transactions as Completed/Success.
+		/// Credits the wallet Balance and marks both transactions as Completed/Success.
 		/// </summary>
 		private async Task HandleSuccessfulPaymentAsync(PaymentCallbackResultDto dto)
 		{
@@ -236,12 +278,10 @@ namespace Ftareqi.Infrastructure.Implementation
 					return;
 				}
 
-				// Map enum explicitly
+				
 				walletTrnx.Status = TransactionStatus.Completed;
 				walletTrnx.UpdatedAt = DateTime.UtcNow;
-
 				walletTrnx.UserWallet.UpdatedAt = DateTime.UtcNow;
-
 				walletTrnx.UserWallet.Balance+= paymentTrnx.Amount;
 
 				_unitOfWork.WalletTransactions.Update(walletTrnx);
@@ -251,6 +291,21 @@ namespace Ftareqi.Infrastructure.Implementation
 				await _unitOfWork.SaveChangesAsync();
 				await tx.CommitAsync();
 
+				// sending notification 
+				var Metadata = new WalletTransactionMetadata
+				{
+					Preview = "Wallet Charged Successfully",
+					Amount = paymentTrnx.Amount,
+					Type = walletTrnx.Type,
+				};
+				var notification = new NotificationInput(
+					paymentTrnx.UserId,
+					NotificationCategory.Wallet,
+					NotificationEventCode.WalletCharged,
+					walletTrnx.UserWalletId.ToString(),
+					Metadata);	
+				await _notificationOrchestrator.NotifyAsync(notification);
+				
 				_logger.LogInformation(
 					"Wallet credited. UserId={UserId}, Amount={Amount}, NewBalance={Balance}",
 					walletTrnx.UserWallet.UserId,
@@ -263,7 +318,6 @@ namespace Ftareqi.Infrastructure.Implementation
 				await tx.RollbackAsync();
 			}
 		}
-
 		private async Task<Result<PaymentResponseDto>> TopUpCoreAsync(
 			string userId, decimal amount,
 			Func<Task<PaymentInitiationResult>> initiatePayment,

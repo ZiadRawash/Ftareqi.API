@@ -10,27 +10,18 @@ namespace Ftareqi.Application.Mappers
 {
 	public static class WalletMapper
 	{
-		public static WalletTransactionDto ToDto(
-		int walletId,
-		IEnumerable<WalletTransaction> transactions)
+		public static TransactionDto ToTransactionDto(WalletTransaction t)
 		{
-			return new WalletTransactionDto
+			return new TransactionDto
 			{
-				UserWalletId = walletId,
-				Transactions = transactions
-					.OrderByDescending(t => t.CreatedAt)
-					.Select(t => new TransactionDto
-					{
-						Id = t.Id,
-						Type = t.Type,
-						Amount = t.Amount,
-						BalanceBefore = t.BalanceBefore,
-						BalanceAfter = t.BalanceAfter,
-						Status = t.Status,
-						CreatedAt = t.CreatedAt,
-						UpdatedAt = t.UpdatedAt
-					})
-					.ToList()
+				Id = t.Id,
+				Type = t.Type,
+				Amount = t.Amount,
+				BalanceBefore = t.BalanceBefore,
+				BalanceAfter = t.BalanceAfter,
+				Status = t.Status,
+				CreatedAt = t.CreatedAt,
+				UpdatedAt = t.UpdatedAt
 			};
 		}
 	}

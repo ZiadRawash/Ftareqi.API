@@ -1,4 +1,5 @@
-﻿using Ftareqi.Application.Common.Results;
+﻿using Ftareqi.Application.Common;
+using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
@@ -14,7 +15,7 @@ namespace Ftareqi.Application.Interfaces.Services
 	public interface IWalletService
 	{
 		public Task<Result<WalletResDto>> GetWallet(string userId);
-		public Task<Result<WalletTransactionDto>> GetWalletTransactions(string userId);
+		public Task<Result<PaginatedResponse<TransactionDto>>> GetWalletTransactionsPaginated(string userId, GenericQueryReq queryReq);
 		public Task CreateWalletAsync(string userId);
 		Task<Result<PaymentResponseDto>> TopUpWithCardAsync(
 			string userId,

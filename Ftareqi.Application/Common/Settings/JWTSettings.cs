@@ -11,7 +11,7 @@ namespace DripOut.Application.Common.Settings
 		public string? SignInKey { set; get; }
 		public string? Audience { set; get; }
 		public string? Issuer { set; get; }
-		public string AccessTokenExpiryInMinutes { set; get; } = "10";
+		public string AccessTokenExpiryInMinutes { set; get; } = "30";
 
 	}
 }

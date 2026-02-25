@@ -59,18 +59,17 @@ namespace Ftareqi.API.Controllers
 
 		[HttpGet("transactions")]
 		[Authorize]
-		public async Task<ActionResult<ApiResponse<WalletTransactionDto>>> WalletTransactions()
+		public async Task<ActionResult<ApiResponse<PaginatedResponse<TransactionDto>>>> WalletTransactions([FromQuery] GenericQueryReq queryReq)
 		{
 			var userId = User.GetUserId();
-			var transactions = await _walletService.GetWalletTransactions(userId);
+			var transactions = await _walletService.GetWalletTransactionsPaginated(userId, queryReq);
 			if (transactions.IsSuccess) {
-				return Ok(new ApiResponse<WalletTransactionDto>
+				return Ok(new ApiResponse<PaginatedResponse<TransactionDto>>
 				{
 					Errors = transactions.Errors,
 					Message = transactions.Message,
 					Success = transactions.IsSuccess,
 					Data = transactions.Data
-
 				});
 			}
 			return BadRequest(new ApiResponse
@@ -80,10 +79,8 @@ namespace Ftareqi.API.Controllers
 				Success = transactions.IsSuccess,
 			});
 		}
-
 		[Authorize]
 		[HttpPost("top-up/mobile-wallet")]
-
 		public async Task<ActionResult<ApiResponse<PaymentResponseDto>>> TopUpWithWallet(TopUpWithWalletReqDto model)
 		{
 			var userId = User.GetUserId();

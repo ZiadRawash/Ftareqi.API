@@ -6,6 +6,7 @@ using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Mappers;
 using Ftareqi.Domain.Models;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -33,11 +34,14 @@ namespace Ftareqi.Application.Orchestrators
 			if (userFound == null)
 				return Result<PaginatedResponse<NotificationDto>>.Failure("Invalid userId");
 			var (paginatedNotifications, TotalCount) = await _unitOfWork.Notifications.GetPagedAsync(queryRequest.Page, queryRequest.PageSize, x => x.CreatedAt, x=>x.UserId== userId || x.IsBroadcast , true);
+			var totalPages = (int)Math.Ceiling((double)TotalCount / queryRequest.PageSize);
 			var response = new PaginatedResponse<NotificationDto>
 			{
 				Items = paginatedNotifications.Select(NotificationMapper.ToDto).ToList(),
-				TotalCount = TotalCount
-			};
+				TotalCount = TotalCount,
+				Page = queryRequest.Page,
+				PageSize = queryRequest.PageSize,
+				TotalPages = totalPages		};
 			return Result<PaginatedResponse<NotificationDto >>.Success(response);
 		}
 

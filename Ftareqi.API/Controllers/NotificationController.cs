@@ -173,9 +173,9 @@ public class NotificationController : ControllerBase
 			Success = response.IsSuccess
 		});
 	}
-		[HttpPost("register-fcm-token")]
-		public async Task<ActionResult<ApiResponse>>
-		RegisterFcmToken([FromBody] FcmTokenReqDto request)
+
+	[HttpPost("register-fcm-token")]
+	public async Task<ActionResult<ApiResponse>>RegisterFcmToken([FromBody] FcmTokenReqDto request)
 		{
 			var userId = User.GetUserId();
 			if (string.IsNullOrEmpty(userId))
@@ -208,4 +208,38 @@ public class NotificationController : ControllerBase
 					"Device registered successfully"
 			});
 		}
+	[HttpPost("deactivate-fcm-token")]
+	public async Task<ActionResult<ApiResponse>> DeactivateFcmToken([FromBody] FcmTokenReqDto request)
+	{
+		var userId = User.GetUserId();
+		if (string.IsNullOrEmpty(userId))
+			return Unauthorized();
+		if (string.IsNullOrWhiteSpace(
+			request?.Token))
+		{
+			return BadRequest(new ApiResponse
+			{
+				Success = false,
+				Message =
+					"FCM token is required"
+			});
+		}
+		var result = await _fcmTokenService.DeactivateDeviceAsync(userId, request.Token);
+		if (!result.IsSuccess)
+		{
+			return BadRequest(
+				new ApiResponse
+				{
+					Success = false,
+					Message =
+					result.Message
+				});
+		}
+		return Ok(new ApiResponse
+		{
+			Success = true,
+			Message =
+				"Device Deactivated successfully"
+		});
+	}
 }

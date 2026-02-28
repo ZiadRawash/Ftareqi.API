@@ -8,7 +8,14 @@ namespace Ftareqi.Domain.Enums
 {
 	public enum NotificationEventCode
 	{
-		WalletCharged = 100,
-		WalletWithdrawn = 101,
+		//Wallet
+		WalletCharged = 200,
+		WalletWithdrawn = 201,
+
+		//DriverRegistration
+		Approved = 301,
+		Rejected = 302,
+		Expired=303
+
 	}
 }

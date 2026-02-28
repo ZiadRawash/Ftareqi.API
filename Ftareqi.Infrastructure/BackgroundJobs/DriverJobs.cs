@@ -1,11 +1,13 @@
 ﻿using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.DTOs.BackgroundJobs;
 using Ftareqi.Application.DTOs.Cloudinary;
+using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using System;
@@ -26,17 +28,19 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IUserClaimsService _userClaimsService;
 		private readonly ILogger<DriverJobs> _logger;
-
+		private readonly INotificationService _notificationService;
 		public DriverJobs(
 			ICloudinaryService cloudinaryService,
 			IUnitOfWork unitOfWork,
 			IUserClaimsService userClaimsService,
-			ILogger<DriverJobs> logger)
+			ILogger<DriverJobs> logger,
+			INotificationService notificationService)
 		{
 			_cloudinaryService = cloudinaryService;
 			_unitOfWork = unitOfWork;
 			_userClaimsService = userClaimsService;
 			_logger = logger;
+			_notificationService = notificationService;
 		}
 
 		// Delete driver images from Cloudinary
@@ -117,6 +121,9 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 			{
 				profile.Status = DriverStatus.Expired;
 				await _userClaimsService.RemoveClaimAsync(profile.UserId, CustomClaimTypes.IsDriver);
+				//send notifications
+
+				await SendDriverExpiredNotificationAsync(profile.UserId, profile.Id);
 			}
 
 			_unitOfWork.DriverProfiles.UpdateRange(expiredProfiles);
@@ -144,6 +151,26 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 			{
 				await _unitOfWork.SaveChangesAsync();
 			}
+		}
+		private async Task SendDriverExpiredNotificationAsync(string userId, int profileId)
+		{
+			var metadata = new NotificationMetadata
+			{
+				Preview = "Your driver account has expired due to license expiration. Please update your license or vehicle information to continue accepting rides."
+			};
+
+			var notificationDto = new NotificationDto
+			{
+				Category = NotificationCategory.DriverRegistration,
+				CreatedAt = DateTime.UtcNow,
+				Data = metadata,
+				EventCode = NotificationEventCode.Expired,
+				IsRead = false,
+				Title = "Driver Account Expired",
+				RelatedEntityId = profileId.ToString(), 
+			};
+
+			await _notificationService.NotifyUserAsync(userId, notificationDto);
 		}
 	}
 }

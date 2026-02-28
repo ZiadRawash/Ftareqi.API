@@ -2,6 +2,7 @@
 using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.DriverRegistration;
+using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.DTOs.Profile;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Orchestrators;
@@ -10,6 +11,7 @@ using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Mappers;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
@@ -26,7 +28,7 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly IBackgroundJobService _backgroundJobService;
 		private readonly ILogger<DriverOrchestrator> _logger;
 		private readonly IUserClaimsService _claimsService;
-		private readonly ICloudinaryService _cloudinaryService;
+		private readonly INotificationService _notificationService;
 
 		public DriverOrchestrator(
 			IUserService userService,
@@ -35,14 +37,16 @@ namespace Ftareqi.Application.Orchestrators
 			ILogger<DriverOrchestrator> logger,
 			IFileMapper fileMapper,
 			IUserClaimsService claimsService,
-			ICloudinaryService cloudinaryService)
+			INotificationService notificationService
+			)
 		{
 			_unitOfWork = unitOfWork;
 			_backgroundJobService = backgroundJobService;
 			_logger = logger;
 			_fileMapper = fileMapper;
 			_claimsService = claimsService;
-			_cloudinaryService = cloudinaryService;
+			_notificationService = notificationService;
+
 		}
 
 		//create Driver Profile
@@ -51,7 +55,6 @@ namespace Ftareqi.Application.Orchestrators
 
 			// Validate user
 	
-			
 			var user= await _unitOfWork.Users.FindAllAsNoTrackingAsync(x => x.Id == driverDto.UserId, x=>x.DriverProfile!);
 			if (user==null)
 			{
@@ -255,7 +258,13 @@ namespace Ftareqi.Application.Orchestrators
 			profileFound.UpdatedAt = DateTime.UtcNow;
 			 _unitOfWork.DriverProfiles.Update(profileFound);
 			await _unitOfWork.SaveChangesAsync();
+
+			//Send notification
+			await SendDriverApprovalNotificationAsync(profileFound.UserId, profileId);
+
+
 			return Result.Success("Driver Profile approved successfully");
+
 		}
 
 		//reject driver profile request
@@ -280,12 +289,10 @@ namespace Ftareqi.Application.Orchestrators
 			profileFound.UpdatedAt = DateTime.UtcNow;
 			_unitOfWork.DriverProfiles.Update(profileFound);
 			await _unitOfWork.SaveChangesAsync();
-
+			await SendDriverRejectionNotificationAsync(profileFound.UserId, profileId);
 			return Result.Success("Driver Profile rejected successfully and driver claims removed.");
 		}
-
 		//Update Driver Profile
-
 		public async Task<Result<DriverProfileResponseDto>> UpdateDriverProfileAsync(DriverProfileUpdateDto driverDto)
 		{
 			try
@@ -714,6 +721,49 @@ namespace Ftareqi.Application.Orchestrators
 			};
 
 			return Result<CarProfileResponseDto>.Success(response);
+		}
+
+		private async Task SendDriverApprovalNotificationAsync(string userId, int profileId)
+		{
+			var metadata = new NotificationMetadata
+			{
+				Preview = "Your driver registration has been approved. You can now start accepting rides"
+			};
+
+			var notificationDto = new NotificationDto
+			{
+				Category = NotificationCategory.DriverRegistration,
+				CreatedAt = DateTime.UtcNow,
+				Data = metadata,
+				EventCode = NotificationEventCode.Approved,
+				IsRead = false,
+				Title = "Driver Registration Approved",
+				RelatedEntityId = profileId.ToString()
+			};
+			await _notificationService.NotifyUserAsync(userId, notificationDto);
+		}
+		private async Task SendDriverRejectionNotificationAsync(string userId, int profileId)
+		{
+			var previewMessage = "Your driver registration request was not approved. Please review your information and try again.";
+
+			var metadata = new NotificationMetadata
+			{
+				Preview = previewMessage
+			};
+
+			var notificationDto = new NotificationDto
+			{
+			
+				RelatedEntityId= profileId.ToString(),
+				Category = NotificationCategory.DriverRegistration,
+				CreatedAt = DateTime.UtcNow,
+				Data = metadata,
+				EventCode = NotificationEventCode.Rejected,
+				IsRead = false,
+				Title = "Driver Registration Rejected"
+			};
+
+			await _notificationService.NotifyUserAsync(userId, notificationDto);
 		}
 
 	}

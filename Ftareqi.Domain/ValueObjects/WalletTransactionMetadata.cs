@@ -11,5 +11,6 @@ namespace Ftareqi.Domain.ValueObjects
 	{
 		public TransactionType Type { get; set; }
 		public decimal Amount { get; set; }
+
 	}
 }

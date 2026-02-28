@@ -11,5 +11,6 @@ namespace Ftareqi.Infrastructure.SignalR
 	public interface INotificationClient
 	{
 		Task ReceiveNotification(NotificationDto notification);
+
 	}
 }

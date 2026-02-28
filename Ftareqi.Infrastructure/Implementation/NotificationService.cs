@@ -54,35 +54,35 @@ namespace Ftareqi.Infrastructure.Implementation
 				var fcmData =
 					new Dictionary<string, string>
 					{
-						{ "id", notification.Id.ToString() },
-						{ "title", notification.Title },
-						{ "category",notification.Category.ToString() },
-						{ "eventCode",notification.EventCode.ToString() },
-						{ "relatedEntityId",notification.RelatedEntityId ?? "" },
-						{ "isRead",notification.IsRead.ToString() },
-						{ "createdAt",notification.CreatedAt.ToString("O") },
-						{ "data", Newtonsoft.Json.JsonConvert.SerializeObject(notification.Data)}
+				{ "id", notification.Id.ToString() },
+				{ "title", notification.Title },
+				{ "category",notification.Category.ToString() },
+				{ "eventCode",notification.EventCode.ToString() },
+				{ "relatedEntityId",notification.RelatedEntityId ?? "" },
+				{ "isRead",notification.IsRead.ToString() },
+				{ "createdAt",notification.CreatedAt.ToString("O") },
+				{ "data", Newtonsoft.Json.JsonConvert.SerializeObject(notification.Data)}
 					};
+
+				var previewText = GetPreviewFromData(notification.Data);
+
 				// Send FCM
 				var result =
 					await _fcmService
 					.SendMultipleNotificationsAsync(
 						tokens,
 						notification.Title,
-						"You have a new notification",
+						previewText, 
 						fcmData
 					);
-
 				// Cleanup invalid tokens
-
 				if (result.InvalidTokens.Any())
 				{
 					foreach (var token in result.InvalidTokens)
 					{
 						await _fcmTokenService.MarkTokenInvalidAsync(token);
 					}
-
-					_logger.LogInformation("Removed {Count} invalid tokens",result.InvalidTokens.Count);
+					_logger.LogInformation("Removed {Count} invalid tokens", result.InvalidTokens.Count);
 				}
 				// Final Log
 				_logger.LogInformation(
@@ -93,13 +93,13 @@ namespace Ftareqi.Infrastructure.Implementation
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex,"Critical error in NotifyAllAsync");
+				_logger.LogError(ex, "Critical error in NotifyAllAsync");
 				throw;
 			}
 		}
 		public async Task NotifyUserAsync(
-			string userId,
-			NotificationDto notificationDto)
+		string userId,
+		NotificationDto notificationDto)
 		{
 			try
 			{
@@ -110,11 +110,11 @@ namespace Ftareqi.Infrastructure.Implementation
 						.Clients
 						.User(userId)
 						.ReceiveNotification(notificationDto);
-					_logger.LogInformation("SignalR notification sent → User {UserId}",userId);
+					_logger.LogInformation("SignalR notification sent → User {UserId}", userId);
 				}
 				catch (Exception ex)
 				{
-					_logger.LogWarning(ex,"SignalR failed → User {UserId}",userId);
+					_logger.LogWarning(ex, "SignalR failed → User {UserId}", userId);
 				}
 				// FCM
 				var tokens =
@@ -122,30 +122,32 @@ namespace Ftareqi.Infrastructure.Implementation
 					.GetActiveTokensAsync(userId);
 				if (!tokens.Any())
 				{
-					_logger.LogWarning("No FCM tokens for user {UserId}",userId);
+					_logger.LogWarning("No FCM tokens for user {UserId}", userId);
 					return;
 				}
 				var fcmData =
 					new Dictionary<string, string>
 					{
-						{ "id", notificationDto.Id.ToString() },
-						{ "title", notificationDto.Title },
-						{ "category", notificationDto.Category.ToString() },
-						{ "eventCode", notificationDto.EventCode.ToString() },
-						{ "relatedEntityId",
-							notificationDto.RelatedEntityId ?? "" },
-						{ "isRead",notificationDto.IsRead.ToString() },
-						{ "createdAt",notificationDto.CreatedAt.ToString("O") },
-						{ "data", JsonConvert.SerializeObject( notificationDto.Data)}
+				{ "id", notificationDto.Id.ToString() },
+				{ "title", notificationDto.Title },
+				{ "category", notificationDto.Category.ToString() },
+				{ "eventCode", notificationDto.EventCode.ToString() },
+				{ "relatedEntityId",
+					notificationDto.RelatedEntityId ?? "" },
+				{ "isRead",notificationDto.IsRead.ToString() },
+				{ "createdAt",notificationDto.CreatedAt.ToString("O") },
+				{ "data", JsonConvert.SerializeObject( notificationDto.Data)}
 					};
-				var previewText = "You have a new notification";
+
+				var previewText = GetPreviewFromData(notificationDto.Data);
+
 				// Send FCM
 				var result =
 					await _fcmService
 					.SendMultipleNotificationsAsync(
 						tokens,
 						notificationDto.Title,
-						previewText,
+						previewText,  
 						fcmData
 					);
 				// Remove invalid tokens
@@ -155,7 +157,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					{
 						await _fcmTokenService.MarkTokenInvalidAsync(token);
 					}
-					_logger.LogInformation("Invalid tokens removed: {Count}",result.InvalidTokens.Count);
+					_logger.LogInformation("Invalid tokens removed: {Count}", result.InvalidTokens.Count);
 				}
 				_logger.LogInformation(
 					"FCM → Success:{S} Invalid:{I} Failed:{F}",
@@ -166,8 +168,23 @@ namespace Ftareqi.Infrastructure.Implementation
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex,"Error in NotifyUserAsync");
+				_logger.LogError(ex, "Error in NotifyUserAsync");
 				throw;
+			}
+		}
+
+
+		private string GetPreviewFromData(object data)
+		{
+			try
+			{
+				// Cast to dynamic to access Preview property
+				dynamic metadata = data;
+				return metadata?.Preview ?? "New notification";
+			}
+			catch
+			{
+				return "New notification";
 			}
 		}
 	}

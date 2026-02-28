@@ -278,7 +278,6 @@ namespace Ftareqi.Infrastructure.Implementation
 					return;
 				}
 
-				
 				walletTrnx.Status = TransactionStatus.Completed;
 				walletTrnx.UpdatedAt = DateTime.UtcNow;
 				walletTrnx.UserWallet.UpdatedAt = DateTime.UtcNow;

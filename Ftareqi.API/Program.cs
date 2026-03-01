@@ -2,6 +2,7 @@ using DripOut.Application.Common.Settings;
 using FirebaseAdmin;
 using FluentValidation;
 using Ftareqi.API.Configurations;
+using Ftareqi.API.Filters;
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.Common.Settings;
@@ -243,7 +244,7 @@ namespace Ftareqi.API
 						Credential = GoogleCredential.FromJson(json)
 					});
 
-					Console.WriteLine(" Firebase initialized successfully");
+					Console.WriteLine("? Firebase initialized successfully");
 				}
 				catch (Exception ex)
 				{
@@ -263,6 +264,10 @@ namespace Ftareqi.API
 			builder.Services.AddSwaggerGen(options =>
 			{
 				options.SwaggerDoc("v1", new OpenApiInfo { Title = "Ftareqi API", Version = "v1" });
+				
+				// Configure enums to be displayed as strings in Swagger
+				options.SchemaFilter<EnumSchemaFilter>();
+				
 				options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
 				{
 					Name = "Authorization",

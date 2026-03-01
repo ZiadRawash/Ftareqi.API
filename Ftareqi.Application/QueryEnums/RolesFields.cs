@@ -8,8 +8,8 @@ namespace Ftareqi.Application.QueryEnums
 {
 	public enum RolesFields
 	{
-		user,
-		admin,
-		moderator
+		User,
+		Admin,
+		Moderator
 	}
 }

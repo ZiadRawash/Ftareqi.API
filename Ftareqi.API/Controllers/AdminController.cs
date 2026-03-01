@@ -36,7 +36,7 @@ namespace Ftareqi.API.Controllers
 
 			var result = await _userOrchestrator.GetUserWithDriverStatus(queryModel);
 
-			if (!result.IsSuccess)
+			if (result.IsSuccess)
 			{
 				return BadRequest(new ApiResponse{
 				Errors = result.Errors,
@@ -101,14 +101,14 @@ namespace Ftareqi.API.Controllers
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
 			var returnResult = await _claimsService.AddRolesAsync(userId, [role.ToString()]);
-			if (!returnResult.IsSuccess)
+			if (returnResult.IsFailure)
 				return  BadRequest(new ApiResponse
 				{
 					Errors = returnResult.Errors,
 					Message= returnResult.Message,
 					Success= returnResult.IsSuccess,
 				});
-			return BadRequest(new ApiResponse
+			return Ok(new ApiResponse
 			{
 				Errors = returnResult.Errors,
 				Message = returnResult.Message,

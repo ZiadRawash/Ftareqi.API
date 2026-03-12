@@ -26,6 +26,7 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly IFileMapper _fileMapper;
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IBackgroundJobService _backgroundJobService;
+		private readonly ICloudinaryService _cloudinaryService;
 		private readonly ILogger<DriverOrchestrator> _logger;
 		private readonly IUserClaimsService _claimsService;
 		private readonly INotificationService _notificationService;
@@ -34,6 +35,7 @@ namespace Ftareqi.Application.Orchestrators
 			IUserService userService,
 			IUnitOfWork unitOfWork,
 			IBackgroundJobService backgroundJobService,
+			ICloudinaryService cloudinaryService,
 			ILogger<DriverOrchestrator> logger,
 			IFileMapper fileMapper,
 			IUserClaimsService claimsService,
@@ -42,6 +44,7 @@ namespace Ftareqi.Application.Orchestrators
 		{
 			_unitOfWork = unitOfWork;
 			_backgroundJobService = backgroundJobService;
+			_cloudinaryService = cloudinaryService;
 			_logger = logger;
 			_fileMapper = fileMapper;
 			_claimsService = claimsService;
@@ -398,24 +401,21 @@ namespace Ftareqi.Application.Orchestrators
 					}
 				}
 
-				// 6. Update the profile
-				_unitOfWork.DriverProfiles.Update(driverProfile);
-				await _unitOfWork.SaveChangesAsync();
-
-				_logger.LogInformation("Driver profile {profileId} updated. Status changed from {oldStatus} to Pending",
-					driverProfile.Id, previousStatus);
-
-				// 7. Handle image deletion and upload via background jobs
+				// 6. Handle image deletion and upload immediately
 				if (hasImageUpdates)
 				{
-					// Enqueue background job to delete old images from Cloudinary
+					// Delete old images from Cloudinary
 					if (oldImagePublicIds.Any())
 					{
-						var deleteJobId = await _backgroundJobService.EnqueueAsync<IDriverJobs>(
-							job => job.DeleteDriverImagesAsync(oldImagePublicIds));
+						var deleteResult = await _cloudinaryService.DeleteImagesAsync(oldImagePublicIds);
+						if (deleteResult.IsFailure)
+						{
+							return Result<DriverProfileResponseDto>.Failure(
+								$"Failed to delete old images: {deleteResult.Message}");
+						}
 
-						_logger.LogInformation("Background job {jobId} queued for deleting {count} driver images from Cloudinary",
-							deleteJobId, oldImagePublicIds.Count);
+						_logger.LogInformation("Deleted {count} old driver images from Cloudinary for profile {profileId}",
+							oldImagePublicIds.Count, driverProfile.Id);
 					}
 
 					// Prepare new images for upload
@@ -432,16 +432,38 @@ namespace Ftareqi.Application.Orchestrators
 
 					var photosSerialized = _fileMapper.MapFilesWithTypes(imagesToUpload);
 
-					// Enqueue background job for uploading new images
-					var uploadJobId = await _backgroundJobService.EnqueueAsync<IDriverJobs>(
-						job => job.UploadDriverImagesAsync(
-							driverProfile.Id,
-							driverDto.UserId,
-							photosSerialized));
+					// Upload new images immediately
+					var uploadResult = await _cloudinaryService.UploadPhotosAsync(photosSerialized);
+					if (uploadResult.IsFailure)
+					{
+						return Result<DriverProfileResponseDto>.Failure(
+							$"Failed to upload new images: {string.Join(", ", uploadResult.Errors)}");
+					}
 
-					_logger.LogInformation("Background job {jobId} queued for uploading new driver images to profile {profileId}",
-						uploadJobId, driverProfile.Id);
+					var newImages = uploadResult.Data!.Select(img => new Image
+					{
+						Url = img.ImageUrl!,
+						PublicId = img.deleteId!,
+						Type = img.ImageType,
+						CreatedAt = DateTime.UtcNow,
+						DriverProfileId = driverProfile.Id
+					}).ToList();
+
+					if (newImages.Any())
+					{
+						await _unitOfWork.Images.AddRangeAsync(newImages);
+					}
+
+					_logger.LogInformation("Uploaded {count} new driver images for profile {profileId}",
+						newImages.Count, driverProfile.Id);
 				}
+
+				// 7. Update the profile and persist all changes
+				_unitOfWork.DriverProfiles.Update(driverProfile);
+				await _unitOfWork.SaveChangesAsync();
+
+				_logger.LogInformation("Driver profile {profileId} updated. Status changed from {oldStatus} to Pending",
+					driverProfile.Id, previousStatus);		
 
 				var response = new DriverProfileResponseDto
 				{
@@ -449,7 +471,7 @@ namespace Ftareqi.Application.Orchestrators
 					DriverProfileId = driverProfile.Id,
 					Status = driverProfile.Status.ToString(),
 					Message = hasImageUpdates
-						? "Driver profile updated. Old images are being deleted and new images are being uploaded in the background. Profile set to Pending status for re-approval."
+						? "Driver profile and images updated successfully. Profile set to Pending status for re-approval."
 						: "Driver profile updated. Profile set to Pending status for re-approval."
 				};
 
@@ -587,26 +609,20 @@ namespace Ftareqi.Application.Orchestrators
 					}
 				}
 
-				// 6. Update car and driver profile
-				car.UpdatedAt = DateTime.UtcNow;
-				_unitOfWork.Cars.Update(car);
-				_unitOfWork.DriverProfiles.Update(driverProfile);
-				await _unitOfWork.SaveChangesAsync();
-
-				_logger.LogInformation("Car {carId} updated for driver profile {profileId}. Profile status changed from {oldStatus} to Pending",
-					car.Id, driverProfile.Id, previousStatus);
-
-				// 7. Handle image deletion and upload via background jobs
+				// 6. Handle image deletion and upload immediately
 				if (hasImageUpdates)
 				{
-					// Enqueue background job to delete old images from Cloudinary
+					// Delete old images from Cloudinary
 					if (oldImagePublicIds.Any())
 					{
-						var deleteJobId = await _backgroundJobService.EnqueueAsync<ICarJobs>(
-							job => job.DeleteCarImagesAsync(oldImagePublicIds));
+						var deleteResult = await _cloudinaryService.DeleteImagesAsync(oldImagePublicIds);
+						if (deleteResult.IsFailure)
+						{
+							return Result<CarResponseDto>.Failure($"Failed to delete old car images: {deleteResult.Message}");
+						}
 
-						_logger.LogInformation("Background job {jobId} queued for deleting {count} car images from Cloudinary",
-							deleteJobId, oldImagePublicIds.Count);
+						_logger.LogInformation("Deleted {count} old car images from Cloudinary for car {carId}",
+							oldImagePublicIds.Count, car.Id);
 					}
 
 					// Prepare new images for upload
@@ -623,13 +639,40 @@ namespace Ftareqi.Application.Orchestrators
 
 					var photosSerialized = _fileMapper.MapFilesWithTypes(imagesToUpload);
 
-					// Enqueue background job for uploading new images
-					var uploadJobId = await _backgroundJobService.EnqueueAsync<ICarJobs>(
-						job => job.UploadCarImagesAsync(car.Id, photosSerialized));
+					// Upload new images immediately
+					var uploadResult = await _cloudinaryService.UploadPhotosAsync(photosSerialized);
+					if (uploadResult.IsFailure)
+					{
+						return Result<CarResponseDto>.Failure(
+							$"Failed to upload new car images: {string.Join(", ", uploadResult.Errors)}");
+					}
 
-					_logger.LogInformation("Background job {jobId} queued for uploading new car images to car {carId}",
-						uploadJobId, car.Id);
+					var newImages = uploadResult.Data!.Select(img => new Image
+					{
+						Url = img.ImageUrl!,
+						PublicId = img.deleteId!,
+						Type = img.ImageType,
+						CreatedAt = DateTime.UtcNow,
+						CarId = car.Id
+					}).ToList();
+
+					if (newImages.Any())
+					{
+						await _unitOfWork.Images.AddRangeAsync(newImages);
+					}
+
+					_logger.LogInformation("Uploaded {count} new car images for car {carId}",
+						newImages.Count, car.Id);
 				}
+
+				// 7. Update car and driver profile and persist all changes
+				car.UpdatedAt = DateTime.UtcNow;
+				_unitOfWork.Cars.Update(car);
+				_unitOfWork.DriverProfiles.Update(driverProfile);
+				await _unitOfWork.SaveChangesAsync();
+
+				_logger.LogInformation("Car {carId} updated for driver profile {profileId}. Profile status changed from {oldStatus} to Pending",
+					car.Id, driverProfile.Id, previousStatus);
 
 				var response = new CarResponseDto
 				{
@@ -642,6 +685,8 @@ namespace Ftareqi.Application.Orchestrators
 					Plate = car.Plate!,
 					LicenseExpiryDate = car.LicenseExpiryDate!,
 				};
+
+				_logger.LogInformation("Car profile update completed for car {carId}", car.Id);
 
 				return Result<CarResponseDto>.Success(response);
 			}

@@ -36,7 +36,7 @@ namespace Ftareqi.API.Controllers
 
 			var result = await _userOrchestrator.GetUserWithDriverStatus(queryModel);
 
-			if (result.IsSuccess)
+			if (!result.IsSuccess)
 			{
 				return BadRequest(new ApiResponse{
 				Errors = result.Errors,

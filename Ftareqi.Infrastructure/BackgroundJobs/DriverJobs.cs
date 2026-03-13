@@ -1,4 +1,5 @@
 ﻿using Ftareqi.Application.Common.Consts;
+using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.DTOs.BackgroundJobs;
 using Ftareqi.Application.DTOs.Cloudinary;
 using Ftareqi.Application.DTOs.Notification;
@@ -29,18 +30,22 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 		private readonly IUserClaimsService _userClaimsService;
 		private readonly ILogger<DriverJobs> _logger;
 		private readonly INotificationService _notificationService;
+		private readonly IDistributedCachingService _cache;
 		public DriverJobs(
 			ICloudinaryService cloudinaryService,
 			IUnitOfWork unitOfWork,
 			IUserClaimsService userClaimsService,
 			ILogger<DriverJobs> logger,
-			INotificationService notificationService)
+			INotificationService notificationService,
+			IDistributedCachingService cache
+			)
 		{
 			_cloudinaryService = cloudinaryService;
 			_unitOfWork = unitOfWork;
 			_userClaimsService = userClaimsService;
 			_logger = logger;
 			_notificationService = notificationService;
+			_cache = cache;
 		}
 
 		// Delete driver images from Cloudinary
@@ -92,6 +97,7 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 				await _unitOfWork.Images.AddRangeAsync(imageEntities);
 				await UpdateDriverStatusAsync(driverProfileId, DriverStatus.Pending, commit: false);
 				await _unitOfWork.SaveChangesAsync();
+				await _cache.RemoveDriverProfileCachesAsync(userId);
 
 				_logger.LogInformation(
 					"Successfully uploaded {count} images for driver profile {profileId}",
@@ -122,8 +128,8 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 				profile.Status = DriverStatus.Expired;
 				await _userClaimsService.RemoveClaimAsync(profile.UserId, CustomClaimTypes.IsDriver);
 				//send notifications
-
 				await SendDriverExpiredNotificationAsync(profile.UserId, profile.Id);
+				await _cache.RemoveDriverProfileCachesAsync(profile.UserId);
 			}
 
 			_unitOfWork.DriverProfiles.UpdateRange(expiredProfiles);

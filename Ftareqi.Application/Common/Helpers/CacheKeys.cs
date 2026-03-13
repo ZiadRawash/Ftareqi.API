@@ -47,6 +47,9 @@ namespace Ftareqi.Application.Common.Helpers
 		public static string PendingDriverProfiles(int page, int pageSize, bool sortDescending)
 			=> $"moderation:drivers:pending:{BuildQueryKey(page, pageSize, sortDescending)}";
 
+		public static string PendingDriverProfilesFirstPage()
+			=> PendingDriverProfiles(page: 1, pageSize: 10, sortDescending: false);
+
 		public static string Wallet(string userId)
 			=> $"wallets:users:{userId}:summary";
 

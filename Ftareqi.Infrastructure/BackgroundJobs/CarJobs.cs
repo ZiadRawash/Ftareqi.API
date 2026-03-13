@@ -1,4 +1,5 @@
-﻿using Ftareqi.Application.DTOs.Cloudinary;
+﻿using Ftareqi.Application.Common.Helpers;
+using Ftareqi.Application.DTOs.Cloudinary;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
@@ -23,15 +24,18 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 		private readonly ICloudinaryService _cloudinaryService;
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<CarJobs> _logger;
+		private readonly IDistributedCachingService _cache;
 
 		public CarJobs(
 			ICloudinaryService cloudinaryService,
 			IUnitOfWork unitOfWork,
-			ILogger<CarJobs> logger)
+			ILogger<CarJobs> logger,
+			IDistributedCachingService cache)
 		{
 			_cloudinaryService = cloudinaryService;
 			_unitOfWork = unitOfWork;
 			_logger = logger;
+			_cache = cache;
 		}
 
 		// Delete car images from Cloudinary
@@ -104,6 +108,7 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 				}
 
 				await _unitOfWork.SaveChangesAsync();
+				await _cache.RemoveDriverProfileCachesAsync(car.DriverProfile!.UserId);
 
 				_logger.LogInformation(
 					"Successfully uploaded {Count} images for car {CarId}",

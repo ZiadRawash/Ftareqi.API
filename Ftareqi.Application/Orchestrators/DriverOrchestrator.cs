@@ -1,5 +1,6 @@
 ﻿using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Consts;
+using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.DriverRegistration;
 using Ftareqi.Application.DTOs.Notification;
@@ -30,7 +31,7 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly ILogger<DriverOrchestrator> _logger;
 		private readonly IUserClaimsService _claimsService;
 		private readonly INotificationService _notificationService;
-
+		private readonly IDistributedCachingService _cache;
 		public DriverOrchestrator(
 			IUserService userService,
 			IUnitOfWork unitOfWork,
@@ -39,7 +40,9 @@ namespace Ftareqi.Application.Orchestrators
 			ILogger<DriverOrchestrator> logger,
 			IFileMapper fileMapper,
 			IUserClaimsService claimsService,
-			INotificationService notificationService
+			INotificationService notificationService,
+			IDistributedCachingService cache
+			
 			)
 		{
 			_unitOfWork = unitOfWork;
@@ -49,6 +52,7 @@ namespace Ftareqi.Application.Orchestrators
 			_fileMapper = fileMapper;
 			_claimsService = claimsService;
 			_notificationService = notificationService;
+			_cache = cache;
 
 		}
 
@@ -205,6 +209,19 @@ namespace Ftareqi.Application.Orchestrators
 		// Get pending profiles for moderator
 		public async Task<Result<PaginatedResponse<DriverProfileWithUsernameDto>>> GetPendingDriverProfiles(GenericQueryReq page)
 		{
+			var shouldUseFirstPageCache = page.Page == 1 && page.PageSize == 10 && page.SortDescending;
+			var cacheKey = CacheKeys.PendingDriverProfilesFirstPage();
+
+			if (shouldUseFirstPageCache)
+			{
+				var cachedPendingProfiles = await _cache.GetAsync<PaginatedResponse<DriverProfileWithUsernameDto>>(cacheKey);
+				if (cachedPendingProfiles != null)
+				{
+					_logger.LogInformation("Pending driver profiles first page retrieved from cache");
+					return Result<PaginatedResponse<DriverProfileWithUsernameDto>>.Success(cachedPendingProfiles);
+				}
+			}
+
 			// Get paged data from repository
 			var (profilesItems, totalCount) = await _unitOfWork.DriverProfiles.GetPagedAsync(
 				page.Page,
@@ -242,6 +259,11 @@ namespace Ftareqi.Application.Orchestrators
 				TotalPages = totalPages
 			};
 
+			if (shouldUseFirstPageCache)
+			{
+				await _cache.SetAsync(cacheKey, returnModel, TimeSpan.FromMinutes(1));
+			}
+
 			return Result<PaginatedResponse<DriverProfileWithUsernameDto>>.Success(returnModel);
 		}
 
@@ -265,6 +287,7 @@ namespace Ftareqi.Application.Orchestrators
 			//Send notification
 			await SendDriverApprovalNotificationAsync(profileFound.UserId, profileId);
 
+			await _cache.RemoveDriverProfileCachesAsync(profileFound.UserId);
 
 			return Result.Success("Driver Profile approved successfully");
 
@@ -293,6 +316,9 @@ namespace Ftareqi.Application.Orchestrators
 			_unitOfWork.DriverProfiles.Update(profileFound);
 			await _unitOfWork.SaveChangesAsync();
 			await SendDriverRejectionNotificationAsync(profileFound.UserId, profileId);
+
+			await _cache.RemoveDriverProfileCachesAsync(profileFound.UserId);
+
 			return Result.Success("Driver Profile rejected successfully and driver claims removed.");
 		}
 		//Update Driver Profile
@@ -474,7 +500,7 @@ namespace Ftareqi.Application.Orchestrators
 						? "Driver profile and images updated successfully. Profile set to Pending status for re-approval."
 						: "Driver profile updated. Profile set to Pending status for re-approval."
 				};
-
+				await _cache.RemoveDriverProfileCachesAsync(driverDto.UserId);
 				return Result<DriverProfileResponseDto>.Success(response);
 			}
 			catch (Exception ex)
@@ -688,6 +714,7 @@ namespace Ftareqi.Application.Orchestrators
 
 				_logger.LogInformation("Car profile update completed for car {carId}", car.Id);
 
+				await _cache.RemoveDriverProfileCachesAsync(driverProfile.UserId);
 				return Result<CarResponseDto>.Success(response);
 			}
 			catch (Exception ex)
@@ -696,11 +723,18 @@ namespace Ftareqi.Application.Orchestrators
 				throw;
 			}
 		}
-
 		public async Task<Result<DriverProfileResponse>> GetDriverProfile(string userId)
 		{
+			var key = CacheKeys.DriverProfile(userId);
 			if (string.IsNullOrEmpty(userId))
-				return Result<DriverProfileResponse>.Failure("No such id");
+				return Result<DriverProfileResponse>.Failure("No such id"); 
+			//check in cache 
+			var cachedDriverProfile = await _cache.GetAsync<DriverProfileResponse>(key);
+			if(cachedDriverProfile != null)
+			{
+				_logger.LogInformation("Driver profile:{profile} retrieved from cache", cachedDriverProfile);
+				return Result<DriverProfileResponse>.Success(cachedDriverProfile);
+			}
 			var driverProfile = await _unitOfWork.DriverProfiles.FirstOrDefaultAsync(x=>x.UserId == userId, x=>x.Images);
 			if (driverProfile == null)
 			{
@@ -724,14 +758,25 @@ namespace Ftareqi.Application.Orchestrators
 					.FirstOrDefault(x => x.Type == ImageType.DriverLicenseBack)
 					?.Url
 			};
+			//cache it 
+			await _cache.SetAsync(key, response, TimeSpan.FromMinutes(5));
 			return Result<DriverProfileResponse>.Success(response);
 		}
 		public async Task<Result<CarProfileResponseDto>> GetCarProfile(string userId)
 		{
+			var key = CacheKeys.DriverCarProfile(userId);
 			var driverProfile = await _unitOfWork.DriverProfiles
 					.FirstOrDefaultAsync(dp => dp.UserId == userId);
 			if (driverProfile == null)
 				return Result<CarProfileResponseDto>.Failure("Driver profile not found");
+			//Check cache first
+			var cachedCar= await _cache.GetAsync<CarProfileResponseDto>(key);
+			if(cachedCar != null)
+			{
+				_logger.LogInformation("Car profile {cachedCar} found in cache", cachedCar);
+				return Result<CarProfileResponseDto>.Success(cachedCar);
+			}
+
 
 			var car = await _unitOfWork.Cars
 			.FirstOrDefaultAsync(
@@ -764,7 +809,7 @@ namespace Ftareqi.Application.Orchestrators
 					.FirstOrDefault(x => x.Type == ImageType.CarLicenseBack)
 					?.Url
 			};
-
+			await _cache.SetAsync(key, response,TimeSpan.FromMinutes(5));
 			return Result<CarProfileResponseDto>.Success(response);
 		}
 

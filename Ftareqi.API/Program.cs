@@ -182,6 +182,16 @@ namespace Ftareqi.API
 				});
 			});
 
+			//
+			//Redis Service
+			//
+
+			builder.Services.AddStackExchangeRedisCache(options =>
+			{
+				options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
+				options.InstanceName = "Ftareqi:";
+			});
+
 			// ---------------------
 			// Application Services
 			// ---------------------
@@ -209,6 +219,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<INotificationService, NotificationService>();
 			builder.Services.AddScoped<IFcmService, FcmService>();
 			builder.Services.AddScoped<IFcmTokenService, FcmTokenService>();
+			builder.Services.AddScoped<IDistributedCachingService, RedisCachingService>();
 			builder.Services.AddAuthorization(options =>
 			{
 				options.AddPolicy("DriverOnly", policy =>

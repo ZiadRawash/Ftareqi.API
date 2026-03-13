@@ -19,6 +19,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
+using static Ftareqi.Application.Common.Helpers.CacheKeys;
 
 namespace Ftareqi.Application.Orchestrators
 {
@@ -29,13 +30,15 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly IFileMapper _fileMapper;
 		private readonly IBackgroundJobService _backgroundJobService;
 		private readonly ILogger<UserOrchestrator> _logger;
-		public UserOrchestrator(IUnitOfWork unitOfWork, IUserClaimsService userClaimsService, IFileMapper fileMapper, IBackgroundJobService backgroundJobService , ILogger<UserOrchestrator> logger)
+		private readonly IDistributedCachingService _cache;
+		public UserOrchestrator(IUnitOfWork unitOfWork, IUserClaimsService userClaimsService, IFileMapper fileMapper, IBackgroundJobService backgroundJobService , ILogger<UserOrchestrator> logger, IDistributedCachingService cache)
 		{
 			_unitOfWork = unitOfWork;
 			_userClaimsService = userClaimsService;
 			_fileMapper = fileMapper;
 			_backgroundJobService = backgroundJobService;
 			_logger = logger;
+			_cache = cache;
 		}
 
 		public async Task<Result<PaginatedResponse<UserDriveStatusDto>>> GetUserWithDriverStatus(UserQueryDto queryModel)
@@ -99,22 +102,41 @@ namespace Ftareqi.Application.Orchestrators
 
 		public async Task<Result<ProfileResponseDto>> GetProfile(string userId)
 		{
-			var user= await _unitOfWork.Users.FirstOrDefaultAsync(x=>x.Id==userId,x=>x.Image!,x=>x.DriverProfile!);
+			var cachedProfile = await _cache.GetAsync<ProfileResponseDto>(CacheKeys.UserProfile(userId));
+			if (cachedProfile != null)
+			{
+				_logger.LogInformation("Profile retrieved from cache for user {UserId}", userId);
+				return Result<ProfileResponseDto>.Success(cachedProfile);
+			}
+
+			_logger.LogInformation("Cache miss for user profile {UserId}", userId);
+
+			var user = await _unitOfWork.Users.FirstOrDefaultAsync(
+				x => x.Id == userId,
+				x => x.Image!,
+				x => x.DriverProfile!
+			);
+
 			if (user == null)
 				return Result<ProfileResponseDto>.Failure("User not found");
-		
+
 			var profileResponse = new ProfileResponseDto
 			{
-				Id=user.Id,
+				Id = user.Id,
 				CreatedAt = user.CreatedAt,
 				FullName = user.FullName,
 				PhoneNumber = user.PhoneNumber,
 				Gender = user.Gender,
-				UserImage = user.Image?.Url ?? null,
-				IsDriver= user.DriverProfile==null?false:true,
+				UserImage = user.Image?.Url,
+				IsDriver = user.DriverProfile != null,
 				PhoneNumberConfirmed = user.PhoneNumberConfirmed,
-				DriverId= user.DriverProfile?.Id??null
+				DriverId = user.DriverProfile?.Id
 			};
+
+			await _cache.SetAsync(CacheKeys.UserProfile(userId), profileResponse, TimeSpan.FromMinutes(5));
+
+			_logger.LogInformation("Profile retrieved from DB and cached for user {UserId}", userId);
+
 			return Result<ProfileResponseDto>.Success(profileResponse);
 		}
 		public async Task<Result> UploadProfileImage(string userId , ProfileImageReqDto imageDto)
@@ -129,6 +151,9 @@ namespace Ftareqi.Application.Orchestrators
 			var image =  _fileMapper.MapFile(imageDto.Image!, ImageType.UserProfile);
 			//upload
 			var jobId = _backgroundJobService.EnqueueAsync<IUserJobs>(job => job.UploadProfileImage(image, userId));
+
+			//remove from cache
+			await _cache.RemoveAsync(CacheKeys.UserProfile(userId));
 			return Result.Success("ImageUploaded successfully");		
 		}
 		public async Task<Result> UpdateProfileImage(string userId, ProfileImageReqDto imageDto)
@@ -186,7 +211,7 @@ namespace Ftareqi.Application.Orchestrators
 
 			_logger.LogInformation("Background job {JobId} queued for uploading new profile image for user {UserId}",
 				uploadJobId, userId);
-
+			//remove from cache await _cache.RemoveAsync(CacheKeys.UserProfile(userId));
 			return Result.Success("Profile image updated successfully. New image is being uploaded in the background.");
 		}
 	}

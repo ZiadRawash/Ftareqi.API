@@ -6,6 +6,7 @@ using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ftareqi.API.Controllers
@@ -78,12 +79,18 @@ namespace Ftareqi.API.Controllers
 
 			if (result.IsFailure)
 			{
-				return Unauthorized(new ApiResponse<TokensDto>
+				var response = new ApiResponse<TokensDto>
 				{
 					Success = false,
 					Errors = result.Errors,
 					Message = "Login failed."
-				});
+				};
+
+				if (IsLocked(result.Errors))
+				{
+					return StatusCode(StatusCodes.Status403Forbidden, response);
+				}
+				return Unauthorized(response);
 			}
 
 			return Ok(new ApiResponse<TokensDto>
@@ -97,7 +104,6 @@ namespace Ftareqi.API.Controllers
 				Message = "Login successful."
 			});
 		}
-
 		/// <summary>
 		/// Logs out a user by invalidating their refresh token
 		/// </summary>
@@ -352,5 +358,8 @@ namespace Ftareqi.API.Controllers
 				Errors = result.Errors,
 			});
 		}
+
+		private bool IsLocked(List<string> errors) =>
+			errors.Any(e => e == "Account locked out.");
 	}
 }

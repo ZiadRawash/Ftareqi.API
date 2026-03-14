@@ -14,7 +14,14 @@ services:
     restart: unless-stopped
     networks:
       - ftareqi-network
-
+  redis:
+    image: redis:latest
+    container_name: Redis-Container
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - ftareqi-network
   ftareqi.api:
     container_name: FtareqiAPI-container
     build:
@@ -24,12 +31,37 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;
+      - ConnectionStrings__HangfireConnection=Server=sqlserver;Database=${HANGFIRE_DB_NAME};User Id=${HANGFIRE_DB_USER};Password=${HANGFIRE_DB_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;
+      - ConnectionStrings__RedisConnection=${REDIS_CONNECTION}
+      - JWTSettings__SignInKey=${JWT_SIGNIN_KEY}
+      - JWTSettings__Audience=${JWT_AUDIENCE}
+      - JWTSettings__Issuer=${JWT_ISSUER}
+      - JWTSettings__AccessTokenExpiryInMinutes=${JWT_ACCESS_TOKEN_EXPIRY_IN_MINUTES}
+      - CloudinarySettings__CloudName=${CLOUDINARY_CLOUD_NAME}
+      - CloudinarySettings__ApiKey=${CLOUDINARY_API_KEY}
+      - CloudinarySettings__ApiSecret=${CLOUDINARY_API_SECRET}
+      - PaymobSettings__HMAC=${PAYMOB_HMAC}
+      - PaymobSettings__APIKey=${PAYMOB_API_KEY}
+      - PaymobSettings__MerchantID=${PAYMOB_MERCHANT_ID}
+      - PaymobSettings__CardIntegrationId=${PAYMOB_CARD_INTEGRATION_ID}
+      - PaymobSettings__IframeId=${PAYMOB_IFRAME_ID}
+      - PaymobSettings__WalletIntegrationId=${PAYMOB_WALLET_INTEGRATION_ID}
+      - FirebaseSettings__ProjectId=${FIREBASE_PROJECT_ID}
+      - FirebaseSettings__PrivateKeyId=${FIREBASE_PRIVATE_KEY_ID}
+      - FirebaseSettings__PrivateKey=${FIREBASE_PRIVATE_KEY}
+      - FirebaseSettings__ClientEmail=${FIREBASE_CLIENT_EMAIL}
+      - FirebaseSettings__ClientId=${FIREBASE_CLIENT_ID}
+      - FirebaseSettings__AuthUri=${FIREBASE_AUTH_URI}
+      - FirebaseSettings__TokenUri=${FIREBASE_TOKEN_URI}
+      - FirebaseSettings__AuthProviderX509CertUrl=${FIREBASE_AUTH_PROVIDER_X509_CERT_URL}
+      - FirebaseSettings__ClientX509CertUrl=${FIREBASE_CLIENT_X509_CERT_URL}
       - Serilog__WriteTo__3__Args__serverUrl=http://seq:80
     ports:
       - "5342:8080"
     depends_on:
       - sqlserver
       - seq
+      - redis
     networks:
       - ftareqi-network
     restart: on-failure

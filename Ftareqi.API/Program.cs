@@ -32,7 +32,9 @@ using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
+using StackExchange.Redis;
 using System.Text;
+using static TokenBucketMiddleware;
 
 namespace Ftareqi.API
 {
@@ -191,6 +193,22 @@ namespace Ftareqi.API
 				options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
 				options.InstanceName = "Ftareqi:";
 			});
+			builder.Services.AddSingleton<IConnectionMultiplexer>(
+				ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("RedisConnection")!)
+			);
+
+			// Rate Limit Options
+			builder.Services.AddSingleton<AuthTokenBucketOptions>(new AuthTokenBucketOptions
+			{
+				Capacity = 20,             
+				RefillRatePerSecond = 5
+			});
+
+			builder.Services.AddSingleton<UnauthTokenBucketOptions>(new UnauthTokenBucketOptions
+			{
+				Capacity = 5,
+				RefillRatePerSecond = 1
+			});
 
 			// ---------------------
 			// Application Services
@@ -311,6 +329,7 @@ namespace Ftareqi.API
 			app.UseRouting();
 			app.UseCors("FlexiblePolicy");
 			app.UseAuthentication();
+			app.UseMiddleware<TokenBucketMiddleware>();
 			app.UseAuthorization();
 
 			app.MapHub<NotificationHub>("/notificationHub");

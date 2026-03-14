@@ -1,4 +1,5 @@
-﻿using Ftareqi.Application.Common;
+﻿using Ftareqi.Application.Common.Helpers;
+using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.Notification;
@@ -22,13 +23,16 @@ namespace Ftareqi.Infrastructure.Implementation
 		private readonly ILogger<WalletService> _logger;
 		private readonly IPaymentGateway _paymentGateway;
 		private readonly INotificationOrchestrator _notificationOrchestrator;
+		private readonly IDistributedCachingService _cache;
+		private static readonly TimeSpan WalletCacheDuration = TimeSpan.FromMinutes(15);
 
-		public WalletService(IUnitOfWork unitOfWork, ILogger<WalletService> logger, IPaymentGateway paymentGateway, INotificationOrchestrator notificationOrchestrator)
+		public WalletService(IUnitOfWork unitOfWork, ILogger<WalletService> logger, IPaymentGateway paymentGateway, INotificationOrchestrator notificationOrchestrator, IDistributedCachingService cache)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
 			_paymentGateway = paymentGateway;
 			_notificationOrchestrator = notificationOrchestrator;
+			_cache = cache;
 		}
 
 		public async Task CreateWalletAsync(string userId)
@@ -55,6 +59,16 @@ namespace Ftareqi.Infrastructure.Implementation
 			if (string.IsNullOrEmpty(userId))
 				return Result<PaginatedResponse<TransactionDto>>.Failure("No user is found");
 
+			if (queryReq.IsWalletTransactionsFirstPage())
+			{
+				var cachedTransactions = await _cache.GetAsync<PaginatedResponse<TransactionDto>>(CacheKeys.WalletTransactionsFirstPage(userId));
+				if (cachedTransactions != null)
+				{
+					_logger.LogInformation("Wallet transactions first page retrieved from cache for user {UserId}", userId);
+					return Result<PaginatedResponse<TransactionDto>>.Success(cachedTransactions);
+				}
+			}
+
 			var walletFound = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
 
 			if (walletFound == null) // Fixed the duplicate userId check logic here
@@ -80,18 +94,30 @@ namespace Ftareqi.Infrastructure.Implementation
 				Items = items
 			};
 
+			if (queryReq.IsWalletTransactionsFirstPage())
+			{
+				await _cache.SetAsync(CacheKeys.WalletTransactionsFirstPage(userId), response, WalletCacheDuration);
+			}
+
 			return Result<PaginatedResponse<TransactionDto>>.Success(response);
 		}
 		public async Task<Result<WalletResDto>> GetWallet(string userId)
 		{
 			if (userId == null)
 				return Result<WalletResDto>.Failure("No user is found");
+
+			var cachedWallet = await _cache.GetAsync<WalletResDto>(CacheKeys.Wallet(userId));
+			if (cachedWallet != null)
+			{
+				_logger.LogInformation("Wallet retrieved from cache for user {UserId}", userId);
+				return Result<WalletResDto>.Success(cachedWallet);
+			}
 			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
 
 			if (wallet == null)
 				return Result<WalletResDto>.Failure("No wallet is found");
 
-			return Result<WalletResDto>.Success(new WalletResDto
+			var response = new WalletResDto
 			{
 				Id = wallet.Id,
 				Balance= wallet.Balance,
@@ -99,7 +125,11 @@ namespace Ftareqi.Infrastructure.Implementation
 				IsLocked = wallet.IsLocked,
 				LockedBalance = wallet.LockedBalance,
 				UpdatedAt = wallet.UpdatedAt,
-			});
+			};
+
+			await _cache.SetAsync(CacheKeys.Wallet(userId), response, WalletCacheDuration);
+
+			return Result<WalletResDto>.Success(response);
 		}
 
 		public async Task<Result<PaymentResponseDto>> TopUpWithCardAsync(
@@ -215,6 +245,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					metadata);
 
 				await _notificationOrchestrator.NotifyAsync(notification);
+				await _cache.RemoveWalletCachesAsync(paymentTrnx.UserId);
 				_logger.LogInformation(
 					"Records marked as Failed. PaymentTrnxId={PaymentId}, WalletTrnxId={WalletId}",
 					paymentTrnx.Id, walletTrnx.Id);
@@ -304,6 +335,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					walletTrnx.UserWalletId.ToString(),
 					Metadata);	
 				await _notificationOrchestrator.NotifyAsync(notification);
+				await _cache.RemoveWalletCachesAsync(paymentTrnx.UserId);
 				
 				_logger.LogInformation(
 					"Wallet credited. UserId={UserId}, Amount={Amount}, NewBalance={Balance}",
@@ -398,6 +430,8 @@ namespace Ftareqi.Infrastructure.Implementation
 				_logger.LogInformation(
 					"TopUp initiated for user {UserId}. PaymentRef={Ref}, WalletTrxId={WalletTrxId}",
 					userId, initiation.Reference, walletTrnx.Id);
+
+				await _cache.RemoveWalletCachesAsync(userId);
 
 				var response = new PaymentResponseDto
 				{

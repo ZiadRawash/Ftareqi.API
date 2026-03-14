@@ -59,6 +59,9 @@ namespace Ftareqi.Application.Common.Helpers
 		public static string WalletTransactions(string userId, int page, int pageSize, bool sortDescending)
 			=> $"wallets:users:{userId}:transactions:{BuildQueryKey(page, pageSize, sortDescending)}";
 
+		public static string WalletTransactionsFirstPage(string userId)
+			=> WalletTransactions(userId, page: 1, pageSize: 10, sortDescending: true);
+
 		public static string Notifications(string userId, GenericQueryReq query)
 			=> Notifications(userId, query.Page, query.PageSize, query.SortDescending);
 

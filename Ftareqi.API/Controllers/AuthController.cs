@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Ftareqi.Application.Common;
+using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Authentication;
 using Ftareqi.Application.Interfaces.Orchestrators;
@@ -17,12 +18,12 @@ namespace Ftareqi.API.Controllers
 	{
 		private readonly IValidator<RegisterRequestDto> _registerRequestDtoValidator;
 		private readonly IAuthOrchestrator _authOrchestrator;
-		private readonly IValidator<ChangePasswordDto> _changePasswordValidator;
+		private readonly IValidator<ChangePasswordReqDto> _changePasswordValidator;
 
 		public AuthController(
 			IAuthOrchestrator authOrchestrator,
 			IValidator<RegisterRequestDto> registerRequestDtoValidator,
-			IValidator<ChangePasswordDto> changePasswordValidator)
+			IValidator<ChangePasswordReqDto> changePasswordValidator)
 		{
 			_authOrchestrator = authOrchestrator;
 			_registerRequestDtoValidator = registerRequestDtoValidator;
@@ -328,8 +329,9 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Changes the user's password by validating the current password and setting a new one
 		/// </summary>
+		[Authorize]
 		[HttpPost("password/change")]
-		public async Task<ActionResult<ApiResponse>> ChangePassword([FromBody] ChangePasswordDto model)
+		public async Task<ActionResult<ApiResponse>> ChangePassword([FromBody] ChangePasswordReqDto model)
 		{
 			var validation = await _changePasswordValidator.ValidateAsync(model);
 			if (!validation.IsValid)
@@ -342,7 +344,14 @@ namespace Ftareqi.API.Controllers
 				});
 			}
 
-			var result = await _authOrchestrator.ChangePasswordAsync(model);
+			var changePasswordDto = new ChangePasswordDto
+			{
+				UserId = User.GetUserId(),
+				OldPassword = model.OldPassword,
+				NewPassword = model.NewPassword
+			};
+
+			var result = await _authOrchestrator.ChangePasswordAsync(changePasswordDto);
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
 				{

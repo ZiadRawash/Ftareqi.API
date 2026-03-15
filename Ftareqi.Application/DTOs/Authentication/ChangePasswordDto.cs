@@ -12,4 +12,10 @@ namespace Ftareqi.Application.DTOs.Authentication
 		public string OldPassword { get; set; } = default!;
 		public string NewPassword { get; set; } = default!;
 	}
+
+	public class ChangePasswordReqDto
+	{
+		public string OldPassword { get; set; } = default!;
+		public string NewPassword { get; set; } = default!;
+	}
 }

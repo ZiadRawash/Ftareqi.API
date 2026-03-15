@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Ftareqi.Application.Common;
+using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.DTOs.DriverRegistration;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
@@ -13,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.API.Controllers
 {
+	[Authorize]
 	[ApiController]
 	public class DriverProfileController : ControllerBase
 	{
@@ -41,11 +43,14 @@ namespace Ftareqi.API.Controllers
 		[HttpPost("/api/users/{userId}/driver-profile")]
 		public async Task<ActionResult<ApiResponse>> CreateDriverProfile([FromRoute] string userId,[FromForm] DriverProfileReqDto request)
 		{
+			if (userId != User.GetUserId())
+				return Forbid();
+
 			var validationResult = await _DriverProfileReqDtoValidator.ValidateAsync(request);
-			if (!validationResult.IsValid|| string.IsNullOrEmpty(userId))
+			if (!validationResult.IsValid)
 			{
 				var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
-				return BadRequest(new ApiResponse { Success = false, Errors = errors ?? ["UserId is Required"] });
+				return BadRequest(new ApiResponse { Success = false, Errors = errors });
 			}
 			var profileDto = request.ToCreateDto(userId);
 			var result = await _driverOrchestrator.CreateDriverProfileAsync(profileDto);
@@ -65,6 +70,9 @@ namespace Ftareqi.API.Controllers
 		[HttpPost("/api/users/{userId}/driver-profile/car")]
 		public async Task<ActionResult<ApiResponse>> AddCarToDriverProfile([FromRoute] string userId,[FromForm] CarReqDto request)
 		{
+			if (userId != User.GetUserId())
+				return Forbid();
+
 			var validationResult = await _CarReqDtoValidatorValidator.ValidateAsync(request);
 			if (!validationResult.IsValid)
 			{
@@ -87,13 +95,14 @@ namespace Ftareqi.API.Controllers
 		[HttpPatch("/api/users/{userId}/driver-profile")]
 		public async Task<ActionResult<ApiResponse>> UpdateDriverProfile([FromRoute] string userId,[FromForm] DriverProfileUpdateReqDto request)
 		{
+			if (userId != User.GetUserId())
+				return Forbid();
+
 			var validationResult = await _driverProfileUpdateReqDtoValidator.ValidateAsync(request);
 
-			if (!validationResult.IsValid || string.IsNullOrEmpty(userId))
+			if (!validationResult.IsValid)
 			{
 				var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
-				if (string.IsNullOrEmpty(userId))
-					errors.Add("UserId is required");
 
 				return BadRequest(new ApiResponse
 				{
@@ -128,13 +137,14 @@ namespace Ftareqi.API.Controllers
 		[HttpPatch("/api/users/{userId}/driver-profile/car")]
 		public async Task<ActionResult<ApiResponse>> UpdateCarForDriverProfile([FromRoute] string userId, [FromForm] CarUpdateReqDto request)
 		{
+			if (userId != User.GetUserId())
+				return Forbid();
+
 			var validationResult = await _carUpdateReqDtoValidator.ValidateAsync(request);
 
-			if (!validationResult.IsValid || string.IsNullOrEmpty(userId))
+			if (!validationResult.IsValid)
 			{
 				var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
-				if (string.IsNullOrEmpty(userId))
-					errors.Add("UserId is required");
 
 				return BadRequest(new ApiResponse
 				{

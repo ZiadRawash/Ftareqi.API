@@ -8,13 +8,10 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Application.Validators.Auth
 {
-	public class ChangePasswordDtoValidator : AbstractValidator<ChangePasswordDto>
+	public class ChangePasswordDtoValidator : AbstractValidator<ChangePasswordReqDto>
 	{
 		public ChangePasswordDtoValidator()
 		{
-			RuleFor(x => x.UserId)
-				.NotEmpty().WithMessage("UserId is required.");
-
 			RuleFor(x => x.OldPassword)
 				.NotEmpty().WithMessage("Old password is required.");
 

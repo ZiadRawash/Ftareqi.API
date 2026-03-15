@@ -141,6 +141,8 @@ namespace Ftareqi.Application.Orchestrators
 		}
 		public async Task<Result> UploadProfileImage(string userId , ProfileImageReqDto imageDto)
 		{
+			_logger.LogInformation("Starting profile image upload for user {UserId}", userId);
+
 			var userFound = await _unitOfWork.Users.FirstOrDefaultAsync(x => x.Id == userId, x=>x.Image!);
 			if (userFound == null)
 				return Result.Failure("User not found ");
@@ -150,10 +152,12 @@ namespace Ftareqi.Application.Orchestrators
 			// map image 
 			var image =  _fileMapper.MapFile(imageDto.Image!, ImageType.UserProfile);
 			//upload
-			var jobId = _backgroundJobService.EnqueueAsync<IUserJobs>(job => job.UploadProfileImage(image, userId));
+			var jobId = await _backgroundJobService.EnqueueAsync<IUserJobs>(job => job.UploadProfileImage(image, userId));
+			_logger.LogInformation("Background job {JobId} queued for uploading profile image for user {UserId}", jobId, userId);
 
 			//remove from cache
 			await _cache.RemoveAsync(CacheKeys.UserProfile(userId));
+			_logger.LogInformation("Profile cache invalidated for user {UserId}", userId);
 			return Result.Success("ImageUploaded successfully");		
 		}
 		public async Task<Result> UpdateProfileImage(string userId, ProfileImageReqDto imageDto)
@@ -211,7 +215,10 @@ namespace Ftareqi.Application.Orchestrators
 
 			_logger.LogInformation("Background job {JobId} queued for uploading new profile image for user {UserId}",
 				uploadJobId, userId);
-			//remove from cache await _cache.RemoveAsync(CacheKeys.UserProfile(userId));
+			//remove from cache
+			await _cache.RemoveAsync(CacheKeys.UserProfile(userId));
+			_logger.LogInformation("Profile cache invalidated for user {UserId}", userId);
+
 			return Result.Success("Profile image updated successfully. New image is being uploaded in the background.");
 		}
 	}

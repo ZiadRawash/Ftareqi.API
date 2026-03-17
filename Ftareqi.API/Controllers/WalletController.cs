@@ -18,8 +18,8 @@ namespace Ftareqi.API.Controllers
 	[ApiController]
 	public class WalletController : ControllerBase
 	{
-		private readonly ILogger<WalletController> _logger;
-
+		private readonly ILogger<WalletController> _logger; 
+		
 		private readonly IWalletService _walletService;
 		private readonly IPaymentGateway _paymentGateway;
 
@@ -122,7 +122,6 @@ namespace Ftareqi.API.Controllers
 
 			});
 		}
-
 
 		[Authorize]
 		[HttpPost("top-up/card")]

@@ -96,6 +96,9 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				NotificationEventCode.WalletCharged => "Wallet charged",
 				NotificationEventCode.WalletWithdrawn => "Wallet withdrawn",
+				NotificationEventCode.Approved => "Driver Registration Approved",
+				NotificationEventCode.Rejected => "Driver Registration Rejected",
+				NotificationEventCode.Expired => "Driver Account Expired",
 				_ => "Notification"
 			};
 

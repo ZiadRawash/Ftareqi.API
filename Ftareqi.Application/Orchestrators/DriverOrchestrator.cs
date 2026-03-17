@@ -30,7 +30,7 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly ICloudinaryService _cloudinaryService;
 		private readonly ILogger<DriverOrchestrator> _logger;
 		private readonly IUserClaimsService _claimsService;
-		private readonly INotificationService _notificationService;
+		private readonly INotificationOrchestrator _notificationOrchestrator;
 		private readonly IDistributedCachingService _cache;
 		public DriverOrchestrator(
 			IUserService userService,
@@ -40,7 +40,7 @@ namespace Ftareqi.Application.Orchestrators
 			ILogger<DriverOrchestrator> logger,
 			IFileMapper fileMapper,
 			IUserClaimsService claimsService,
-			INotificationService notificationService,
+			INotificationOrchestrator notificationOrchestrator,
 			IDistributedCachingService cache
 			
 			)
@@ -51,7 +51,7 @@ namespace Ftareqi.Application.Orchestrators
 			_logger = logger;
 			_fileMapper = fileMapper;
 			_claimsService = claimsService;
-			_notificationService = notificationService;
+			_notificationOrchestrator = notificationOrchestrator;
 			_cache = cache;
 
 		}
@@ -112,6 +112,8 @@ namespace Ftareqi.Application.Orchestrators
 					Status = driverProfile.Status.ToString(),
 					Message = "Driver profile created. Images are being uploaded in the background."
 				};
+
+				await _cache.RemoveDriverProfileCachesAsync(driverDto.UserId);
 
 				return Result<DriverProfileResponseDto>.Success(response);
 			}
@@ -815,45 +817,32 @@ namespace Ftareqi.Application.Orchestrators
 
 		private async Task SendDriverApprovalNotificationAsync(string userId, int profileId)
 		{
-			var metadata = new NotificationMetadata
-			{
-				Preview = "Your driver registration has been approved. You can now start accepting rides"
-			};
+			var input = new NotificationInput(
+				userId,
+				NotificationCategory.DriverRegistration,
+				NotificationEventCode.Approved,
+				profileId.ToString(),
+				new NotificationMetadata
+				{
+					Preview = "Your driver registration has been approved. You can now start accepting rides"
+				});
 
-			var notificationDto = new NotificationDto
-			{
-				Category = NotificationCategory.DriverRegistration,
-				CreatedAt = DateTime.UtcNow,
-				Data = metadata,
-				EventCode = NotificationEventCode.Approved,
-				IsRead = false,
-				Title = "Driver Registration Approved",
-				RelatedEntityId = profileId.ToString()
-			};
-			await _notificationService.NotifyUserAsync(userId, notificationDto);
+			await _notificationOrchestrator.NotifyAsync(input);
 		}
+
 		private async Task SendDriverRejectionNotificationAsync(string userId, int profileId)
 		{
-			var previewMessage = "Your driver registration request was not approved. Please review your information and try again.";
+			var input = new NotificationInput(
+				userId,
+				NotificationCategory.DriverRegistration,
+				NotificationEventCode.Rejected,
+				profileId.ToString(),
+				new NotificationMetadata
+				{
+					Preview = "Your driver registration request was not approved. Please review your information and try again."
+				});
 
-			var metadata = new NotificationMetadata
-			{
-				Preview = previewMessage
-			};
-
-			var notificationDto = new NotificationDto
-			{
-			
-				RelatedEntityId= profileId.ToString(),
-				Category = NotificationCategory.DriverRegistration,
-				CreatedAt = DateTime.UtcNow,
-				Data = metadata,
-				EventCode = NotificationEventCode.Rejected,
-				IsRead = false,
-				Title = "Driver Registration Rejected"
-			};
-
-			await _notificationService.NotifyUserAsync(userId, notificationDto);
+			await _notificationOrchestrator.NotifyAsync(input);
 		}
 
 	}

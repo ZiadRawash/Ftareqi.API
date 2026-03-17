@@ -4,6 +4,7 @@ using Ftareqi.Application.DTOs.BackgroundJobs;
 using Ftareqi.Application.DTOs.Cloudinary;
 using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Enums;
@@ -29,14 +30,14 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IUserClaimsService _userClaimsService;
 		private readonly ILogger<DriverJobs> _logger;
-		private readonly INotificationService _notificationService;
+		private readonly INotificationOrchestrator _notificationOrchestrator;
 		private readonly IDistributedCachingService _cache;
 		public DriverJobs(
 			ICloudinaryService cloudinaryService,
 			IUnitOfWork unitOfWork,
 			IUserClaimsService userClaimsService,
 			ILogger<DriverJobs> logger,
-			INotificationService notificationService,
+			INotificationOrchestrator notificationOrchestrator,
 			IDistributedCachingService cache
 			)
 		{
@@ -44,7 +45,7 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 			_unitOfWork = unitOfWork;
 			_userClaimsService = userClaimsService;
 			_logger = logger;
-			_notificationService = notificationService;
+			_notificationOrchestrator = notificationOrchestrator;
 			_cache = cache;
 		}
 
@@ -156,27 +157,22 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 			if (commit)
 			{
 				await _unitOfWork.SaveChangesAsync();
+				await _cache.RemoveDriverProfileCachesAsync(profile.UserId);
 			}
 		}
 		private async Task SendDriverExpiredNotificationAsync(string userId, int profileId)
 		{
-			var metadata = new NotificationMetadata
-			{
-				Preview = "Your driver account has expired due to license expiration. Please update your license or vehicle information to continue accepting rides."
-			};
+			var input = new NotificationInput(
+				userId,
+				NotificationCategory.DriverRegistration,
+				NotificationEventCode.Expired,
+				profileId.ToString(),
+				new NotificationMetadata
+				{
+					Preview = "Your driver account has expired due to license expiration. Please update your license or vehicle information to continue accepting rides."
+				});
 
-			var notificationDto = new NotificationDto
-			{
-				Category = NotificationCategory.DriverRegistration,
-				CreatedAt = DateTime.UtcNow,
-				Data = metadata,
-				EventCode = NotificationEventCode.Expired,
-				IsRead = false,
-				Title = "Driver Account Expired",
-				RelatedEntityId = profileId.ToString(), 
-			};
-
-			await _notificationService.NotifyUserAsync(userId, notificationDto);
+			await _notificationOrchestrator.NotifyAsync(input);
 		}
 	}
 }

@@ -24,6 +24,8 @@ namespace Ftareqi.Persistence.Repositories
 		public IBaseRepository <PaymentTransaction> PaymentTransactions { get; private set; }
 		public IBaseRepository <Notification> Notifications { get; private set; }
 		public IBaseRepository <FcmToken> FcmTokens { get; private set; }
+		public IBaseRepository <RidePreferences> RidePreferences { get; private set; }
+		public IBaseRepository <Ride> Rides { get; private set; }
 
 		public UnitOfWork(ApplicationDbContext applicationDbContext)
 		{
@@ -39,6 +41,8 @@ namespace Ftareqi.Persistence.Repositories
 			PaymentTransactions=new BaseRepository<PaymentTransaction> (_applicationDbContext);
 			Notifications=new BaseRepository<Notification> (_applicationDbContext);
 			FcmTokens= new BaseRepository<FcmToken> (_applicationDbContext);
+			RidePreferences = new BaseRepository<RidePreferences> (_applicationDbContext);
+			Rides = new BaseRepository<Ride> (_applicationDbContext);
 
 		}
 		public ValueTask DisposeAsync()

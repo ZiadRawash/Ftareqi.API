@@ -18,6 +18,8 @@ namespace Ftareqi.Persistence
 		public DbSet<WalletTransaction> WalletTransactions { get; set; }
 		public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
 		public DbSet<Notification> Notifications { get; set; }
+		public DbSet<Ride> Rides { get; set; }
+		public DbSet<RidePreferences> RidePreferences { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
@@ -95,6 +97,22 @@ namespace Ftareqi.Persistence
 			builder.Entity<PaymentTransaction>()
 				.Property(x => x.Amount)
 				.HasPrecision(18, 2);
+			builder.Entity<Ride>().
+				Property(x => x.StartLocation)
+				.HasColumnType("geography");
+			builder.Entity<Ride>().
+				Property(x => x.EndLocation)
+				.HasColumnType("geography");
+
+			builder.Entity<Ride>()
+				.Property(x => x.PricePerSeat)
+				.HasPrecision(18, 2);
+
+			builder.Entity<Ride>()
+				.HasOne(x => x.RidePreferences)
+				.WithOne(x => x.Ride)
+				.HasForeignKey<RidePreferences>(x => x.RideId)
+				.OnDelete(DeleteBehavior.Cascade);
 
 			builder.Entity<IdentityUserRole<string>>().HasData(
 				new IdentityUserRole<string>
@@ -102,6 +120,7 @@ namespace Ftareqi.Persistence
 					UserId = "admin1",
 					RoleId = "role-admin"
 				}
+
 			);
 
 			//  Data is just a normal string column - no converter needed

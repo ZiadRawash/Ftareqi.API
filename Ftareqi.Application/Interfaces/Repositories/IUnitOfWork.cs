@@ -22,6 +22,8 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		IBaseRepository <PaymentTransaction> PaymentTransactions { get; }
 		IBaseRepository <Notification> Notifications { get; }
 		IBaseRepository <FcmToken> FcmTokens { get; }
+		IBaseRepository <Ride> Rides { get; }
+		IBaseRepository <RidePreferences> RidePreferences { get; }
 
 
 		Task<IDbContextTransaction> BeginTransactionAsync();

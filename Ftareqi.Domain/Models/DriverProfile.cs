@@ -23,5 +23,7 @@ namespace Ftareqi.Domain.Models
 		[ForeignKey(nameof(User))]
 		public required string UserId { get; set; }
 
+		public Ride Ride { get; set; }
+
 	}
 }

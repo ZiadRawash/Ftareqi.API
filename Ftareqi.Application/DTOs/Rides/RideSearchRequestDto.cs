@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Ftareqi.Application.DTOs.Rides
 {
-	public class RideSearchRequestDto : GenericQueryReq
+	public class RideSearchRequestDto : GenericQueryReq, IValidatableObject
 	{
 		[Range(-90d, 90d, ErrorMessage = "Start latitude must be between -90 and 90")]
 
@@ -26,6 +26,23 @@ namespace Ftareqi.Application.DTOs.Rides
 		public RideField Filters { get; set; }
 
 		public DateTime DepartureTime { get; set; }
+
+		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+		{
+			if (!Enum.IsDefined(typeof(RideField), Filters))
+			{
+				yield return new ValidationResult(
+					"Filter value is invalid",
+					new[] { nameof(Filters) });
+			}
+
+			if (DepartureTime <= DateTime.UtcNow)
+			{
+				yield return new ValidationResult(
+					"Departure time must be in the future",
+					new[] { nameof(DepartureTime) });
+			}
+		}
 
 	}
 }

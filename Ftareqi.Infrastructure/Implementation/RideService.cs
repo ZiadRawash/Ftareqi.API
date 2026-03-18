@@ -56,6 +56,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result.Failure("Unexpected error happened while creating ride");
 			}
 		}
+
 		public async Task<Result<PaginatedResponse<DriverPastRidesResponse>>> GetDriverPastRides(GenericQueryReq request, string userId)
 		{
 			try
@@ -118,6 +119,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<PaginatedResponse<DriverPastRidesResponse>>.Failure("Unexpected error happened while getting past rides");
 			}
 		}
+
 		public async Task<Result<PaginatedResponse<DriverUpcomingRidesResponse>>> GetDriverUpcomingRides(GenericQueryReq request, string userId)
 		{
 			try
@@ -181,13 +183,20 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<PaginatedResponse<DriverUpcomingRidesResponse>>.Failure("Unexpected error happened while getting upcoming rides");
 			}
 		}
+
 		public async Task<Result<PaginatedResponse<RideSearchResponseDto>>> SearchForRides(RideSearchRequestDto requestDto, string userId)
 		{
 			if (requestDto == null)
 				return Result<PaginatedResponse<RideSearchResponseDto>>.Failure("Ride search data is required");
+
 			try
 			{
-				var (items, totalCount) = await _unitOfWork.Rides.SearchForRidesAsync(requestDto,userId);
+
+
+				var (items, totalCount) = await _unitOfWork.Rides.SearchForRidesAsync(
+					requestDto,
+					userId);
+
 				var response = new PaginatedResponse<RideSearchResponseDto>
 				{
 					Page = requestDto.Page,
@@ -196,14 +205,16 @@ namespace Ftareqi.Infrastructure.Implementation
 					TotalPages = (int)Math.Ceiling((double)totalCount / requestDto.PageSize),
 					Items = items.ToList()
 				};
+
 				_logger.LogInformation("Ride search completed for user {UserId} with filter {Filter}. Found {Count} rides.",
 					userId, requestDto.Filters, totalCount);
+
 				return Result<PaginatedResponse<RideSearchResponseDto>>.Success(response);
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Unexpected error while searching rides for user {UserId}. Request: {@Request}", userId, requestDto);
-				throw;
+				return Result<PaginatedResponse<RideSearchResponseDto>>.Failure("Unexpected error happened while searching for rides");
 			}
 		}
 	}

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Reflection.Emit;
 
 namespace Ftareqi.Persistence
 {
@@ -113,6 +114,7 @@ namespace Ftareqi.Persistence
 				.WithOne(x => x.Ride)
 				.HasForeignKey<RidePreferences>(x => x.RideId)
 				.OnDelete(DeleteBehavior.Cascade);
+
 
 			builder.Entity<IdentityUserRole<string>>().HasData(
 				new IdentityUserRole<string>

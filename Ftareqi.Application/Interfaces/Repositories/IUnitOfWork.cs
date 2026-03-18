@@ -22,7 +22,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		IBaseRepository <PaymentTransaction> PaymentTransactions { get; }
 		IBaseRepository <Notification> Notifications { get; }
 		IBaseRepository <FcmToken> FcmTokens { get; }
-		IBaseRepository <Ride> Rides { get; }
+		IRideRepository Rides { get; }
 		IBaseRepository <RidePreferences> RidePreferences { get; }
 
 

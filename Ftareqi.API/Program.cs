@@ -228,6 +228,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
 			builder.Services.AddScoped<IUserOrchestrator, UserOrchestrator>();
+			builder.Services.AddScoped<IRideService, RideService>();
 			builder.Services.AddScoped<INotificationOrchestrator, NotificationOrchestrator>();
 			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
 			builder.Services.AddScoped<ICarJobs, CarJobs>();

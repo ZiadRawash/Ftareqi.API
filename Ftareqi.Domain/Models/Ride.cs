@@ -24,6 +24,5 @@ namespace Ftareqi.Domain.Models
 		public RidePreferences RidePreferences { get; set; } = null!;
 		public DriverProfile DriverProfile { get; set; } = null!;
 		public int DriverProfileId { get; set; }
-
 	}
 }

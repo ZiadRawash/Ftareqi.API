@@ -14,5 +14,6 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result> CreateRide(CreateRideRequestDto model, string userId);
 		Task<Result<PaginatedResponse<DriverPastRidesResponse>>> GetDriverPastRides(GenericQueryReq request, string userId);
 		Task<Result<PaginatedResponse<DriverUpcomingRidesResponse>>> GetDriverUpcomingRides(GenericQueryReq request, string userId);
+		Task<Result<PaginatedResponse<RideSearchResponseDto>>> SearchForRides(RideSearchRequestDto requestDto, string userId);
 	}
 }

@@ -14,6 +14,7 @@ namespace Ftareqi.Application.DTOs.Rides
 		public int AvailableSeats { get; set; }
 		public decimal PricePerSeat { get; set; }
 		public RideStatus Status { get; set; }
+		public double? DriverRate { get; set; }
 		//public double DistanceFromStartInMeters { get; set; }
 		//public double DistanceToEndInMeters { get; set; }
 	}

@@ -21,9 +21,9 @@ namespace Ftareqi.Persistence.Repositories
 	RideSearchRequestDto requestDto,
 	string userId)
 		{
-			var requestDate = requestDto.DepartureTime.Date;
-			var minDate = requestDate.AddDays(-2);
-			var maxDate = requestDate.AddDays(3); 
+			var requestTime = requestDto.DepartureTime;
+			var minDate = requestTime.AddDays(-2);
+			var maxDate = requestTime.AddDays(3);
 
 			var startPoint = new Point(requestDto.StartLongitude, requestDto.StartLatitude) { SRID = 4326 };
 			var endPoint = new Point(requestDto.EndLongitude, requestDto.EndLatitude) { SRID = 4326 };
@@ -42,22 +42,30 @@ namespace Ftareqi.Persistence.Repositories
 					x.StartLocation.Distance(startPoint) <= maxStartDistanceInMeters &&
 					x.EndLocation.Distance(endPoint) <= maxEndDistanceInMeters
 				);
+
 			var totalCount = await baseQuery.CountAsync();
+
 			var orderedQuery = baseQuery
-				.OrderBy(x => Math.Abs(EF.Functions.DateDiffDay(x.DepartureTime, requestDate)));
+				.OrderBy(x => Math.Abs(EF.Functions.DateDiffHour(x.DepartureTime, requestTime)))
+				.ThenBy(x => x.StartLocation.Distance(startPoint) + x.EndLocation.Distance(endPoint));
+
 			orderedQuery = requestDto.Filters switch
 			{
 				RideField.Cheapest => requestDto.SortDescending
 					? orderedQuery.ThenByDescending(x => x.PricePerSeat)
 					: orderedQuery.ThenBy(x => x.PricePerSeat),
 
-				RideField.Nearby => requestDto.SortDescending
-					? orderedQuery.ThenByDescending(x => x.StartLocation.Distance(startPoint) + x.EndLocation.Distance(endPoint))
-					: orderedQuery.ThenBy(x => x.StartLocation.Distance(startPoint) + x.EndLocation.Distance(endPoint)),
+				RideField.HighestRate => requestDto.SortDescending
+					? orderedQuery.ThenByDescending(x => x.DriverProfile.RatingCount > 0
+						? (double)x.DriverProfile.RatingSum / x.DriverProfile.RatingCount
+						: 0)
+					: orderedQuery.ThenBy(x => x.DriverProfile.RatingCount > 0
+						? (double)x.DriverProfile.RatingSum / x.DriverProfile.RatingCount
+						: 0),
 
 				_ => orderedQuery.ThenBy(x => x.DepartureTime)
 			};
-
+			
 			var items = await orderedQuery
 				.Select(x => new RideSearchResponseDto
 				{
@@ -70,7 +78,9 @@ namespace Ftareqi.Persistence.Repositories
 					DepartureTime = x.DepartureTime,
 					AvailableSeats = x.AvailableSeats,
 					PricePerSeat = x.PricePerSeat,
-					Status = x.Status
+					Status = x.Status,
+					DriverRate= x.DriverProfile.RatingCount==0?null: Math.Round(((double)x.DriverProfile.RatingSum / x.DriverProfile.RatingCount) * 2) / 2.0
+
 				})
 				.Skip((requestDto.Page - 1) * requestDto.PageSize)
 				.Take(requestDto.PageSize)

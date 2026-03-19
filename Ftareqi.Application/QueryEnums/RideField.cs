@@ -9,6 +9,6 @@ namespace Ftareqi.Application.QueryEnums
 	public enum RideField
 	{
 		Cheapest,
-		Nearby,
+		HighestRate
 	}
 }

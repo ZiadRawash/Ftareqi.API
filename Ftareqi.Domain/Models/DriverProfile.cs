@@ -13,16 +13,17 @@ namespace Ftareqi.Domain.Models
 		public int Id { get; set; }
 		public DateTime LicenseExpiryDate { get; set; }	
 		public DriverStatus Status { get; set; }
+		public int RatingCount { get; set; }
+		public float RatingSum { get; set; }
+
 		public DateTime CreatedAt {  get; set; }=DateTime.UtcNow;
 		public DateTime UpdatedAt {  get; set; }
 		public bool IsDeleted {  get; set; }
 		public ICollection<Image> Images { get; set; } = new List<Image>();
-
 		public Car? Car { get; set; }
 		public User? User { get; set; }
 		[ForeignKey(nameof(User))]
 		public required string UserId { get; set; }
-
 		public ICollection<Ride> Rides { get; set; } = new List<Ride>();
 
 	}

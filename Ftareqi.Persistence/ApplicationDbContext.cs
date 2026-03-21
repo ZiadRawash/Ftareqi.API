@@ -20,6 +20,7 @@ namespace Ftareqi.Persistence
 		public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
 		public DbSet<Notification> Notifications { get; set; }
 		public DbSet<Ride> Rides { get; set; }
+		public DbSet<RideBooking> RideBookings { get; set; }
 		public DbSet<RidePreferences> RidePreferences { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder builder)
@@ -114,6 +115,18 @@ namespace Ftareqi.Persistence
 				.WithOne(x => x.Ride)
 				.HasForeignKey<RidePreferences>(x => x.RideId)
 				.OnDelete(DeleteBehavior.Cascade);
+
+			builder.Entity<RideBooking>()
+				.HasOne(x => x.User)
+				.WithMany(x => x.RideBookings)
+				.HasForeignKey(x => x.UserId)
+				.OnDelete(DeleteBehavior.NoAction);
+
+			builder.Entity<RideBooking>()
+				.HasOne(x => x.Ride)
+				.WithMany(x => x.RideBookings)
+				.HasForeignKey(x => x.RideId)
+				.OnDelete(DeleteBehavior.NoAction);
 
 
 			builder.Entity<IdentityUserRole<string>>().HasData(

@@ -12,6 +12,8 @@ namespace Ftareqi.Domain.Enums
 		Withdrawal,
 		RidePayment,
 		Earnings,
-		Refund
+		Refund,
+		locked,
+		Released
 	}
 }

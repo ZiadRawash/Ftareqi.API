@@ -25,7 +25,6 @@ namespace Ftareqi.Infrastructure.Implementation
 		private readonly INotificationOrchestrator _notificationOrchestrator;
 		private readonly IDistributedCachingService _cache;
 		private static readonly TimeSpan WalletCacheDuration = TimeSpan.FromMinutes(15);
-
 		public WalletService(IUnitOfWork unitOfWork, ILogger<WalletService> logger, IPaymentGateway paymentGateway, INotificationOrchestrator notificationOrchestrator, IDistributedCachingService cache)
 		{
 			_unitOfWork = unitOfWork;
@@ -34,7 +33,6 @@ namespace Ftareqi.Infrastructure.Implementation
 			_notificationOrchestrator = notificationOrchestrator;
 			_cache = cache;
 		}
-
 		public async Task CreateWalletAsync(string userId)
 		{
 			var existing = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
@@ -52,13 +50,140 @@ namespace Ftareqi.Infrastructure.Implementation
 				await _unitOfWork.SaveChangesAsync();
 			}
 		}
+		public async Task<Result> LockAmountAsync(string userId, decimal amount)
+		{
+			if (string.IsNullOrWhiteSpace(userId))
+				return Result.Failure("UserId is required");
 
+			if (amount <= 0)
+				return Result.Failure("Amount must be greater than zero");
 
+			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsync(x => x.UserId == userId);
+			if (wallet == null)
+				return Result.Failure("Wallet not found");
+
+			if (wallet.Balance < amount)
+				return Result.Failure("Insufficient available balance");
+
+			await using var tx = await _unitOfWork.BeginTransactionAsync();
+			try
+			{
+				var balanceBefore = wallet.Balance;
+				wallet.Balance -= amount;
+				wallet.LockedBalance += amount;
+				wallet.UpdatedAt = DateTime.UtcNow;
+
+				var walletTransaction = new WalletTransaction
+				{
+					Type = TransactionType.locked,
+					Amount = amount,
+					BalanceBefore = balanceBefore,
+					BalanceAfter = wallet.Balance,
+					Status = TransactionStatus.Completed,
+					CreatedAt = DateTime.UtcNow,
+					UpdatedAt = DateTime.UtcNow,
+					UserWalletId = wallet.Id,
+				};
+
+				_unitOfWork.UserWallets.Update(wallet);
+				await _unitOfWork.WalletTransactions.AddAsync(walletTransaction);
+				await _unitOfWork.SaveChangesAsync();
+				await tx.CommitAsync();
+
+				var metadata = new WalletTransactionMetadata
+				{
+					Preview = "Amount reserved in wallet",
+					Amount = amount,
+					Type = TransactionType.locked,
+				};
+
+				var notification = new NotificationInput(
+					userId,
+					NotificationCategory.Wallet,
+					NotificationEventCode.AmountReserved,
+					wallet.Id.ToString(),
+					metadata);
+
+				await _notificationOrchestrator.NotifyAsync(notification);
+				await _cache.RemoveWalletCachesAsync(userId);
+
+				_logger.LogInformation("Amount locked successfully for user {UserId}. Amount={Amount}, WalletId={WalletId}", userId, amount, wallet.Id);
+				return Result.Success("Amount locked successfully");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "LockAmountAsync failed for user {UserId}", userId);
+				await tx.RollbackAsync();
+				return Result.Failure("Failed to lock amount");
+			}
+		}
+		public async Task<Result> ReleaseLockedAmountAsync(string userId, decimal amount)
+		{
+			if (string.IsNullOrWhiteSpace(userId))
+				return Result.Failure("UserId is required");
+
+			if (amount <= 0)
+				return Result.Failure("Amount must be greater than zero");
+
+			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsync(x => x.UserId == userId);
+			if (wallet == null)
+				return Result.Failure("Wallet not found");
+
+			if (wallet.LockedBalance < amount)
+				return Result.Failure("Insufficient locked balance");
+
+			await using var tx = await _unitOfWork.BeginTransactionAsync();
+			try
+			{
+				var balanceBefore = wallet.Balance;
+				wallet.LockedBalance -= amount;
+				wallet.Balance += amount;
+				wallet.UpdatedAt = DateTime.UtcNow;
+				var walletTransaction = new WalletTransaction
+				{
+					Type = TransactionType.Released,
+					Amount = amount,
+					BalanceBefore = balanceBefore,
+					BalanceAfter = wallet.Balance,
+					Status = TransactionStatus.Completed,
+					CreatedAt = DateTime.UtcNow,
+					UpdatedAt = DateTime.UtcNow,
+					UserWalletId = wallet.Id,
+				};
+				_unitOfWork.UserWallets.Update(wallet);
+				await _unitOfWork.WalletTransactions.AddAsync(walletTransaction);
+				await _unitOfWork.SaveChangesAsync();
+				await tx.CommitAsync();
+				var metadata = new WalletTransactionMetadata
+				{
+					Preview = "Amount released to wallet",
+					Amount = amount,
+					Type = TransactionType.Refund,
+				};
+				var notification = new NotificationInput(
+					userId,
+					NotificationCategory.Wallet,
+					NotificationEventCode.AmountReleased,
+					wallet.Id.ToString(),
+					metadata);
+
+				await _notificationOrchestrator.NotifyAsync(notification);
+				await _cache.RemoveWalletCachesAsync(userId);
+
+				_logger.LogInformation("Locked amount released successfully for user {UserId}. Amount={Amount}, WalletId={WalletId}", userId, amount, wallet.Id);
+				return Result.Success("Locked amount released successfully");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "ReleaseLockedAmountAsync failed for user {UserId}", userId);
+				await tx.RollbackAsync();
+				return Result.Failure("Failed to release locked amount");
+			}
+		}
 		public async Task<Result<PaginatedResponse<TransactionDto>>> GetWalletTransactionsPaginated(string userId, GenericQueryReq queryReq)
 		{
 			if (string.IsNullOrEmpty(userId))
 				return Result<PaginatedResponse<TransactionDto>>.Failure("No user is found");
-
 			if (queryReq.IsWalletTransactionsFirstPage())
 			{
 				var cachedTransactions = await _cache.GetAsync<PaginatedResponse<TransactionDto>>(CacheKeys.WalletTransactionsFirstPage(userId));
@@ -68,23 +193,17 @@ namespace Ftareqi.Infrastructure.Implementation
 					return Result<PaginatedResponse<TransactionDto>>.Success(cachedTransactions);
 				}
 			}
-
 			var walletFound = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
-
-			if (walletFound == null) // Fixed the duplicate userId check logic here
+			if (walletFound == null) 
 				return Result<PaginatedResponse<TransactionDto>>.Failure("No wallet is found");
-
 			var (walletTransactions, count) = await _unitOfWork.WalletTransactions.GetPagedAsync(
 				queryReq.Page,
 				queryReq.PageSize,
 				x => x.CreatedAt,
 				x => x.UserWalletId == walletFound.Id,
 				true);
-
 			var totalPages = (int)Math.Ceiling((double)count / queryReq.PageSize);
-
 			var items = walletTransactions.Select(WalletMapper.ToTransactionDto).ToList();
-
 			var response = new PaginatedResponse<TransactionDto>
 			{
 				Page = queryReq.Page,
@@ -93,12 +212,10 @@ namespace Ftareqi.Infrastructure.Implementation
 				TotalPages = totalPages,
 				Items = items
 			};
-
 			if (queryReq.IsWalletTransactionsFirstPage())
 			{
 				await _cache.SetAsync(CacheKeys.WalletTransactionsFirstPage(userId), response, WalletCacheDuration);
 			}
-
 			return Result<PaginatedResponse<TransactionDto>>.Success(response);
 		}
 		public async Task<Result<WalletResDto>> GetWallet(string userId)
@@ -193,7 +310,6 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				var paymentTrnx = await _unitOfWork.PaymentTransactions
 					.FirstOrDefaultAsync(x => x.Reference == dto.MerchantId);
-
 				if (paymentTrnx == null)
 				{
 					_logger.LogWarning(
@@ -202,14 +318,12 @@ namespace Ftareqi.Infrastructure.Implementation
 					await tx.RollbackAsync();
 					return;
 				}
-
 				paymentTrnx.Status = PaymentStatus.Failed;
 				paymentTrnx.UpdatedAt= DateTime.UtcNow;
 				var walletTrnx = await _unitOfWork.WalletTransactions
 					.FirstOrDefaultAsync(
 						x => x.PaymentTransactionId == paymentTrnx.Id,
 						x => x.UserWallet);
-
 				if (walletTrnx == null)
 				{
 					_logger.LogWarning(
@@ -222,10 +336,8 @@ namespace Ftareqi.Infrastructure.Implementation
 				}
 				walletTrnx.Status = TransactionStatus.Failed;
 				walletTrnx.UpdatedAt = DateTime.UtcNow;
-
 				_unitOfWork.PaymentTransactions.Update(paymentTrnx);
 				_unitOfWork.WalletTransactions.Update(walletTrnx);
-
 				await _unitOfWork.SaveChangesAsync();
 				await tx.CommitAsync();
 
@@ -236,23 +348,18 @@ namespace Ftareqi.Infrastructure.Implementation
 					Amount = paymentTrnx.Amount,
 					Type = walletTrnx.Type
 				};
-
 				var notification = new NotificationInput(
 					paymentTrnx.UserId,
 					NotificationCategory.Wallet,
 					NotificationEventCode.WalletCharged, 
 					walletTrnx.UserWalletId.ToString(),
 					metadata);
-
 				await _notificationOrchestrator.NotifyAsync(notification);
 				await _cache.RemoveWalletCachesAsync(paymentTrnx.UserId);
 				_logger.LogInformation(
 					"Records marked as Failed. PaymentTrnxId={PaymentId}, WalletTrnxId={WalletId}",
 					paymentTrnx.Id, walletTrnx.Id);
 			}
-
-			
-
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "HandleFailedPaymentAsync threw — rolling back.");

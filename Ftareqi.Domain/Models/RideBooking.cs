@@ -21,10 +21,6 @@ namespace Ftareqi.Domain.Models
 		public string UserId { get; set; }
 		public Ride Ride { get; set; }
 		public int RideId { get; set; }
-
-
-
-
 		public BookingStatus Status { get; set; } //Pending,Confirmed,CancelledByRider,CancelledByDriver,Accepted,Expired
 	}
 }

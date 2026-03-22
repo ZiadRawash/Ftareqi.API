@@ -9,7 +9,6 @@ namespace Ftareqi.Domain.Enums
 	public enum BookingStatus
 	{
 		Pending,
-		Confirmed,
 		CancelledByRider,
 		CancelledByDriver,
 		Accepted,

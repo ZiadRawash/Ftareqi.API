@@ -70,7 +70,6 @@ namespace Ftareqi.Infrastructure.Implementation
 						 !x.IsDeleted &&
 						 (x.Status == BookingStatus.Pending ||
 						  x.Status == BookingStatus.Accepted ));
-
 				if (hasExistingActiveBooking)
 					return Result<int>.Failure("You already have an active booking request for this ride");
 

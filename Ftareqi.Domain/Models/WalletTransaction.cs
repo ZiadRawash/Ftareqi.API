@@ -24,5 +24,8 @@ namespace Ftareqi.Domain.Models
 		public int? PaymentTransactionId { get; set; }
 		[ForeignKey(nameof(PaymentTransactionId))]
 		public  PaymentTransaction PaymentTransaction { get; set; }
+		public int? RideBookingId { get; set; }
+		[ForeignKey(nameof(RideBookingId))]
+		public RideBooking RideBooking { get; set; }
 	}
 }

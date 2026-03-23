@@ -243,6 +243,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IFcmService, FcmService>();
 			builder.Services.AddScoped<IFcmTokenService, FcmTokenService>();
 			builder.Services.AddScoped<IDistributedCachingService, RedisCachingService>();
+			builder.Services.AddScoped<IRideOrchestrator, RideOrchestrator>();
 			builder.Services.AddAuthorization(options =>
 			{
 				options.AddPolicy("DriverOnly", policy =>

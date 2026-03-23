@@ -12,6 +12,7 @@ namespace Ftareqi.Domain.Models
 		public int Id { get; set; }
 		public int NumOfSeats { get; set; }
 		public DateTime BookedAt { get; set; }
+		public DateTime ExpiresAt { get; set; }
 		public DateTime CancelledAt { get; set; }
 		public bool IsDeleted { get; set; }
 		public DateTime CreatedAt { get; set; }

@@ -1,5 +1,8 @@
 ﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Bookings;
+using Ftareqi.Domain.Enums;
+using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
@@ -10,9 +13,11 @@ using System.Threading.Tasks;
 namespace Ftareqi.Application.Interfaces.Orchestrators
 {
 	public interface IRideOrchestrator
-	{ 
-		// create rideBookingRequest
-		//1-validateMoney 2- validate the bookingParam against the ride 3- look money 3- create request 4-send notifications of looking money and the request for driver
+	{
 		public Task<Result> CreateRideBookingRequest(CreateBookingRequestDto model, string userId);
+		public Task<Result> AcceptRideBookingRequest(int bookingId, string driverId);
+		public Task<Result> DeclineRideBookingRequest(int bookingId, string driverId);
+		public Task<Result> CancelRideBookingByRider(int bookingId, string riderId);
 	}
-}
+
+	}

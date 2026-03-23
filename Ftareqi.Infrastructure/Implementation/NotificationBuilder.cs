@@ -101,6 +101,9 @@ namespace Ftareqi.Infrastructure.Implementation
 				NotificationEventCode.Approved => "Driver Registration Approved",
 				NotificationEventCode.Rejected => "Driver Registration Rejected",
 				NotificationEventCode.Expired => "Driver Account Expired",
+				NotificationEventCode.bookingAccepted => "Request Accepted ",
+				NotificationEventCode.bookingDeclined => "Request Declined",
+				NotificationEventCode.bookingRequest => "New Ride Request",
 				_ => "Notification"
 			};
 

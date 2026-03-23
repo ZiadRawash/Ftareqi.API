@@ -24,6 +24,12 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result<int>> CreateBooking(CreateBookingRequestDto request, string userId);
 
 		/// <summary>
+		/// Accepts a pending booking request by the authenticated driver.
+		/// Used when: Driver approves a rider's seat request and seats should be reserved.
+		/// </summary>
+		Task<Result> AcceptBooking(int bookingId, string driverUserId);
+
+		/// <summary>
 		/// Expires a pending booking request if it stays pending for 2+ hours.
 		/// Used when: Background job scans pending requests and marks timed-out ones as expired
 		/// </summary>

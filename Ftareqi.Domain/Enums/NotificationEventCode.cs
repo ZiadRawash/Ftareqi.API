@@ -8,6 +8,9 @@ namespace Ftareqi.Domain.Enums
 {
 	public enum NotificationEventCode
 	{
+		bookingRequest = 101,
+		bookingAccepted= 102,
+		bookingDeclined = 103,
 		//Wallet
 		WalletCharged = 200,
 		WalletWithdrawn = 201,
@@ -18,6 +21,7 @@ namespace Ftareqi.Domain.Enums
 		Approved = 301,
 		Rejected = 302,
 		Expired=303
+
 
 	}
 }

@@ -21,7 +21,8 @@ namespace Ftareqi.Application.Mappers
 				BalanceAfter = t.BalanceAfter,
 				Status = t.Status,
 				CreatedAt = t.CreatedAt,
-				UpdatedAt = t.UpdatedAt
+				UpdatedAt = t.UpdatedAt,
+				RideBookingId=t.RideBookingId,
 			};
 		}
 	}

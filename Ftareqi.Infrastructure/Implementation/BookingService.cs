@@ -13,7 +13,7 @@ namespace Ftareqi.Infrastructure.Implementation
 {
 	public class BookingService : IBookingService
 	{
-		private static readonly TimeSpan PendingBookingExpirationWindow = TimeSpan.FromHours(2);
+		//private static readonly TimeSpan PendingBookingExpirationWindow = TimeSpan.FromHours(2);
 
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<BookingService> _logger;
@@ -27,16 +27,28 @@ namespace Ftareqi.Infrastructure.Implementation
 		public async Task<Result<int>> CreateBooking(CreateBookingRequestDto request, string userId)
 		{
 			if (request == null)
+			{
+				_logger.LogWarning("CreateBooking called with null request for user {UserId}", userId);
 				return Result<int>.Failure("Booking data is required");
+			}
 
 			if (string.IsNullOrWhiteSpace(userId))
+			{
+				_logger.LogWarning("CreateBooking called with empty user id");
 				return Result<int>.Failure("User id is required");
+			}
 
 			if (request.RideId <= 0)
+			{
+				_logger.LogWarning("CreateBooking called with invalid ride id {RideId} for user {UserId}", request.RideId, userId);
 				return Result<int>.Failure("Valid ride id is required");
+			}
 
 			if (request.NumberOfSeats <= 0)
+			{
+				_logger.LogWarning("CreateBooking called with non-positive seats {Seats} for user {UserId}", request.NumberOfSeats, userId);
 				return Result<int>.Failure("Number of seats must be greater than zero");
+			}
 
 			try
 			{
@@ -47,22 +59,40 @@ namespace Ftareqi.Infrastructure.Implementation
 					x => x.RideBookings);
 
 				if (ride == null || ride.DriverProfile == null)
+				{
+					_logger.LogWarning("CreateBooking: ride {RideId} not found for user {UserId}", request.RideId, userId);
 					return Result<int>.Failure("Ride not found");
+				}
 
 				if (ride.DriverProfile.IsDeleted)
+				{
+					_logger.LogWarning("CreateBooking: driver profile {DriverProfileId} for ride {RideId} is deleted", ride.DriverProfileId, ride.Id);
 					return Result<int>.Failure("Ride is not available for booking");
+				}
 
 				if (ride.DriverProfile.UserId == userId)
+				{
+					_logger.LogWarning("CreateBooking: user {UserId} attempted to book own ride {RideId}", userId, ride.Id);
 					return Result<int>.Failure("You cannot book your own trip");
+				}
 
 				if (ride.Status != RideStatus.Scheduled)
+				{
+					_logger.LogWarning("CreateBooking: ride {RideId} has invalid status {Status} for booking", ride.Id, ride.Status);
 					return Result<int>.Failure("Ride is not available for booking");
+				}
 
 				if (ride.DepartureTime <= now)
+				{
+					_logger.LogWarning("CreateBooking: ride {RideId} departure time {DepartureTime} is in the past", ride.Id, ride.DepartureTime);
 					return Result<int>.Failure("Cannot create booking request after departure time");
+				}
 
 				if (request.NumberOfSeats > ride.AvailableSeats)
+				{
+					_logger.LogWarning("CreateBooking: requested seats {RequestedSeats} exceed available seats {AvailableSeats} for ride {RideId}", request.NumberOfSeats, ride.AvailableSeats, ride.Id);
 					return Result<int>.Failure("Requested seats exceed available seats");
+				}
 
 				var hasExistingActiveBooking = await _unitOfWork.RideBookings.ExistsAsync(
 					x => x.RideId == request.RideId &&
@@ -71,7 +101,10 @@ namespace Ftareqi.Infrastructure.Implementation
 						 (x.Status == BookingStatus.Pending ||
 						  x.Status == BookingStatus.Accepted ));
 				if (hasExistingActiveBooking)
-					return Result<int>.Failure("You already have an active booking request for this ride");
+					{
+						_logger.LogWarning("CreateBooking: user {UserId} already has active booking for ride {RideId}", userId, request.RideId);
+						return Result<int>.Failure("You already have an active booking request for this ride");
+					}
 
 				var booking = new RideBooking
 				{
@@ -81,6 +114,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					Status = BookingStatus.Pending,
 					BookedAt = now,
 					CancelledAt = now,
+					ExpiresAt= now.AddHours(2),
 					CreatedAt = now,
 					UpdatedAt = now,
 					IsDeleted = false
@@ -101,7 +135,10 @@ namespace Ftareqi.Infrastructure.Implementation
 		public async Task<Result<UserTripRequestResponseDto>> GetBookingById(int bookingId)
 		{
 			if (bookingId <= 0)
+			{
+				_logger.LogWarning("GetBookingById called with invalid booking id {BookingId}", bookingId);
 				return Result<UserTripRequestResponseDto>.Failure("Valid booking id is required");
+			}
 
 			try
 			{
@@ -112,7 +149,10 @@ namespace Ftareqi.Infrastructure.Implementation
 					x => x.Ride!.DriverProfile!.User!);
 
 				if (booking == null)
+				{
+					_logger.LogWarning("GetBookingById: booking {BookingId} not found", bookingId);
 					return Result<UserTripRequestResponseDto>.Failure("Booking not found");
+				}
 
 				var dto = booking.ToUserTripRequestDto();
 				return Result<UserTripRequestResponseDto>.Success(dto);
@@ -127,7 +167,10 @@ namespace Ftareqi.Infrastructure.Implementation
 		public async Task<Result<PaginatedResponse<DriverTripRequestResponseDto>>> GetDriverTripRequests(GetTripsRequestsDto request, string driverUserId)
 		{
 			if (request == null)
+			{
+				_logger.LogWarning("GetDriverTripRequests called with null request for driver user {UserId}", driverUserId);
 				return Result<PaginatedResponse<DriverTripRequestResponseDto>>.Failure("Request data is required");
+			}
 
 			try
 			{
@@ -135,7 +178,10 @@ namespace Ftareqi.Infrastructure.Implementation
 					x => x.UserId == driverUserId && !x.IsDeleted && x.Status == DriverStatus.Active);
 
 				if (profile == null)
+				{
+					_logger.LogWarning("GetDriverTripRequests: no active driver profile found for user {UserId}", driverUserId);
 					return Result<PaginatedResponse<DriverTripRequestResponseDto>>.Failure("No active driver profile found");
+				}
 
 				var statusFilter = MapQueryStatus(request.FilterBy);
 				var now = DateTime.UtcNow;
@@ -167,7 +213,10 @@ namespace Ftareqi.Infrastructure.Implementation
 		public async Task<Result<PaginatedResponse<UserTripRequestResponseDto>>> GetUserUpcomingTripRequests(GetUpcomingTripsRequestsDto request, string userId)
 		{
 			if (request == null)
+			{
+				_logger.LogWarning("GetUserUpcomingTripRequests called with null request for user {UserId}", userId);
 				return Result<PaginatedResponse<UserTripRequestResponseDto>>.Failure("Request data is required");
+			}
 
 			try
 			{
@@ -202,7 +251,10 @@ namespace Ftareqi.Infrastructure.Implementation
 		public async Task<Result<PaginatedResponse<UserTripRequestResponseDto>>> GetUserPastTripRequests(GenericQueryReq request, string userId)
 		{
 			if (request == null)
+			{
+				_logger.LogWarning("GetUserPastTripRequests called with null request for user {UserId}", userId);
 				return Result<PaginatedResponse<UserTripRequestResponseDto>>.Failure("Request data is required");
+			}
 			try
 			{
 				var now = DateTime.UtcNow;
@@ -233,7 +285,10 @@ namespace Ftareqi.Infrastructure.Implementation
 		public async Task<Result> ExpireBooking(int bookingId)
 		{
 			if (bookingId <= 0)
+			{
+				_logger.LogWarning("ExpireBooking called with invalid booking id {BookingId}", bookingId);
 				return Result.Failure("Valid booking id is required");
+			}
 
 			try
 			{
@@ -243,16 +298,23 @@ namespace Ftareqi.Infrastructure.Implementation
 					x => x.Ride);
 
 				if (booking == null)
+				{
+					_logger.LogWarning("ExpireBooking: booking {BookingId} not found", bookingId);
 					return Result.Failure("Booking not found");
+				}
 
 				if (booking.Status == BookingStatus.CancelledByRider || booking.Status == BookingStatus.CancelledByDriver || booking.Status == BookingStatus.Expired)
+				{
+					_logger.LogInformation("ExpireBooking: booking {BookingId} already has terminal status {Status}", bookingId, booking.Status);
 					return Result.Failure("Booking is already cancelled or expired");
+				}
 
 				if (booking.Status != BookingStatus.Pending)
+				{
+					_logger.LogWarning("ExpireBooking: booking {BookingId} has non-pending status {Status}", bookingId, booking.Status);
 					return Result.Failure("Only pending bookings can be expired");
+				}
 
-				if (DateTime.UtcNow - booking.BookedAt < PendingBookingExpirationWindow)
-					return Result.Failure("Booking cannot be expired before 2 hours from request time");
 
 				var now = DateTime.UtcNow;
 				booking.Status = BookingStatus.Expired;
@@ -272,10 +334,107 @@ namespace Ftareqi.Infrastructure.Implementation
 			}
 		}
 
+		public async Task<Result> AcceptBooking(int bookingId, string driverUserId)
+		{			
+			if (string.IsNullOrWhiteSpace(driverUserId))
+			{
+				_logger.LogWarning("AcceptBooking called with empty driver user id for booking {BookingId}", bookingId);
+				return Result.Failure("Driver user id is required");
+			}
+
+			try
+			{
+				var booking = await _unitOfWork.RideBookings.FirstOrDefaultAsync(
+					x => x.Id == bookingId && !x.IsDeleted,
+					x => x.Ride,
+					x => x.Ride!.DriverProfile);
+				if (booking == null)
+				{
+					_logger.LogWarning("AcceptBooking: booking {BookingId} not found for driver user {DriverUserId}", bookingId, driverUserId);
+					return Result.Failure("Booking not found");
+				}
+
+				if (booking.Ride == null || booking.Ride.DriverProfile == null)
+				{
+					_logger.LogWarning("AcceptBooking: ride or driver profile missing for booking {BookingId}", bookingId);
+					return Result.Failure("Ride not found for this booking");
+				}
+
+				if (booking.Ride.DriverProfile.UserId != driverUserId)
+				{
+					_logger.LogWarning("AcceptBooking: unauthorized driver user {DriverUserId} for booking {BookingId}", driverUserId, bookingId);
+					return Result.Failure("You are not authorized to accept this booking");
+				}
+
+				if (booking.Status == BookingStatus.CancelledByRider ||
+					booking.Status == BookingStatus.CancelledByDriver ||
+					booking.Status == BookingStatus.Expired)
+				{
+					_logger.LogInformation("AcceptBooking: booking {BookingId} already has terminal status {Status}", bookingId, booking.Status);
+					return Result.Failure("Booking is already cancelled or expired");
+				}
+
+				if (booking.Status == BookingStatus.Accepted)
+				{
+					_logger.LogInformation("AcceptBooking: booking {BookingId} already accepted", bookingId);
+					return Result.Failure("Booking is already accepted");
+				}
+
+				if (booking.Status != BookingStatus.Pending)
+				{
+					_logger.LogWarning("AcceptBooking: booking {BookingId} has non-pending status {Status}", bookingId, booking.Status);
+					return Result.Failure("Only pending bookings can be accepted");
+				}
+
+				var now = DateTime.UtcNow;
+				if (booking.ExpiresAt <= now)
+				{
+					_logger.LogInformation("AcceptBooking: booking {BookingId} has expired at {ExpiresAt}", bookingId, booking.ExpiresAt);
+					return Result.Failure("Booking has already expired");
+				}
+
+				if (booking.Ride.Status != RideStatus.Scheduled)
+				{
+					_logger.LogWarning("AcceptBooking: ride {RideId} has invalid status {Status}", booking.Ride.Id, booking.Ride.Status);
+					return Result.Failure("Ride is not available for booking");
+				}
+
+				if (booking.Ride.DepartureTime <= now)
+				{
+					_logger.LogWarning("AcceptBooking: ride {RideId} departure time {DepartureTime} is in the past", booking.Ride.Id, booking.Ride.DepartureTime);
+					return Result.Failure("Cannot accept booking after departure time");
+				}
+
+				if (booking.NumOfSeats > booking.Ride.AvailableSeats)
+				{
+					_logger.LogWarning("AcceptBooking: requested seats {RequestedSeats} exceed available seats {AvailableSeats} for ride {RideId}", booking.NumOfSeats, booking.Ride.AvailableSeats, booking.Ride.Id);
+					return Result.Failure("Not enough available seats to accept this booking");
+				}
+
+				booking.Status = BookingStatus.Accepted;
+				booking.UpdatedAt = now;
+				booking.Ride.AvailableSeats -= booking.NumOfSeats;
+				booking.Ride.UpdatedAt = now;
+				_unitOfWork.RideBookings.Update(booking);
+				_unitOfWork.Rides.Update(booking.Ride);
+				await _unitOfWork.SaveChangesAsync();
+				_logger.LogInformation("Booking {BookingId} accepted by driver user {DriverUserId}", bookingId, driverUserId);
+				return Result.Success("Booking accepted successfully");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogCritical(ex, "Unexpected error while accepting booking {BookingId} by driver {DriverUserId}", bookingId, driverUserId);
+				return Result.Failure("Unexpected error happened while accepting booking");
+			}
+		}
+
 		public async Task<Result> CancelBooking(int bookingId, BookingCancellationType cancellationType)
 		{
 			if (bookingId <= 0)
+			{
+				_logger.LogWarning("CancelBooking called with invalid booking id {BookingId}", bookingId);
 				return Result.Failure("Valid booking id is required");
+			}
 
 			try
 			{
@@ -285,10 +444,16 @@ namespace Ftareqi.Infrastructure.Implementation
 					x => x.Ride!.DriverProfile);
 
 				if (booking == null)
+				{
+					_logger.LogWarning("CancelBooking: booking {BookingId} not found", bookingId);
 					return Result.Failure("Booking not found");
+				}
 
 				if (booking.Status == BookingStatus.CancelledByRider || booking.Status == BookingStatus.CancelledByDriver || booking.Status == BookingStatus.Expired)
+				{
+					_logger.LogInformation("CancelBooking: booking {BookingId} already has terminal status {Status}", bookingId, booking.Status);
 					return Result.Failure("Booking is already cancelled or expired");
+				}
 
 				var shouldRestoreSeats = booking.Status == BookingStatus.Accepted;
 				var now = DateTime.UtcNow;

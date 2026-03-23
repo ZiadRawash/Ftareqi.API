@@ -19,6 +19,7 @@ namespace Ftareqi.Application.DTOs
 		public TransactionStatus Status { get; set; }//Pending,Completed,Failed
 		public DateTime CreatedAt { get; set; }
 		public DateTime? UpdatedAt { get; set; }
+		public int? RideBookingId { get; set; }
 
 
 	}

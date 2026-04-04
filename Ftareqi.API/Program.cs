@@ -33,6 +33,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
 using StackExchange.Redis;
+using System.Reflection;
 using System.Text;
 using static TokenBucketMiddleware;
 
@@ -299,6 +300,13 @@ namespace Ftareqi.API
 			builder.Services.AddSwaggerGen(options =>
 			{
 				options.SwaggerDoc("v1", new OpenApiInfo { Title = "Ftareqi API", Version = "v1" });
+
+				var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+				var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+				if (File.Exists(xmlPath))
+				{
+					options.IncludeXmlComments(xmlPath);
+				}
 				
 				// Configure enums to be displayed as strings in Swagger
 				options.SchemaFilter<EnumSchemaFilter>();

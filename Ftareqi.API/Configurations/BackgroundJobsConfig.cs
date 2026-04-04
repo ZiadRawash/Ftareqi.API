@@ -1,4 +1,5 @@
 ﻿using Ftareqi.Application.Interfaces.BackgroundJobs;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Orchestrators;
 using Ftareqi.Infrastructure.BackgroundJobs;
@@ -18,7 +19,7 @@ namespace Ftareqi.API.Configurations
 				methodCall: job => job.DeactivateExpiredDriversAsync(),
 				cronExpression: "40 19 * * *"
 			);
-			recurringJobManager.AddOrUpdate<RideOrchestrator>(
+			recurringJobManager.AddOrUpdate<IRideOrchestrator>(
 				recurringJobId: "expire-pending-bookings",
 				methodCall: job => job.HandleExpiredBookings(),
 				cronExpression: "*/2 * * * *"

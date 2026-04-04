@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Bookings;
+using Ftareqi.Domain.Models;
 
 namespace Ftareqi.Application.Interfaces.Services
 {
@@ -18,10 +19,10 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result<UserTripRequestResponseDto>> GetBookingById(int bookingId);
 
 		/// <summary>
-		/// Creates a new booking request for the authenticated user.
-		/// Used when: Rider submits a seat request for a ride (later orchestrator can handle wallet/payment/notifications)
+		/// Creates a new booking request in the current unit of work.
+		/// Used when: Orchestrator manages a multi-step transaction and calls SaveChanges/Commit once.
 		/// </summary>
-		Task<Result<int>> CreateBooking(CreateBookingRequestDto request, string userId);
+		Task<Result<RideBooking>> CreateBooking(CreateBookingRequestDto request, string userId);
 
 		/// <summary>
 		/// Accepts a pending booking request by the authenticated driver.
@@ -36,8 +37,8 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result> ExpireBooking(int bookingId);
 
 		/// <summary>
-		/// Cancels an existing booking request by rider or driver.
-		/// Used when: Rider or driver cancels a booking request without deleting booking history
+		/// Cancels an existing booking request in the current unit of work.
+		/// Used when: Orchestrator coordinates cancellation with wallet release in one transaction.
 		/// </summary>
 		Task<Result> CancelBooking(int bookingId, BookingCancellationType cancellationType);
 

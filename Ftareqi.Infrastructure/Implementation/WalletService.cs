@@ -50,22 +50,22 @@ namespace Ftareqi.Infrastructure.Implementation
 				await _unitOfWork.SaveChangesAsync();
 			}
 		}
-		public async Task<Result> LockAmountAsync(string userId, decimal amount)
+
+		public async Task<Result<WalletTransaction>> LockAmountAsync(string userId, decimal amount)
 		{
 			if (string.IsNullOrWhiteSpace(userId))
-				return Result.Failure("UserId is required");
+				return Result<WalletTransaction>.Failure("UserId is required");
 
 			if (amount <= 0)
-				return Result.Failure("Amount must be greater than zero");
+				return Result<WalletTransaction>.Failure("Amount must be greater than zero");
 
 			var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsync(x => x.UserId == userId);
 			if (wallet == null)
-				return Result.Failure("Wallet not found");
+				return Result<WalletTransaction>.Failure("Wallet not found");
 
 			if (wallet.Balance < amount)
-				return Result.Failure("Insufficient available balance");
+				return Result<WalletTransaction>.Failure("Insufficient available balance");
 
-			await using var tx = await _unitOfWork.BeginTransactionAsync();
 			try
 			{
 				var balanceBefore = wallet.Balance;
@@ -87,36 +87,17 @@ namespace Ftareqi.Infrastructure.Implementation
 
 				_unitOfWork.UserWallets.Update(wallet);
 				await _unitOfWork.WalletTransactions.AddAsync(walletTransaction);
-				await _unitOfWork.SaveChangesAsync();
-				await tx.CommitAsync();
 
-				var metadata = new WalletTransactionMetadata
-				{
-					Preview = "Amount reserved in wallet",
-					Amount = amount,
-					Type = TransactionType.locked,
-				};
-
-				var notification = new NotificationInput(
-					userId,
-					NotificationCategory.Wallet,
-					NotificationEventCode.AmountReserved,
-					wallet.Id.ToString(),
-					metadata);
-
-				await _notificationOrchestrator.NotifyAsync(notification);
-				await _cache.RemoveWalletCachesAsync(userId);
-
-				_logger.LogInformation("Amount locked successfully for user {UserId}. Amount={Amount}, WalletId={WalletId}", userId, amount, wallet.Id);
-				return Result.Success("Amount locked successfully");
+				_logger.LogInformation("Lock prepared for user {UserId}. Amount={Amount}, WalletId={WalletId}", userId, amount, wallet.Id);
+				return Result<WalletTransaction>.Success(walletTransaction, "Lock prepared successfully");
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "LockAmountAsync failed for user {UserId}", userId);
-				await tx.RollbackAsync();
-				return Result.Failure("Failed to lock amount");
+				return Result<WalletTransaction>.Failure("Failed to prepare lock");
 			}
 		}
+
 		public async Task<Result> ReleaseLockedAmountAsync(string userId, decimal amount)
 		{
 			if (string.IsNullOrWhiteSpace(userId))
@@ -132,13 +113,13 @@ namespace Ftareqi.Infrastructure.Implementation
 			if (wallet.LockedBalance < amount)
 				return Result.Failure("Insufficient locked balance");
 
-			await using var tx = await _unitOfWork.BeginTransactionAsync();
 			try
 			{
 				var balanceBefore = wallet.Balance;
 				wallet.LockedBalance -= amount;
 				wallet.Balance += amount;
 				wallet.UpdatedAt = DateTime.UtcNow;
+
 				var walletTransaction = new WalletTransaction
 				{
 					Type = TransactionType.Released,
@@ -150,34 +131,17 @@ namespace Ftareqi.Infrastructure.Implementation
 					UpdatedAt = DateTime.UtcNow,
 					UserWalletId = wallet.Id,
 				};
+
 				_unitOfWork.UserWallets.Update(wallet);
 				await _unitOfWork.WalletTransactions.AddAsync(walletTransaction);
-				await _unitOfWork.SaveChangesAsync();
-				await tx.CommitAsync();
-				var metadata = new WalletTransactionMetadata
-				{
-					Preview = "Amount released to wallet",
-					Amount = amount,
-					Type = TransactionType.Refund,
-				};
-				var notification = new NotificationInput(
-					userId,
-					NotificationCategory.Wallet,
-					NotificationEventCode.AmountReleased,
-					wallet.Id.ToString(),
-					metadata);
 
-				await _notificationOrchestrator.NotifyAsync(notification);
-				await _cache.RemoveWalletCachesAsync(userId);
-
-				_logger.LogInformation("Locked amount released successfully for user {UserId}. Amount={Amount}, WalletId={WalletId}", userId, amount, wallet.Id);
-				return Result.Success("Locked amount released successfully");
+				_logger.LogInformation("Release prepared for user {UserId}. Amount={Amount}, WalletId={WalletId}", userId, amount, wallet.Id);
+				return Result.Success("Release prepared successfully");
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "ReleaseLockedAmountAsync failed for user {UserId}", userId);
-				await tx.RollbackAsync();
-				return Result.Failure("Failed to release locked amount");
+				return Result.Failure("Failed to prepare release");
 			}
 		}
 		public async Task<Result<PaginatedResponse<TransactionDto>>> GetWalletTransactionsPaginated(string userId, GenericQueryReq queryReq)

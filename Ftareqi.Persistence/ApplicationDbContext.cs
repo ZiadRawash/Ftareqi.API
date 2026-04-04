@@ -128,13 +128,6 @@ namespace Ftareqi.Persistence
 				.HasForeignKey(x => x.RideId)
 				.OnDelete(DeleteBehavior.NoAction);
 
-			builder.Entity<WalletTransaction>()
-				.HasOne(x => x.RideBooking)
-				.WithMany()
-				.HasForeignKey(x => x.RideBookingId)
-				.OnDelete(DeleteBehavior.SetNull);
-
-
 			builder.Entity<IdentityUserRole<string>>().HasData(
 				new IdentityUserRole<string>
 				{

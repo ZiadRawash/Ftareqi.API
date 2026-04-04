@@ -24,30 +24,30 @@ namespace Ftareqi.Infrastructure.Implementation
 			_logger = logger;
 		}
 
-		public async Task<Result<int>> CreateBooking(CreateBookingRequestDto request, string userId)
+		public async Task<Result<RideBooking>> CreateBooking(CreateBookingRequestDto request, string userId)
 		{
 			if (request == null)
 			{
 				_logger.LogWarning("CreateBooking called with null request for user {UserId}", userId);
-				return Result<int>.Failure("Booking data is required");
+				return Result<RideBooking>.Failure("Booking data is required");
 			}
 
 			if (string.IsNullOrWhiteSpace(userId))
 			{
 				_logger.LogWarning("CreateBooking called with empty user id");
-				return Result<int>.Failure("User id is required");
+				return Result<RideBooking>.Failure("User id is required");
 			}
 
 			if (request.RideId <= 0)
 			{
 				_logger.LogWarning("CreateBooking called with invalid ride id {RideId} for user {UserId}", request.RideId, userId);
-				return Result<int>.Failure("Valid ride id is required");
+				return Result<RideBooking>.Failure("Valid ride id is required");
 			}
 
 			if (request.NumberOfSeats <= 0)
 			{
 				_logger.LogWarning("CreateBooking called with non-positive seats {Seats} for user {UserId}", request.NumberOfSeats, userId);
-				return Result<int>.Failure("Number of seats must be greater than zero");
+				return Result<RideBooking>.Failure("Number of seats must be greater than zero");
 			}
 
 			try
@@ -61,37 +61,37 @@ namespace Ftareqi.Infrastructure.Implementation
 				if (ride == null || ride.DriverProfile == null)
 				{
 					_logger.LogWarning("CreateBooking: ride {RideId} not found for user {UserId}", request.RideId, userId);
-					return Result<int>.Failure("Ride not found");
+					return Result<RideBooking>.Failure("Ride not found");
 				}
 
 				if (ride.DriverProfile.IsDeleted)
 				{
 					_logger.LogWarning("CreateBooking: driver profile {DriverProfileId} for ride {RideId} is deleted", ride.DriverProfileId, ride.Id);
-					return Result<int>.Failure("Ride is not available for booking");
+					return Result<RideBooking>.Failure("Ride is not available for booking");
 				}
 
 				if (ride.DriverProfile.UserId == userId)
 				{
 					_logger.LogWarning("CreateBooking: user {UserId} attempted to book own ride {RideId}", userId, ride.Id);
-					return Result<int>.Failure("You cannot book your own trip");
+					return Result<RideBooking>.Failure("You cannot book your own trip");
 				}
 
 				if (ride.Status != RideStatus.Scheduled)
 				{
 					_logger.LogWarning("CreateBooking: ride {RideId} has invalid status {Status} for booking", ride.Id, ride.Status);
-					return Result<int>.Failure("Ride is not available for booking");
+					return Result<RideBooking>.Failure("Ride is not available for booking");
 				}
 
 				if (ride.DepartureTime <= now)
 				{
 					_logger.LogWarning("CreateBooking: ride {RideId} departure time {DepartureTime} is in the past", ride.Id, ride.DepartureTime);
-					return Result<int>.Failure("Cannot create booking request after departure time");
+					return Result<RideBooking>.Failure("Cannot create booking request after departure time");
 				}
 
 				if (request.NumberOfSeats > ride.AvailableSeats)
 				{
 					_logger.LogWarning("CreateBooking: requested seats {RequestedSeats} exceed available seats {AvailableSeats} for ride {RideId}", request.NumberOfSeats, ride.AvailableSeats, ride.Id);
-					return Result<int>.Failure("Requested seats exceed available seats");
+					return Result<RideBooking>.Failure("Requested seats exceed available seats");
 				}
 
 				var hasExistingActiveBooking = await _unitOfWork.RideBookings.ExistsAsync(
@@ -103,7 +103,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				if (hasExistingActiveBooking)
 					{
 						_logger.LogWarning("CreateBooking: user {UserId} already has active booking for ride {RideId}", userId, request.RideId);
-						return Result<int>.Failure("You already have an active booking request for this ride");
+						return Result<RideBooking>.Failure("You already have an active booking request for this ride");
 					}
 
 				var booking = new RideBooking
@@ -120,15 +120,14 @@ namespace Ftareqi.Infrastructure.Implementation
 					IsDeleted = false
 				};
 				await _unitOfWork.RideBookings.AddAsync(booking);
-				await _unitOfWork.SaveChangesAsync();
 
-				_logger.LogInformation("Booking {BookingId} created by user {UserId} for ride {RideId}", booking.Id, userId, request.RideId);
-				return Result<int>.Success(booking.Id, "Booking request created successfully");
+				_logger.LogInformation("Booking prepared by user {UserId} for ride {RideId}", userId, request.RideId);
+				return Result<RideBooking>.Success(booking, "Booking prepared successfully");
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Unexpected error while creating booking for user {UserId}", userId);
-				return Result<int>.Failure("Unexpected error happened while creating booking");
+				_logger.LogError(ex, "Unexpected error while preparing booking for user {UserId}", userId);
+				return Result<RideBooking>.Failure("Unexpected error happened while creating booking");
 			}
 		}
 
@@ -322,7 +321,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				booking.UpdatedAt = now;
 
 				_unitOfWork.RideBookings.Update(booking);
-				await _unitOfWork.SaveChangesAsync();
+				//await _unitOfWork.SaveChangesAsync();
 
 				_logger.LogInformation("Booking {BookingId} expired after pending window", bookingId);
 				return Result.Success("Booking expired successfully");
@@ -471,14 +470,13 @@ namespace Ftareqi.Infrastructure.Implementation
 				}
 
 				_unitOfWork.RideBookings.Update(booking);
-				await _unitOfWork.SaveChangesAsync();
 
-				_logger.LogInformation("Booking {BookingId} cancelled by {CancellationType}", bookingId, cancellationType);
-				return Result.Success("Booking cancelled successfully");
+				_logger.LogInformation("Cancellation prepared for booking {BookingId} by {CancellationType}", bookingId, cancellationType);
+				return Result.Success("Cancellation prepared successfully");
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Unexpected error while cancelling booking {BookingId}", bookingId);
+				_logger.LogError(ex, "Unexpected error while preparing cancellation for booking {BookingId}", bookingId);
 				return Result.Failure("Unexpected error happened while cancelling booking");
 			}
 		}

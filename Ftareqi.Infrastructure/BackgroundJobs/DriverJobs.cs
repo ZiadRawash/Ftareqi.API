@@ -119,8 +119,8 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 			var expirationDate = DateTime.UtcNow.AddDays(1);
 
 			var expiredProfiles = await _unitOfWork.DriverProfiles.FindAllAsTrackingAsync(
-				dp => dp.LicenseExpiryDate <= expirationDate
-				   || (dp.Car != null && dp.Car.LicenseExpiryDate <= expirationDate),
+				(dp => dp.LicenseExpiryDate <= expirationDate
+				   || (dp.Car != null && dp.Car.LicenseExpiryDate <= expirationDate)&&dp.Status!=DriverStatus.Expired),
 				x => x.Car!
 			);
 

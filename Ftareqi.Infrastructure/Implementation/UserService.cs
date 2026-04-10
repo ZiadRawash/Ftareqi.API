@@ -43,7 +43,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					UserName = Guid.NewGuid().ToString(),
 					PhoneNumber = model.PhoneNumber,
 					FullName = model.FullName,
-					CreatedAt = DateTime.Now,
+					CreatedAt = DateTime.UtcNow,
 					Gender = model.Gender,
 					PhoneNumberConfirmed = false,
 					PenaltyCount = 0,

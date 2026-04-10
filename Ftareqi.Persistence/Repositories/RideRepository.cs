@@ -41,10 +41,12 @@ namespace Ftareqi.Persistence.Repositories
 					x.DriverProfile.UserId != userId &&
 					x.StartLocation.Distance(startPoint) <= maxStartDistanceInMeters &&
 					x.EndLocation.Distance(endPoint) <= maxEndDistanceInMeters
-				);
-
+				)
+				.Include(x => x.DriverProfile)
+						.ThenInclude(d => d.User) 
+					.Include(x => x.DriverProfile)
+						.ThenInclude(d => d.Images);
 			var totalCount = await baseQuery.CountAsync();
-
 			var orderedQuery = baseQuery
 				.OrderBy(x => Math.Abs(EF.Functions.DateDiffHour(x.DepartureTime, requestTime)))
 				.ThenBy(x => x.StartLocation.Distance(startPoint) + x.EndLocation.Distance(endPoint));
@@ -65,7 +67,7 @@ namespace Ftareqi.Persistence.Repositories
 
 				_ => orderedQuery.ThenBy(x => x.DepartureTime)
 			};
-			
+
 			var items = await orderedQuery
 				.Select(x => new RideSearchResponseDto
 				{
@@ -79,7 +81,9 @@ namespace Ftareqi.Persistence.Repositories
 					AvailableSeats = x.AvailableSeats,
 					PricePerSeat = x.PricePerSeat,
 					Status = x.Status,
-					DriverRate= x.DriverProfile.RatingCount==0?null: Math.Round(((double)x.DriverProfile.RatingSum / x.DriverProfile.RatingCount) * 2) / 2.0
+					DriverRate = x.DriverProfile.RatingCount == 0 ? null : Math.Round(((double)x.DriverProfile.RatingSum / x.DriverProfile.RatingCount) * 2) / 2.0,
+					DriverImgUrl = x.DriverProfile.Images.Where(img => img.Type == ImageType.DriverProfilePhoto).Select(img => img.Url).FirstOrDefault() ?? null!,
+					DriverName = x.DriverProfile.User!.FullName
 
 				})
 				.Skip((requestDto.Page - 1) * requestDto.PageSize)

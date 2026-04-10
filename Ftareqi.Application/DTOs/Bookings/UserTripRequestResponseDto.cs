@@ -17,5 +17,6 @@ namespace Ftareqi.Application.DTOs.Bookings
 		public double StartLongitude { get; set; }
 		public double EndLatitude { get; set; }
 		public double EndLongitude { get; set; }
+		public string? DriverImg { get; set; }
 	}
 }

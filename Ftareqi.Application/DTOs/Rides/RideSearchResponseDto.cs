@@ -1,4 +1,5 @@
 using Ftareqi.Domain.Enums;
+using System.Globalization;
 
 namespace Ftareqi.Application.DTOs.Rides
 {
@@ -15,5 +16,7 @@ namespace Ftareqi.Application.DTOs.Rides
 		public decimal PricePerSeat { get; set; }
 		public RideStatus Status { get; set; }
 		public double? DriverRate { get; set; }
+		public string DriverName { get; set; }= string.Empty;
+		public string DriverImgUrl { get; set; }= string.Empty;
 	}
 }

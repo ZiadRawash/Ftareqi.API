@@ -1,4 +1,5 @@
 using Ftareqi.Application.DTOs.Bookings;
+using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
 
 namespace Ftareqi.Application.Mappers
@@ -41,7 +42,10 @@ namespace Ftareqi.Application.Mappers
 				StartLatitude = booking.Ride?.StartLocation?.Y ?? 0,
 				StartLongitude = booking.Ride?.StartLocation?.X ?? 0,
 				EndLatitude = booking.Ride?.EndLocation?.Y ?? 0,
-				EndLongitude = booking.Ride?.EndLocation?.X ?? 0
+				EndLongitude = booking.Ride?.EndLocation?.X ?? 0,
+				DriverImg = booking.Ride?.DriverProfile?.Images?
+					.FirstOrDefault(x => x.Type == ImageType.DriverProfilePhoto)?.Url
+
 			};
 		}
 	}

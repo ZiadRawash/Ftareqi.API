@@ -23,7 +23,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		IBaseRepository <Notification> Notifications { get; }
 		IBaseRepository <FcmToken> FcmTokens { get; }
 		IRideRepository Rides { get; }
-		IBaseRepository<RideBooking> RideBookings { get; }
+		IRideBookingRepository RideBookings { get; }
 		IBaseRepository <RidePreferences> RidePreferences { get; }
 
 

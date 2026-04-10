@@ -141,11 +141,7 @@ namespace Ftareqi.Infrastructure.Implementation
 
 			try
 			{
-				var booking = await _unitOfWork.RideBookings.FirstOrDefaultAsync(
-					x => x.Id == bookingId && !x.IsDeleted,
-					x => x.Ride,
-					x => x.Ride!.DriverProfile!,
-					x => x.Ride!.DriverProfile!.User!);
+				var booking = await _unitOfWork.RideBookings.GetBookingByIdAsync(bookingId);
 
 				if (booking == null)
 				{
@@ -153,8 +149,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					return Result<UserTripRequestResponseDto>.Failure("Booking not found");
 				}
 
-				var dto = booking.ToUserTripRequestDto();
-				return Result<UserTripRequestResponseDto>.Success(dto);
+				return Result<UserTripRequestResponseDto>.Success(booking);
 			}
 			catch (Exception ex)
 			{
@@ -199,7 +194,7 @@ namespace Ftareqi.Infrastructure.Implementation
 
 				var items = bookings.Select(x => x.ToDriverTripRequestDto()).ToList();
 
-				var response = BuildPaginatedResponse(items, request.Page, request.PageSize, totalCount);
+				var response = BuildPaginatedResponse(items.ToList(), request.Page, request.PageSize, totalCount);
 				return Result<PaginatedResponse<DriverTripRequestResponseDto>>.Success(response);
 			}
 			catch (Exception ex)
@@ -221,22 +216,12 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				var statusFilter = MapUpcomingQueryStatus(request.FilterBy);
 				var now = DateTime.UtcNow;
-				var (bookings, totalCount) = await _unitOfWork.RideBookings.GetPagedAsync(
-					request.Page,
-					request.PageSize,
-					x => x.BookedAt,
-					x => !x.IsDeleted &&
-						 x.UserId == userId &&
-						 x.Ride.DepartureTime >= now &&
-						 (x.Status == BookingStatus.Pending || x.Status == BookingStatus.Accepted) &&
-						 (!statusFilter.HasValue || x.Status == statusFilter.Value),
-					request.SortDescending,
-					x => x.Ride,
-					x => x.Ride!.DriverProfile!,
-					x => x.Ride!.DriverProfile!.User!);
-
-				var items = bookings.Select(x => x.ToUserTripRequestDto()).ToList();
-				var response = BuildPaginatedResponse(items, request.Page, request.PageSize, totalCount);
+				var (items, totalCount) = await _unitOfWork.RideBookings.GetUserUpcomingTripRequestsAsync(
+					request,
+					userId,
+					statusFilter,
+					now);
+				var response = BuildPaginatedResponse(items.ToList(), request.Page, request.PageSize, totalCount);
 
 				return Result<PaginatedResponse<UserTripRequestResponseDto>>.Success(response);
 			}
@@ -257,20 +242,11 @@ namespace Ftareqi.Infrastructure.Implementation
 			try
 			{
 				var now = DateTime.UtcNow;
-				var (bookings, totalCount) = await _unitOfWork.RideBookings.GetPagedAsync(
-					request.Page,
-					request.PageSize,
-					x => x.BookedAt,
-					x => !x.IsDeleted &&
-						 x.UserId == userId &&
-						 (x.Ride.DepartureTime < now &&
-						  x.Status == BookingStatus.Accepted || x.Status== BookingStatus.CancelledByDriver),
-					request.SortDescending,
-					x => x.Ride,
-					x => x.Ride!.DriverProfile!,
-					x => x.Ride!.DriverProfile!.User!);
-				var items = bookings.Select(x => x.ToUserTripRequestDto()).ToList();
-				var response = BuildPaginatedResponse(items, request.Page, request.PageSize, totalCount);
+				var (items, totalCount) = await _unitOfWork.RideBookings.GetUserPastTripRequestsAsync(
+					request,
+					userId,
+					now);
+				var response = BuildPaginatedResponse(items.ToList(), request.Page, request.PageSize, totalCount);
 
 				return Result<PaginatedResponse<UserTripRequestResponseDto>>.Success(response);
 			}
@@ -522,21 +498,6 @@ namespace Ftareqi.Infrastructure.Implementation
 				_ => null
 			};
 		}
-
-		private static BookingStatus? MapPastQueryStatus(PastTripStatusQueryEnum? filterBy)
-		{
-			if (!filterBy.HasValue)
-				return null;
-
-			return filterBy.Value switch
-			{
-				PastTripStatusQueryEnum.CancelledByRider => BookingStatus.CancelledByRider,
-				PastTripStatusQueryEnum.CancelledByDriver => BookingStatus.CancelledByDriver,
-				PastTripStatusQueryEnum.Expired => BookingStatus.Expired,
-				_ => null
-			};
-		}
-
 
 	}
 }

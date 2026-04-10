@@ -22,6 +22,6 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		Task<Result<CarResponseDto>> UpdateCarAsync(CarUpdateDto carDto);
 		Task<Result<DriverProfileResponse>> GetDriverProfile(string userId);
 		Task<Result<CarProfileResponseDto>> GetCarProfile(string userId);
-
+		Task <Result<PublicDriverProfileDto>> GetPublicDriverProfile(string userId);
 	}
 }

@@ -269,7 +269,6 @@ namespace Ftareqi.Application.Orchestrators
 			return Result<PaginatedResponse<DriverProfileWithUsernameDto>>.Success(returnModel);
 		}
 
-
 		//approve driver profile request
 		public async Task <Result> ApproveDriverProfile(int profileId)
 		{
@@ -513,7 +512,6 @@ namespace Ftareqi.Application.Orchestrators
 		}
 
 		//Update car Profile
-
 		public async Task<Result<CarResponseDto>> UpdateCarAsync(CarUpdateDto carDto)
 		{
 			try
@@ -815,6 +813,59 @@ namespace Ftareqi.Application.Orchestrators
 			return Result<CarProfileResponseDto>.Success(response);
 		}
 
+		public async Task<Result<PublicDriverProfileDto>> GetPublicDriverProfile(string userId)
+		{
+			if (string.IsNullOrWhiteSpace(userId))
+			{
+				return Result<PublicDriverProfileDto>.Failure("User id is required");
+			}
+
+			try
+			{
+				var driverProfile = await _unitOfWork.DriverProfiles.FirstOrDefaultAsync(
+					x => x.UserId == userId && !x.IsDeleted && x.Status == DriverStatus.Active,
+					x => x.User!,
+					x => x.Images,
+					x => x.Car!,
+					x => x.Car!.Images!);
+
+				if (driverProfile == null)
+				{
+					return Result<PublicDriverProfileDto>.Failure("Driver profile not found");
+				}
+
+				var completedTripsCount = await _unitOfWork.Rides.CountAsync(
+					x => x.DriverProfileId == driverProfile.Id && x.Status == RideStatus.Completed);
+
+				var rating = driverProfile.RatingCount > 0
+					? Math.Round(((double)driverProfile.RatingSum / driverProfile.RatingCount) * 2) / 2.0
+					: (double?)null;
+
+				var result = new PublicDriverProfileDto
+				{
+					Name = driverProfile.User?.FullName,
+					Gender = driverProfile.User?.Gender ?? default,
+					JoinedAt = driverProfile.CreatedAt,
+					DriverImg = driverProfile.Images?
+						.FirstOrDefault(x => x.Type == ImageType.DriverProfilePhoto)
+						?.Url,
+					Rating = rating,
+					TripsTaken = completedTripsCount,
+					CarImg = driverProfile.Car?.Images?
+						.FirstOrDefault(x => x.Type == ImageType.CarPhoto)
+						?.Url,
+					CarModel = driverProfile.Car?.Model,
+					CarPlate = driverProfile.Car?.Plate
+				};
+
+				return Result<PublicDriverProfileDto>.Success(result);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error while getting public driver profile for user {UserId}", userId);
+				return Result<PublicDriverProfileDto>.Failure("Unexpected error happened while getting public driver profile");
+			}
+		}
 		private async Task SendDriverApprovalNotificationAsync(string userId, int profileId)
 		{
 			var input = new NotificationInput(

@@ -1,6 +1,7 @@
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.DTOs.Rides;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,10 +14,12 @@ namespace Ftareqi.API.Controllers
 	public class RidesController : ControllerBase
 	{
 		private readonly IRideService _rideService;
+		private readonly IRideOrchestrator _rideOrchestrator;
 
-		public RidesController(IRideService rideService)
+		public RidesController(IRideService rideService, IRideOrchestrator rideOrchestrator)
 		{
 			_rideService = rideService;
+			_rideOrchestrator = rideOrchestrator;
 		}
 
 		/// <summary>
@@ -148,6 +151,37 @@ namespace Ftareqi.API.Controllers
 				Message = result.Message,
 				Errors = result.Errors,
 				Data = result.Data
+			});
+		}
+
+		/// <summary>
+		/// Cancels a scheduled ride created by the authenticated driver.
+		/// </summary>
+		/// <param name="rideId">Target ride id.</param>
+		[Authorize(Policy = "DriverOnly")]
+		[HttpPost("{rideId:int}/cancel")]
+		public async Task<ActionResult<ApiResponse>> CancelRide(int rideId)
+		{
+			var userId = User.GetUserId();
+			if (string.IsNullOrWhiteSpace(userId))
+				return Unauthorized(new ApiResponse { Success = false, Message = "Unauthorized" });
+
+			var result = await _rideOrchestrator.CancelRide(rideId, userId);
+			if (result.IsFailure)
+			{
+				return BadRequest(new ApiResponse
+				{
+					Success = false,
+					Message = result.Message,
+					Errors = result.Errors
+				});
+			}
+
+			return Ok(new ApiResponse
+			{
+				Success = true,
+				Message = result.Message,
+				Errors = result.Errors
 			});
 		}
 	}

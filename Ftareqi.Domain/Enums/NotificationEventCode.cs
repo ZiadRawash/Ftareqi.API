@@ -11,6 +11,7 @@ namespace Ftareqi.Domain.Enums
 		bookingRequest = 101,
 		bookingAccepted= 102,
 		bookingDeclined = 103,
+		bookingCanceled = 104,
 		//Wallet
 		WalletCharged = 200,
 		WalletWithdrawn = 201,

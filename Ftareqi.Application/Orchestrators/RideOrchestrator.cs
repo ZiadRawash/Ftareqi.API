@@ -263,106 +263,6 @@ namespace Ftareqi.Application.Orchestrators
 				return Result.Failure("Unexpected error happened while cancelling booking");
 			}
 		}
-		// public async Task<Result> HandleExpiredBookings()
-		// {
-		// 	var now = DateTime.UtcNow;
-		// 	var (expiredBookingsPage, totalExpiredCount) = await _unitOfWork.RideBookings.GetPagedAsync(
-		// 		pageNumber: 1,
-		// 		pageSize: ExpiredBookingsBatchSize,
-		// 		orderBy: x => x.ExpiresAt,
-		// 		predicate: x => x.Status == BookingStatus.Pending && x.ExpiresAt <= now);
-
-		// 	var expiredBookings = expiredBookingsPage.ToList();
-		// 	if (!expiredBookings.Any())
-		// 	{
-		// 		_logger.LogInformation("HandleExpiredBookings: no pending bookings to expire at {Now}", now);
-		// 		return Result.Success("No expired bookings to process");
-		// 	}
-
-		// 	var bookingIds = expiredBookings.Select(x => x.Id).ToList();
-		// 	var lockTransactions = !bookingIds.Any()? Enumerable.Empty<WalletTransaction>()
-		// 		: await _unitOfWork.WalletTransactions.FindAllAsNoTrackingAsync(
-		// 			x => x.RideBookingId.HasValue
-		// 				&& bookingIds.Contains(x.RideBookingId.Value)
-		// 				&& x.Type == TransactionType.locked);
-
-		// 	var lockTotalsByBooking = lockTransactions
-		// 		.GroupBy(x => x.RideBookingId!.Value)
-		// 		.ToDictionary(g => g.Key, g => g.Sum(t => t.Amount));
-
-		// 	int successCount = 0;
-		// 	int failureCount = 0;
-
-		// 	foreach (var booking in expiredBookings)
-		// 	{
-		// 		var expireResult = await _bookingService.ExpireBooking(booking.Id);
-		// 		if (expireResult.IsFailure)
-		// 		{
-		// 			failureCount++;
-		// 			_logger.LogError("HandleExpiredBookings: failed to expire booking {BookingId}. Error: {Error}", booking.Id, expireResult.Message);
-		// 			continue;
-		// 		}
-
-		// 		if (!lockTotalsByBooking.TryGetValue(booking.Id, out var totalLockedAmount))
-		// 		{
-		// 			_logger.LogWarning("HandleExpiredBookings: no lock transactions found for expired booking {BookingId}", booking.Id);
-		// 			successCount++;
-		// 			continue;
-		// 		}
-
-		// 		if (totalLockedAmount <= 0)
-		// 		{
-		// 			_logger.LogWarning("HandleExpiredBookings: total locked amount is zero for booking {BookingId}", booking.Id);
-		// 			successCount++;
-		// 			continue;
-		// 		}
-
-		// 		await using var tx = await _unitOfWork.BeginTransactionAsync();
-		// 		try
-		// 		{
-		// 			var releaseResult = await _walletService.ReleaseLockedAmountAsync(booking.UserId, totalLockedAmount);
-		// 			if (releaseResult.IsFailure)
-		// 			{
-		// 				failureCount++;
-		// 				_logger.LogError("HandleExpiredBookings: failed to prepare release for booking {BookingId} and user {UserId}. Error: {Error}", booking.Id, booking.UserId, releaseResult.Message);
-		// 				await tx.RollbackAsync();
-		// 				continue;
-		// 			}
-
-		// 			await _unitOfWork.SaveChangesAsync();
-		// 			await tx.CommitAsync();
-
-		// 			var bookingWallet = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == booking.UserId);
-		// 			if (bookingWallet != null)
-		// 			{
-		// 				await SendWalletAmountReleasedNotification(booking.UserId, bookingWallet.Id, totalLockedAmount);
-		// 				await _cache.RemoveWalletCachesAsync(booking.UserId);
-		// 			}
-
-		// 			_logger.LogInformation("HandleExpiredBookings: successfully expired booking {BookingId} and released {Amount} for user {UserId}", booking.Id, totalLockedAmount, booking.UserId);
-		// 			successCount++;
-		// 		}
-		// 		catch (Exception ex)
-		// 		{
-		// 			failureCount++;
-		// 			_logger.LogError(ex, "HandleExpiredBookings: failed during release for booking {BookingId}", booking.Id);
-		// 			await tx.RollbackAsync();
-		// 		}
-		// 	}
-
-		// 	var remaining = totalExpiredCount - expiredBookings.Count;
-		// 	if (remaining > 0)
-		// 	{
-		// 		_logger.LogInformation("HandleExpiredBookings: {Remaining} additional expired bookings will be handled in subsequent runs", remaining);
-		// 	}
-
-		// 	if (failureCount == 0)
-		// 	{
-		// 		return Result.Success($"Successfully processed {successCount} expired bookings");
-		// 	}
-
-		// 	return Result.Failure($"Processed {successCount} expired bookings with {failureCount} failures");
-		// }
 		public async Task<Result> HandleExpiredBookings()
 		{
 			var now = DateTime.UtcNow;
@@ -451,6 +351,129 @@ namespace Ftareqi.Application.Orchestrators
 			}
 
 			return Result.Failure($"Processed {successCount} expired bookings with {failureCount} failures");
+		}
+		public async Task<Result> CancelRide(int rideId, string driverId)
+		{
+			if (rideId <= 0)
+			{
+				return Result.Failure("Valid ride id is required");
+			}
+
+			if (string.IsNullOrWhiteSpace(driverId))
+			{
+				return Result.Failure("Driver user id is required");
+			}
+
+			var rideFound = await _unitOfWork.Rides.FirstOrDefaultAsync(
+				x => x.Id == rideId,
+				x => x.DriverProfile,
+				x => x.RideBookings);
+
+			if (rideFound == null)
+			{
+				return Result.Failure("Ride not found");
+			}
+
+			if (rideFound.DriverProfile == null)
+			{
+				return Result.Failure("Driver profile not found for this ride");
+			}
+
+			if (!string.Equals(rideFound.DriverProfile.UserId, driverId, StringComparison.Ordinal))
+			{
+				return Result.Failure("You are not authorized to cancel this ride");
+			}
+
+			if (rideFound.Status != RideStatus.Scheduled)
+			{
+				return Result.Failure("Only scheduled rides can be cancelled");
+			}
+
+			var cancellableBookings = rideFound.RideBookings
+				.Where(booking =>
+					!booking.IsDeleted &&
+					booking.Status != BookingStatus.CancelledByRider &&
+					booking.Status != BookingStatus.CancelledByDriver &&
+					booking.Status != BookingStatus.Expired)
+				.ToList();
+
+			var cancellationsToNotify = new List<(string UserId, int BookingId)>();
+			var walletReleasesToNotify = new List<(string UserId, int WalletId, decimal Amount)>();
+			await using var tx = await _unitOfWork.BeginTransactionAsync();
+			try
+			{
+				foreach (var booking in cancellableBookings)
+				{
+					var cancelResult = await _bookingService.CancelBooking(booking.Id, BookingCancellationType.Driver);
+					if (cancelResult.IsFailure)
+					{
+						await tx.RollbackAsync();
+						return Result.Failure(cancelResult.Message);
+					}
+
+					var releaseResult = await ReleaseLockedAmountForBooking(booking.Id, booking.UserId);
+					if (releaseResult.IsFailure)
+					{
+						_logger.LogError("CancelRide: booking {BookingId} failed to release amount for user {UserId}. Error: {Error}", booking.Id, booking.UserId, releaseResult.Message);
+						await tx.RollbackAsync();
+						return Result.Failure($"Booking cancelled but failed to release locked amount. {releaseResult.Message}");
+					}
+
+					cancellationsToNotify.Add((booking.UserId, booking.Id));
+
+					if (releaseResult.Data > 0)
+					{
+						var riderWallet = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == booking.UserId);
+						if (riderWallet != null)
+						{
+							walletReleasesToNotify.Add((booking.UserId, riderWallet.Id, releaseResult.Data));
+						}
+					}
+				}
+
+				rideFound.Status = RideStatus.Cancelled;
+				rideFound.UpdatedAt = DateTime.UtcNow;
+				_unitOfWork.Rides.Update(rideFound);
+
+				await _unitOfWork.SaveChangesAsync();
+				await tx.CommitAsync();
+
+				foreach (var (userId, walletId, amount) in walletReleasesToNotify)
+				{
+					await SendWalletAmountReleasedNotification(userId, walletId, amount);
+					await _cache.RemoveWalletCachesAsync(userId);
+				}
+
+				if (cancellationsToNotify.Any())
+				{
+					await SendRideCancellationNotifications(cancellationsToNotify);
+				}
+
+				return Result.Success("Ride cancelled successfully");
+			}
+			catch (Exception ex)
+			{
+				await tx.RollbackAsync();
+				_logger.LogError(ex, "Critical error during ride cancellation");
+				return Result.Failure("An internal error occurred.");
+			}
+		}
+		private async Task SendRideCancellationNotifications(IEnumerable<(string UserId, int BookingId)> cancellations)
+		{
+			foreach (var (userId, bookingId) in cancellations)
+			{
+				var metadata = new NotificationMetadata { Preview = "Your ride request has been Canceled" };
+
+				var input = new NotificationInput(
+					userId,
+					NotificationCategory.Ride,
+					NotificationEventCode.bookingCanceled,
+					bookingId.ToString(),
+					metadata
+				);
+
+				await _notificationOrchestrator.NotifyAsync(input);
+			}
 		}
 		private async Task SendRequestNotification(string driverId, int bookingId)
 		{

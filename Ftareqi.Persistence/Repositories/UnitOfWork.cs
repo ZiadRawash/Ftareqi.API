@@ -27,6 +27,7 @@ namespace Ftareqi.Persistence.Repositories
 		public IBaseRepository <RidePreferences> RidePreferences { get; private set; }
 		public IRideRepository Rides { get; private set; }
 		public IRideBookingRepository RideBookings { get; private set; }
+		public IBaseRepository <Review> Reviews { get; private set; }
 
 		public UnitOfWork(ApplicationDbContext applicationDbContext)
 		{
@@ -45,6 +46,7 @@ namespace Ftareqi.Persistence.Repositories
 			RidePreferences = new BaseRepository<RidePreferences> (_applicationDbContext);
 			Rides = new RideRepository(_applicationDbContext);
 			RideBookings = new RideBookingRepository(_applicationDbContext);
+			Reviews = new BaseRepository<Review> (_applicationDbContext);
 
 		}
 		public ValueTask DisposeAsync()

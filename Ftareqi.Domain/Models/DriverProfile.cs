@@ -15,7 +15,6 @@ namespace Ftareqi.Domain.Models
 		public DriverStatus Status { get; set; }
 		public int RatingCount { get; set; }
 		public float RatingSum { get; set; }
-
 		public DateTime CreatedAt {  get; set; }=DateTime.UtcNow;
 		public DateTime UpdatedAt {  get; set; }
 		public bool IsDeleted {  get; set; }

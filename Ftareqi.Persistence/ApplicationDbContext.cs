@@ -22,6 +22,7 @@ namespace Ftareqi.Persistence
 		public DbSet<Ride> Rides { get; set; }
 		public DbSet<RideBooking> RideBookings { get; set; }
 		public DbSet<RidePreferences> RidePreferences { get; set; }
+		public DbSet<Review> Reviews { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
@@ -87,7 +88,11 @@ namespace Ftareqi.Persistence
 			builder.Entity<WalletTransaction>()
 				.Property(x => x.BalanceBefore)
 				.HasPrecision(18, 2);
-
+			builder.Entity<WalletTransaction>()
+				.HasOne(x => x.RideBooking)
+				.WithMany()
+				.HasForeignKey(x => x.RideBookingId)
+				.OnDelete(DeleteBehavior.SetNull);
 			builder.Entity<WalletTransaction>()
 				.Property(x => x.Amount)
 				.HasPrecision(18, 2);

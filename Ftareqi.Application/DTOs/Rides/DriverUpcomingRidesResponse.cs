@@ -9,6 +9,7 @@ namespace Ftareqi.Application.DTOs.Rides
 {
 	public class DriverUpcomingRidesResponse
 	{
+		public int RideId { get; set; }
 		public double StartLatitude { get; set; }
 		public double StartLongitude { get; set; }
 		public double EndLatitude { get; set; }

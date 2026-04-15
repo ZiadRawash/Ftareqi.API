@@ -87,6 +87,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					var takenSeats = Math.Max(0, ride.TotalSeats - ride.AvailableSeats);
 					return new DriverPastRidesResponse
 					{
+						RideId= ride.Id,
 						StartLatitude = ride.StartLocation.Y,
 						StartLongitude = ride.StartLocation.X,
 						EndLatitude = ride.EndLocation.Y,
@@ -151,6 +152,7 @@ namespace Ftareqi.Infrastructure.Implementation
 
 				var items = rides.Select(ride => new DriverUpcomingRidesResponse
 				{
+					RideId= ride.Id,
 					StartLatitude = ride.StartLocation.Y,
 					StartLongitude = ride.StartLocation.X,
 					EndLatitude = ride.EndLocation.Y,

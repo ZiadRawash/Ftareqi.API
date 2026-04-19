@@ -267,30 +267,5 @@ namespace Ftareqi.API.Controllers
 				Errors = result.Errors
 			});
 		}
-
-		/// <summary>
-		/// Expires a pending booking request by id.
-		/// </summary>
-		//[HttpPost("{bookingId:int}/expire")]
-		//public async Task<ActionResult<ApiResponse>> ExpireBooking(int bookingId)
-		//{
-		//	var result = await _bookingService.ExpireBooking(bookingId);
-		//	if (result.IsFailure)
-		//	{
-		//		return BadRequest(new ApiResponse
-		//		{
-		//			Success = false,
-		//			Message = result.Message,
-		//			Errors = result.Errors
-		//		});
-		//	}
-
-		//	return Ok(new ApiResponse
-		//	{
-		//		Success = true,
-		//		Message = result.Message,
-		//		Errors = result.Errors
-		//	});
-		//}
 	}
 }

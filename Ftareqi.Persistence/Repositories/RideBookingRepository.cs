@@ -34,8 +34,10 @@ namespace Ftareqi.Persistence.Repositories
 					DriverUserId = x.Ride.DriverProfile.UserId,
 					StartLatitude = x.Ride.StartLocation.Y,
 					StartLongitude = x.Ride.StartLocation.X,
+					StartAddress = x.Ride.StartAddress,
 					EndLatitude = x.Ride.EndLocation.Y,
 					EndLongitude = x.Ride.EndLocation.X,
+					EndAddress = x.Ride.EndAddress,
 					DriverImg = x.Ride.DriverProfile.Images
 						.Where(img => img.Type == ImageType.DriverProfilePhoto)
 						.Select(img => img.Url)
@@ -81,8 +83,10 @@ namespace Ftareqi.Persistence.Repositories
 					DriverUserId = x.Ride.DriverProfile.UserId,
 					StartLatitude = x.Ride.StartLocation.Y,
 					StartLongitude = x.Ride.StartLocation.X,
+					StartAddress = x.Ride.StartAddress,
 					EndLatitude = x.Ride.EndLocation.Y,
 					EndLongitude = x.Ride.EndLocation.X,
+					EndAddress = x.Ride.EndAddress,
 					DriverImg = x.Ride.DriverProfile.Images
 						.Where(img => img.Type == ImageType.DriverProfilePhoto)
 						.Select(img => img.Url)
@@ -128,8 +132,10 @@ namespace Ftareqi.Persistence.Repositories
 					DriverUserId = x.Ride.DriverProfile.UserId,
 					StartLatitude = x.Ride.StartLocation.Y,
 					StartLongitude = x.Ride.StartLocation.X,
+					StartAddress = x.Ride.StartAddress,
 					EndLatitude = x.Ride.EndLocation.Y,
 					EndLongitude = x.Ride.EndLocation.X,
+					EndAddress = x.Ride.EndAddress,
 					DriverImg = x.Ride.DriverProfile.Images
 						.Where(img => img.Type == ImageType.DriverProfilePhoto)
 						.Select(img => img.Url)

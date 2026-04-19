@@ -12,7 +12,9 @@ namespace Ftareqi.Domain.Models
 	{
 		public int Id { get; set; }
 		public Point StartLocation { get; set; } = null!;
+		public string StartAddress { get; set; } = string.Empty;
 		public Point EndLocation { get; set; } = null!;
+		public string EndAddress { get; set; } = string.Empty;
 		public DateTime DepartureTime { get; set; }
 		public int TotalSeats { get; set; }
 		public int AvailableSeats { get; set; }

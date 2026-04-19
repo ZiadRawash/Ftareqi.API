@@ -13,7 +13,9 @@ namespace Ftareqi.Application.Mappers
 			return new Ride
 			{
 				StartLocation = new Point(dto.StartLongitude, dto.StartLatitude) { SRID = 4326 },
+				StartAddress = dto.StartAddress,
 				EndLocation = new Point(dto.EndLongitude, dto.EndLatitude) { SRID = 4326 },
+				EndAddress = dto.EndAddress,
 				DepartureTime = dto.DepartureTime,
 				TotalSeats = dto.TotalSeats,
 				AvailableSeats = dto.TotalSeats,

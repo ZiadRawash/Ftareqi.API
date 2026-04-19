@@ -15,8 +15,10 @@ namespace Ftareqi.Application.DTOs.Bookings
 		public string DriverUserId { get; set; } = string.Empty;
 		public double StartLatitude { get; set; }
 		public double StartLongitude { get; set; }
+		public string StartAddress { get; set; } = string.Empty;
 		public double EndLatitude { get; set; }
 		public double EndLongitude { get; set; }
+		public string EndAddress { get; set; } = string.Empty;
 		public string? DriverImg { get; set; }
 	}
 }

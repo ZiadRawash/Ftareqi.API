@@ -10,8 +10,10 @@ namespace Ftareqi.Application.DTOs.Rides
 	{
 		public double StartLatitude { get; set; }
 		public double StartLongitude { get; set; }
+		public string StartAddress { get; set; } = string.Empty;
 		public double EndLatitude { get; set; }
 		public double EndLongitude { get; set; }
+		public string EndAddress { get; set; } = string.Empty;
 		public DateTime DepartureTime { get; set; }
 		public int TotalSeats { get; set; }
 		public decimal PricePerSeat { get; set; }

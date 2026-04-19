@@ -13,7 +13,6 @@ namespace Ftareqi.Infrastructure.Services
 		{
 			_logger = logger;
 		}
-
 		public async Task<FcmSendResult> SendNotificationAsync(
 			string fcmToken,
 			string title,

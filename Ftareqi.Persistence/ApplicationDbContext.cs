@@ -107,9 +107,17 @@ namespace Ftareqi.Persistence
 			builder.Entity<Ride>().
 				Property(x => x.StartLocation)
 				.HasColumnType("geography");
+			builder.Entity<Ride>()
+				.Property(x => x.StartAddress)
+				.HasMaxLength(300)
+				.IsRequired();
 			builder.Entity<Ride>().
 				Property(x => x.EndLocation)
 				.HasColumnType("geography");
+			builder.Entity<Ride>()
+				.Property(x => x.EndAddress)
+				.HasMaxLength(300)
+				.IsRequired();
 
 			builder.Entity<Ride>()
 				.Property(x => x.PricePerSeat)

@@ -13,11 +13,21 @@ namespace Ftareqi.Application.Validators.Rides
 			RuleFor(x => x.StartLongitude)
 				.InclusiveBetween(-180, 180).WithMessage("Start longitude must be between -180 and 180.");
 
+			RuleFor(x => x.StartAddress)
+				.NotNull().WithMessage("Start address must not be null.")
+				.NotEmpty().WithMessage("Start address is required.")
+				.MaximumLength(300).WithMessage("Start address length must not exceed 300 characters.");
+
 			RuleFor(x => x.EndLatitude)
 				.InclusiveBetween(-90, 90).WithMessage("End latitude must be between -90 and 90.");
 
 			RuleFor(x => x.EndLongitude)
 				.InclusiveBetween(-180, 180).WithMessage("End longitude must be between -180 and 180.");
+
+			RuleFor(x => x.EndAddress)
+				.NotNull().WithMessage("End address must not be null.")
+				.NotEmpty().WithMessage("End address is required.")
+				.MaximumLength(300).WithMessage("End address length must not exceed 300 characters.");
 
 			RuleFor(x => x.DepartureTime)
 				.Must(departureTime => departureTime != default && departureTime > DateTime.UtcNow)

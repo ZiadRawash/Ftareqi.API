@@ -21,8 +21,9 @@ namespace Ftareqi.Domain.Enums
 		//DriverRegistration
 		Approved = 301,
 		Rejected = 302,
-		Expired=303
+		Expired=303,
 
-
+		//Review
+		ReviewAdded=500
 	}
 }

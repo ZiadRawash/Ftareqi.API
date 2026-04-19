@@ -1,9 +1,13 @@
 ﻿using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.DTOs.Review;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
+using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -15,12 +19,15 @@ namespace Ftareqi.Infrastructure.Implementation
 {
 	public class ReviewService : IReviewService
 	{
+		private readonly INotificationOrchestrator _notificationService;
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<ReviewService> _logger;
-		public ReviewService(IUnitOfWork unitOfWork, ILogger<ReviewService> logger)
+		public ReviewService(IUnitOfWork unitOfWork, ILogger<ReviewService> logger
+			, INotificationOrchestrator notificationService)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
+			_notificationService = notificationService;
 		}
 		public async Task<Result> CreateReview(CreateReviewDto model)
 		{
@@ -80,8 +87,8 @@ namespace Ftareqi.Infrastructure.Implementation
 				_unitOfWork.DriverProfiles.Update(driverProfile);
 
 				await _unitOfWork.SaveChangesAsync();
-
 				_logger.LogInformation("Review created successfully for ride booking {RideBookingId}", model.RideBookingId);
+				await SendReviewNotification(driverProfile.UserId, model.Stars, booking.Ride.Id);
 				return Result.Success("Review created successfully");
 			}
 			catch (Exception ex)
@@ -263,6 +270,24 @@ namespace Ftareqi.Infrastructure.Implementation
 				CreatedAt = review.CreatedAt,
 				UpdatedAt = review.UpdatedAt
 			};
+		}
+		private async Task SendReviewNotification(string userId, float stars, int rideId)
+		{
+			try
+			{
+				var reviewMetadata = new ReviewMetadata { Preview = "You got a new Review with ", Stars = stars };
+				var Notification = new NotificationInput(userId,
+					NotificationCategory.Review,
+					NotificationEventCode.ReviewAdded,
+					rideId.ToString(),
+					reviewMetadata
+					);
+				await _notificationService.NotifyAsync(Notification);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error sending review notification for user {UserId}", userId);
+			}
 		}
 	}
 }

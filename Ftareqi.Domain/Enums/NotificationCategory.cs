@@ -11,6 +11,7 @@ namespace Ftareqi.Domain.Enums
 		Ride = 1,
 		Wallet = 2,
 		DriverRegistration=3,
-		System = 4
+		System = 4,
+		Review = 5
 	}
 }

@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Infrastructure.SignalR
 {
-	
 
 	[Authorize] 
 	public class NotificationHub : Hub<INotificationClient>
@@ -22,7 +21,6 @@ namespace Ftareqi.Infrastructure.SignalR
 		{
 			_logger = logger;
 		}
-
 		public override async Task OnConnectedAsync()
 		{
 			var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value

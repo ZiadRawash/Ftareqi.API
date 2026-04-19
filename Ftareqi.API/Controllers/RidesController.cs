@@ -3,6 +3,7 @@ using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.DTOs.Rides;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Services;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,11 +16,16 @@ namespace Ftareqi.API.Controllers
 	{
 		private readonly IRideService _rideService;
 		private readonly IRideOrchestrator _rideOrchestrator;
+		private readonly IValidator<RideSearchRequestDto> _rideSearchRequestValidator;
 
-		public RidesController(IRideService rideService, IRideOrchestrator rideOrchestrator)
+		public RidesController(
+			IRideService rideService,
+			IRideOrchestrator rideOrchestrator,
+			IValidator<RideSearchRequestDto> rideSearchRequestValidator)
 		{
 			_rideService = rideService;
 			_rideOrchestrator = rideOrchestrator;
+			_rideSearchRequestValidator = rideSearchRequestValidator;
 		}
 
 		/// <summary>
@@ -63,6 +69,17 @@ namespace Ftareqi.API.Controllers
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
+
+			var validationResult = await _rideSearchRequestValidator.ValidateAsync(request);
+			if (!validationResult.IsValid)
+			{
+				return BadRequest(new ApiResponse
+				{
+					Success = false,
+					Message = "Invalid request data",
+					Errors = validationResult.Errors.Select(x => x.ErrorMessage).ToList()
+				});
+			}
 
 			var userId = User.GetUserId();
 			if (string.IsNullOrWhiteSpace(userId))

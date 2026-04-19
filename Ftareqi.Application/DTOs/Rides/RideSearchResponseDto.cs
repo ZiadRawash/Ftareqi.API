@@ -7,6 +7,8 @@ namespace Ftareqi.Application.DTOs.Rides
 	{
 		public int RideId { get; set; }
 		public int DriverProfileId { get; set; }
+		public string StartAddress { get; set; } = string.Empty;
+		public string EndAddress { get; set; } = string.Empty;
 		public double StartLatitude { get; set; }
 		public double StartLongitude { get; set; }
 		public double EndLatitude { get; set; }
@@ -18,5 +20,6 @@ namespace Ftareqi.Application.DTOs.Rides
 		public double? DriverRate { get; set; }
 		public string DriverName { get; set; }= string.Empty;
 		public string DriverImgUrl { get; set; }= string.Empty;
+		
 	}
 }

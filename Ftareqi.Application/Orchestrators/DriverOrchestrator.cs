@@ -735,16 +735,18 @@ namespace Ftareqi.Application.Orchestrators
 				_logger.LogInformation("Driver profile:{profile} retrieved from cache", cachedDriverProfile);
 				return Result<DriverProfileResponse>.Success(cachedDriverProfile);
 			}
-			var driverProfile = await _unitOfWork.DriverProfiles.FirstOrDefaultAsync(x=>x.UserId == userId, x=>x.Images);
+			var driverProfile = await _unitOfWork.DriverProfiles.FirstOrDefaultAsync(x=>x.UserId == userId, x=>x.Images ,x=>x.Rides);
 			if (driverProfile == null)
 			{
 				return Result<DriverProfileResponse>.Failure("Driver profile doesn't exist");
 			}
 			var images = driverProfile.Images;
-
+			var rating = driverProfile.RatingCount > 0
+					? Math.Round(((double)driverProfile.RatingSum / driverProfile.RatingCount) * 2) / 2.0
+					: (double?)null;
 			var response = new DriverProfileResponse
 			{
-				Id=driverProfile.Id,
+				Id = driverProfile.Id,
 				CreatedAt = driverProfile.CreatedAt,
 				Status = driverProfile.Status,
 				LicenseExpiryDate = driverProfile.LicenseExpiryDate,
@@ -756,7 +758,9 @@ namespace Ftareqi.Application.Orchestrators
 					?.Url,
 				DriverLicenseBack = images?
 					.FirstOrDefault(x => x.Type == ImageType.DriverLicenseBack)
-					?.Url
+					?.Url,
+				TripsOfferedCount = driverProfile.Rides.Where(x=>x.Status==RideStatus.Completed).Count(),
+				Rating= rating
 			};
 			//cache it 
 			await _cache.SetAsync(key, response, TimeSpan.FromMinutes(5));

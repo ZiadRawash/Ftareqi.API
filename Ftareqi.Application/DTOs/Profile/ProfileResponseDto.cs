@@ -18,6 +18,7 @@ namespace Ftareqi.Application.DTOs.User
 		public bool IsDriver {  get; set; }
 		public bool PhoneNumberConfirmed { get; set; }
 		public int? DriverId { get; set; }
+		public int TripsTakenCount { get; set; }
 		
 	}
 }

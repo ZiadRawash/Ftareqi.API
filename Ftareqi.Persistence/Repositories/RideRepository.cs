@@ -77,7 +77,7 @@ namespace Ftareqi.Persistence.Repositories
 				.Select(x => new RideSearchResponseDto
 				{
 					RideId = x.Id,
-					DriverProfileId = x.DriverProfileId,
+					DriverUserId = x.DriverProfile.UserId,
 					StartLatitude = x.StartLocation.Y,
 					StartLongitude = x.StartLocation.X,
 					EndLatitude = x.EndLocation.Y,

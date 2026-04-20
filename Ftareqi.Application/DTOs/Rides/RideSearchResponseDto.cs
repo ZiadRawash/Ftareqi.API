@@ -6,7 +6,7 @@ namespace Ftareqi.Application.DTOs.Rides
 	public class RideSearchResponseDto
 	{
 		public int RideId { get; set; }
-		public int DriverProfileId { get; set; }
+		public string DriverUserId { get; set; }
 		public string StartAddress { get; set; } = string.Empty;
 		public string EndAddress { get; set; } = string.Empty;
 		public double StartLatitude { get; set; }

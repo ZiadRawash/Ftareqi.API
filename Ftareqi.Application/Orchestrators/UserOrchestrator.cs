@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
@@ -116,10 +117,11 @@ namespace Ftareqi.Application.Orchestrators
 				x => x.Image!,
 				x => x.DriverProfile!
 			);
+			var ridesTaken = await _unitOfWork.RideBookings.FindAllAsNoTrackingAsync(x=>x.UserId == userId , x=>x.Ride);
+			var completedRidesTaken= ridesTaken.Count(x=>x.Ride.Status == RideStatus.Completed);
 
 			if (user == null)
 				return Result<ProfileResponseDto>.Failure("User not found");
-
 			var profileResponse = new ProfileResponseDto
 			{
 				Id = user.Id,
@@ -130,9 +132,9 @@ namespace Ftareqi.Application.Orchestrators
 				UserImage = user.Image?.Url,
 				IsDriver = user.DriverProfile != null,
 				PhoneNumberConfirmed = user.PhoneNumberConfirmed,
-				DriverId = user.DriverProfile?.Id
+				DriverId = user.DriverProfile?.Id,
+				TripsTakenCount= completedRidesTaken
 			};
-
 			await _cache.SetAsync(CacheKeys.UserProfile(userId), profileResponse, TimeSpan.FromMinutes(5));
 
 			_logger.LogInformation("Profile retrieved from DB and cached for user {UserId}", userId);

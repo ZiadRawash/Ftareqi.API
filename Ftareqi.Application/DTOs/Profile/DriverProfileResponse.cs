@@ -16,5 +16,7 @@ namespace Ftareqi.Application.DTOs.Profile
 		public string? DriverProfilePhoto {  get; set; }
 		public string? DriverLicenseFront {  get; set; }
 		public string? DriverLicenseBack {  get; set; }
+		public int ? TripsOfferedCount { get; set; }
+		public double? Rating { get; set; }
 	}
 }

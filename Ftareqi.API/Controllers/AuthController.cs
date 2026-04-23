@@ -367,7 +367,6 @@ namespace Ftareqi.API.Controllers
 				Errors = result.Errors,
 			});
 		}
-
 		private bool IsLocked(List<string> errors) =>
 			errors.Any(e => e == "Account locked out.");
 	}

@@ -6,6 +6,7 @@ using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Constants;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Logging;
 using System;
@@ -26,14 +27,15 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly IRefreshTokenService _refreshTokenService;
 		private readonly ILogger<AuthOrchestrator> _logger;
 		private readonly IUserClaimsService _userClaimsService;
-
+		private readonly ISmsService _smsService;
 		public AuthOrchestrator(IUserService userService,
 			ITokensService tokensService,
 			ILogger<AuthOrchestrator> logger,
 			IOtpService otpService,
 			IRefreshTokenService refreshTokenService,
 			IUserClaimsService userClaimsService,
-			IWalletService walletService)
+			IWalletService walletService,
+			ISmsService smsService)
 		{
 			_refreshTokenService = refreshTokenService;
 			_otpService = otpService;
@@ -42,6 +44,7 @@ namespace Ftareqi.Application.Orchestrators
 			_userClaimsService = userClaimsService;
 			_logger = logger;
 			_walletService = walletService;
+			_smsService = smsService;
 		}
 
 		//  helper method to generate tokens for a user
@@ -201,8 +204,12 @@ namespace Ftareqi.Application.Orchestrators
 				_logger.LogWarning("Failed to send OTP for user {UserId}: {Error}", userId, otpResult.Errors.ToString());
 				return Result<string>.Failure(otpResult.Errors);
 			}
+			var otpSent = await _smsService.SendSMS(userCreationResult.Data!.PhoneNumber, otpResult.Data!.Otp);
+			if (otpSent.IsFailure)
+			{
+				return Result<string>.Failure(otpSent.Errors);
+			}
 		     await _walletService.CreateWalletAsync(userId!);
-			//sms function
 			return Result<string>.Success(data: userId!, message: "User registered successfully");
 		}
 
@@ -268,6 +275,12 @@ namespace Ftareqi.Application.Orchestrators
 			_logger.LogInformation("OTP sent successfully for user {UserId} with purpose {Purpose}", userfound.Data.Id, purpose);
 
 			//sms function
+
+			var otpSent = await _smsService.SendSMS(userfound.Data!.PhoneNumber, otpCreated.Data!.Otp);
+			if (otpSent.IsFailure)
+			{
+				return Result<string>.Failure(otpSent.Errors);
+			}
 			return Result.Success("OTP sent successfully");
 		}
 

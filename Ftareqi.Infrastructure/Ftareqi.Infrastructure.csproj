@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.22" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.5" />
     <PackageReference Include="StackExchange.Redis" Version="2.11.8" />
+    <PackageReference Include="Twilio" Version="7.14.7" />
   </ItemGroup>
 
   <ItemGroup>

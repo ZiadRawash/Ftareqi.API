@@ -22,6 +22,7 @@
 	  <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
 	  <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="Twilio.AspNet.Core" Version="8.1.2" />
   </ItemGroup>
 
   <ItemGroup>

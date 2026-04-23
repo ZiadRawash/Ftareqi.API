@@ -35,6 +35,7 @@ using Serilog;
 using StackExchange.Redis;
 using System.Reflection;
 using System.Text;
+using Twilio.Clients;
 using static TokenBucketMiddleware;
 
 namespace Ftareqi.API
@@ -93,6 +94,18 @@ namespace Ftareqi.API
 			builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
 			builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 			builder.Services.Configure<PaymobSettings>(builder.Configuration.GetSection("PaymobSettings"));
+			builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("TwilioSettings"));
+			builder.Services.AddSingleton<ITwilioRestClient>(sp =>
+			{
+				var twilioOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TwilioSettings>>().Value;
+
+				if (string.IsNullOrWhiteSpace(twilioOptions.AccountSID) || string.IsNullOrWhiteSpace(twilioOptions.AuthToken))
+				{
+					throw new InvalidOperationException("TwilioSettings must include AccountSID and AuthToken.");
+				}
+
+				return new TwilioRestClient(twilioOptions.AccountSID, twilioOptions.AuthToken);
+			});
 			
 
 			// In "Application Services" section:
@@ -246,6 +259,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IFcmTokenService, FcmTokenService>();
 			builder.Services.AddScoped<IDistributedCachingService, RedisCachingService>();
 			builder.Services.AddScoped<IRideOrchestrator, RideOrchestrator>();
+			builder.Services.AddScoped<ISmsService, TwilioSmsService>();
 			builder.Services.AddAuthorization(options =>
 			{
 				options.AddPolicy("DriverOnly", policy =>

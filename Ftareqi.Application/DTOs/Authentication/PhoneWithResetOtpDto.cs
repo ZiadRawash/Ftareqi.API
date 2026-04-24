@@ -10,7 +10,7 @@ namespace Ftareqi.Application.DTOs.Authentication
 	public class PhoneWithResetOtpDto
 	{
 		[Required(ErrorMessage = "OTP is required")]
-		[StringLength(6, MinimumLength = 4, ErrorMessage = "OTP must be between 4 and 6 characters")]
+		[StringLength(6, MinimumLength = 6, ErrorMessage = "OTP must be exactly 6 characters")]
 		[RegularExpression(@"^\d+$", ErrorMessage = "OTP must contain only numbers")]
 		public required string otp { get; set; }
 

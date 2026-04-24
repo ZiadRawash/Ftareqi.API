@@ -9,9 +9,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using RefreshTokenRequestDto = Ftareqi.Application.DTOs.Authentication.RefreshToken;
 
 namespace Ftareqi.API.Controllers
 {
+	[Authorize]
 	[Route("api/[controller]")]
 	[ApiController]
 	public class AuthController : ControllerBase
@@ -33,6 +35,7 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Registers a new user account
 		/// </summary>
+		[AllowAnonymous]
 		[HttpPost("register")]
 		public async Task<ActionResult<ApiResponse<UserIdDto>>> Register([FromBody] RegisterRequestDto model)
 		{
@@ -47,7 +50,7 @@ namespace Ftareqi.API.Controllers
 
 			if (result.IsFailure)
 			{
-				return Unauthorized(new ApiResponse
+				return BadRequest(new ApiResponse
 				{
 					Success = false,
 					Errors = result.Errors,
@@ -70,6 +73,7 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Authenticates a user and returns access tokens
 		/// </summary>
+		[AllowAnonymous]
 		[HttpPost("login")]
 		public async Task<ActionResult<ApiResponse<TokensDto>>> Login([FromBody] LoginRequestDto request)
 		{
@@ -109,12 +113,12 @@ namespace Ftareqi.API.Controllers
 		/// Logs out a user by invalidating their refresh token
 		/// </summary>
 		[HttpPost("logout")]
-		public async Task<ActionResult<ApiResponse>> Logout([FromBody] RefreshToken refreshToken)
+		public async Task<ActionResult<ApiResponse>> Logout([FromBody] RefreshTokenRequestDto refreshToken)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
 
-			var result = await _authOrchestrator.LogoutAsync(refreshToken.Token);
+			var result = await _authOrchestrator.RevokeRefreshTokenAsync(refreshToken.Token);
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
 				{
@@ -135,12 +139,20 @@ namespace Ftareqi.API.Controllers
 		/// Logs out the user from all devices by revoking all their active refresh tokens
 		/// </summary>
 		[HttpPost("logout/all")]
-		public async Task<ActionResult<ApiResponse>> LogoutAll([FromBody] RefreshToken refreshToken)
+		public async Task<ActionResult<ApiResponse>> LogoutAll()
 		{
-			if (!ModelState.IsValid)
-				return BadRequest(ModelState.ToApiResponse());
+			var userId = User.GetUserId();
+			if (string.IsNullOrWhiteSpace(userId))
+			{
+				return Unauthorized(new ApiResponse
+				{
+					Success = false,
+					Errors = ["Unauthorized"],
+					Message = "User is not authenticated."
+				});
+			}
 
-			var result = await _authOrchestrator.RevokeAllRefreshTokens(refreshToken.Token);
+			var result = await _authOrchestrator.LogoutAllDevicesAsync(userId);
 
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -149,6 +161,7 @@ namespace Ftareqi.API.Controllers
 					Success = result.IsSuccess,
 					Errors = result.Errors,
 				});
+
 
 			return Ok(new ApiResponse
 			{
@@ -161,13 +174,14 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Generates a new access token using a refresh token
 		/// </summary>
+		[AllowAnonymous]
 		[HttpPost("token/refresh")]
-		public async Task<ActionResult<ApiResponse<string>>> RefreshToken([FromBody] RefreshToken refreshToken)
+		public async Task<ActionResult<ApiResponse<string>>> RefreshToken([FromBody] RefreshTokenRequestDto refreshToken)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
 
-			var result = await _authOrchestrator.RefreshAccessToken(refreshToken.Token);
+			var result = await _authOrchestrator.RefreshAccessTokenAsync(refreshToken.Token);
 
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -189,13 +203,14 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Verifies user's phone number using OTP code and logs them in automatically
 		/// </summary>
+		[AllowAnonymous]
 		[HttpPost("phone/verify")]
 		public async Task<ActionResult<ApiResponse<TokensWithRemainAttempts>>> VerifyPhoneAndLogin([FromBody] PhoneWithResetOtpDto request)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
 
-			var result = await _authOrchestrator.ValidateOtpAndLoginAsync(
+			var result = await _authOrchestrator.VerifyOtpAndLoginAsync(
 				request.PhoneNumber,
 				request.otp,
 				OTPPurpose.PhoneVerification);
@@ -214,13 +229,14 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Resends phone verification OTP to user's phone number
 		/// </summary>
+		[AllowAnonymous]
 		[HttpPost("phone/resend-otp")]
 		public async Task<ActionResult<ApiResponse>> ResendVerificationOtp([FromBody] PhoneNumberRequestDto model)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
 
-			var result = await _authOrchestrator.SendOtpAsync(model.PhoneNumber, OTPPurpose.PhoneVerification);
+			var result = await _authOrchestrator.RequestOtpAsync(model.PhoneNumber, OTPPurpose.PhoneVerification);
 
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -241,13 +257,14 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Initiates password-reset process by sending OTP
 		/// </summary>
+		[AllowAnonymous]
 		[HttpPost("password/reset/request-otp")]
 		public async Task<ActionResult<ApiResponse>> RequestPasswordReset([FromBody] PhoneNumberRequestDto model)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
 
-			var result = await _authOrchestrator.SendOtpAsync(model.PhoneNumber, OTPPurpose.PasswordReset);
+			var result = await _authOrchestrator.RequestOtpAsync(model.PhoneNumber, OTPPurpose.PasswordReset);
 
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -268,6 +285,7 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Validates password reset OTP and generates reset token
 		/// </summary>
+		[AllowAnonymous]
 		[HttpPost("password/reset/verify-otp")]
 		public async Task<ActionResult<ApiResponse<ResetTokWithRemainAttempts>>> VerifyResetPasswordOtp([FromBody] PhoneWithResetOtpDto model)
 		{
@@ -275,7 +293,7 @@ namespace Ftareqi.API.Controllers
 				return BadRequest(ModelState.ToApiResponse());
 
 
-			var tokenCreated = await _authOrchestrator.CreateResetPasswordTokenAsync(
+			var tokenCreated = await _authOrchestrator.CreatePasswordResetTokenFromOtpAsync(
 				model.PhoneNumber,
 				model.otp);
 
@@ -285,7 +303,7 @@ namespace Ftareqi.API.Controllers
 				{
 					Success = false,
 					Errors = tokenCreated.Errors,
-					Message = "Invalid request data",
+					Message = tokenCreated.Message,
 					Data = tokenCreated.Data
 				});
 			}
@@ -302,13 +320,14 @@ namespace Ftareqi.API.Controllers
 		/// <summary>
 		/// Resets user password using reset token
 		/// </summary>
+		[AllowAnonymous]
 		[HttpPost("password/reset")]
 		public async Task<ActionResult<ApiResponse>> ResetPassword([FromBody] ResetPasswordDto model)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
 
-			var result = await _authOrchestrator.ChangePasswordAsync(model);
+			var result = await _authOrchestrator.ResetPasswordAsync(model);
 
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
@@ -351,7 +370,7 @@ namespace Ftareqi.API.Controllers
 				NewPassword = model.NewPassword
 			};
 
-			var result = await _authOrchestrator.ChangePasswordAsync(changePasswordDto);
+			var result = await _authOrchestrator.ChangePasswordWithCurrentPasswordAsync(changePasswordDto);
 			if (result.IsFailure)
 				return BadRequest(new ApiResponse
 				{

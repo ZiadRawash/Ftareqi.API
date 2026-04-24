@@ -150,5 +150,28 @@ namespace Ftareqi.Infrastructure.Implementation
 				throw;
 			}
 		}
+
+		public async Task<Result> DeactivateAll(string userId)
+		{
+			try
+			{
+				var tokens = await _unitOfWork.FcmTokens.FindAllAsTrackingAsync(x => x.IsActive && x.UserId==userId);
+				foreach (var token in tokens)
+				{
+					token.IsActive = false;
+					token.LastUsedAt= DateTime.UtcNow;	
+				}
+				_unitOfWork.FcmTokens.UpdateRange(tokens);
+				await _unitOfWork.SaveChangesAsync();
+				_logger.LogInformation("Deactivated {TokenCount} active FCM tokens", tokens.Count());
+				return Result.Success();
+
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error marking token as invalid");
+				throw;
+			}
+		}
 	}
 }

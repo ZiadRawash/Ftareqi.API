@@ -17,6 +17,7 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<List<string>> GetAllActiveTokensAsync();
 
 		Task<Result> MarkTokenInvalidAsync(string token);
+		Task <Result> DeactivateAll(string userId);
 
 	}
 }

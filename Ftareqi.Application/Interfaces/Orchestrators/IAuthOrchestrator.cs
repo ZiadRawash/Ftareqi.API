@@ -13,14 +13,16 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		Task<Result<TokensDto>> LoginAsync(LoginRequestDto request);
 
 		/// <summary>
-		/// Invalidates a specific refresh token (logout from single device)
+		/// Invalidates a specific refresh token (logout from a single device).
+		/// Note: does NOT invalidate access tokens already issued.
 		/// </summary>
-		Task<Result> LogoutAsync(string refreshToken);
+		Task<Result> RevokeRefreshTokenAsync(string refreshToken);
 
 		/// <summary>
-		/// Generates a new access token using a valid refresh token
+		/// Generates a new access token using a valid refresh token.
+		/// Note: refresh token is not rotated (same refresh token remains valid until revoked/expired).
 		/// </summary>
-		Task<Result<AccessTokenDto>> RefreshAccessToken(string refreshToken);
+		Task<Result<AccessTokenDto>> RefreshAccessTokenAsync(string refreshToken);
 
 		/// <summary>
 		/// Registers a new user and sends phone verification OTP
@@ -28,38 +30,44 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		Task<Result<string>> RegisterAsync(RegisterRequestDto request);
 
 		/// <summary>
-		/// Validates OTP and automatically logs user in, returning access and refresh tokens
+		/// Verifies OTP, confirms phone number, and issues access+refresh tokens.
 		/// </summary>
-		Task<Result<TokensWithRemainAttempts>> ValidateOtpAndLoginAsync(string phoneNumber, string code, OTPPurpose purpose);
+		Task<Result<TokensWithRemainAttempts>> VerifyOtpAndLoginAsync(string phoneNumber, string code, OTPPurpose purpose);
 
 		/// <summary>
-		/// Validates OTP without generating tokens (for verification only)
+		/// Verifies OTP and confirms phone number.
+		/// Warning: this method always attempts to confirm the phone number after OTP verification.
 		/// </summary>
-		Task<Result<int?>> ValidateOtpAsync(string phoneNumber, string code, OTPPurpose purpose);
+		Task<Result<int?>> VerifyOtpAndConfirmPhoneAsync(string phoneNumber, string code, OTPPurpose purpose);
 
 		/// <summary>
-		/// Sends OTP for any purpose (phone verification, password reset, etc.)
+		/// Requests (generates) an OTP for a given purpose (phone verification, password reset, etc.).
+		/// The SMS sending step may be implemented by ISmsService depending on environment.
 		/// </summary>
-		Task<Result> SendOtpAsync(string phoneNumber, OTPPurpose purpose);
+		Task<Result> RequestOtpAsync(string phoneNumber, OTPPurpose purpose);
 
 		/// <summary>
-		/// Verifies password reset OTP and creates a reset token
+		/// Verifies password reset OTP and creates a password reset token.
 		/// </summary>
-		Task<Result<ResetTokWithRemainAttempts>> CreateResetPasswordTokenAsync(string phoneNumber, string otp);
+		Task<Result<ResetTokWithRemainAttempts>> CreatePasswordResetTokenFromOtpAsync(string phoneNumber, string otp);
 
 		/// <summary>
-		/// Resets user password using reset token
+		/// Resets user password using a password reset token.
+		/// Side-effects: revokes all refresh tokens and deactivates all FCM tokens.
 		/// </summary>
-		Task<Result> ChangePasswordAsync(ResetPasswordDto requestModel);
+		Task<Result> ResetPasswordAsync(ResetPasswordDto requestModel);
 
 		/// <summary>
-		/// Changes user password (requires old password)
+		/// Changes user password (requires current password).
+		/// Side-effects: revokes all refresh tokens and deactivates all FCM tokens.
 		/// </summary>
-		Task<Result> ChangePasswordAsync(ChangePasswordDto requestModel);
+		Task<Result> ChangePasswordWithCurrentPasswordAsync(ChangePasswordDto requestModel);
 
 		/// <summary>
-		/// Invalidates all refresh tokens for a user (logout from all devices)
+		/// Logs the user out from all devices.
+		/// Side-effects: revokes all refresh tokens and deactivates all FCM tokens.
+		/// Note: does NOT invalidate access tokens already issued.
 		/// </summary>
-		Task<Result> RevokeAllRefreshTokens(string userId);
+		Task<Result> LogoutAllDevicesAsync(string userId);
 	}
 }

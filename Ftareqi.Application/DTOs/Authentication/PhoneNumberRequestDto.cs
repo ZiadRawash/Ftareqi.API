@@ -10,6 +10,7 @@ namespace Ftareqi.Application.DTOs.Authentication
 	public class PhoneNumberRequestDto
 	{
 		[Required(ErrorMessage = "Phone number is required.")]
+		[Phone(ErrorMessage = "Invalid phone number format")]
 		public required string PhoneNumber { get; set; }
 	}
 }

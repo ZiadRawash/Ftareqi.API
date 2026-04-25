@@ -105,6 +105,8 @@ namespace Ftareqi.Infrastructure.Implementation
 				NotificationEventCode.bookingDeclined => "Request Declined",
 				NotificationEventCode.bookingRequest => "New Ride Request",
 				NotificationEventCode.bookingCanceled => "Booking Canceled",
+				NotificationEventCode.ReviewAdded => "New Review",
+				NotificationEventCode.DriveCheckedIn => "Driver Checked In",
 				_ => "Notification"
 			};
 

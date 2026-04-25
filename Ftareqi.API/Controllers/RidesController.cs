@@ -202,6 +202,9 @@ namespace Ftareqi.API.Controllers
 			});
 		}
 
+		/// <summary>
+		/// Driver checks in start location .
+		/// </summary>
 		[Authorize(Policy = "DriverOnly")]
 		[HttpPost("{rideId:int}/check-in")]
 		public async Task<ActionResult<ApiResponse>> CheckIn(int rideId, [FromBody] CheckInRequestDto model)

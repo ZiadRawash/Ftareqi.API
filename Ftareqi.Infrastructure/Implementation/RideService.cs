@@ -1,14 +1,21 @@
 ﻿using Ftareqi.Application.Common;
+using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.DTOs.Rides;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Mappers;
+using Ftareqi.Domain.Constants;
 using Ftareqi.Domain.Enums;
+using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,13 +23,16 @@ namespace Ftareqi.Infrastructure.Implementation
 {
 	public class RideService : IRideService
 	{
+		private readonly INotificationOrchestrator _notificationService;
+
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<RideService> _logger;
 
-		public RideService(IUnitOfWork unitOfWork, ILogger<RideService> logger)
+		public RideService(IUnitOfWork unitOfWork, ILogger<RideService> logger, INotificationOrchestrator notificationService)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
+			_notificationService = notificationService;
 		}
 
 		public async Task<Result> CreateRide(CreateRideRequestDto model, string userId)
@@ -83,11 +93,12 @@ namespace Ftareqi.Infrastructure.Implementation
 				_logger.LogInformation("Successfully retrieved {Count} total past rides ({CurrentBatchCount} in current page) for Driver {ProfileId}.",
 					count, rides.Count(), profileFound.Id);
 
-				var items = rides.Select(ride => {
+				var items = rides.Select(ride =>
+				{
 					var takenSeats = Math.Max(0, ride.TotalSeats - ride.AvailableSeats);
 					return new DriverPastRidesResponse
 					{
-						RideId= ride.Id,
+						RideId = ride.Id,
 						StartLatitude = ride.StartLocation.Y,
 						StartLongitude = ride.StartLocation.X,
 						StartAddress = ride.StartAddress,
@@ -149,13 +160,13 @@ namespace Ftareqi.Infrastructure.Implementation
 						 x.DepartureTime > now &&
 						 x.Status == RideStatus.Scheduled,
 					true,
-					x=>x.RidePreferences);
+					x => x.RidePreferences);
 				_logger.LogInformation("Successfully retrieved {Count} total upcoming rides ({CurrentBatchCount} in current page) for driver {ProfileId}.",
 					count, rides.Count(), profileFound.Id);
 
 				var items = rides.Select(ride => new DriverUpcomingRidesResponse
 				{
-					RideId= ride.Id,
+					RideId = ride.Id,
 					StartLatitude = ride.StartLocation.Y,
 					StartLongitude = ride.StartLocation.X,
 					StartAddress = ride.StartAddress,
@@ -172,7 +183,7 @@ namespace Ftareqi.Infrastructure.Implementation
 					NoSmoking = ride.RidePreferences?.NoSmoking ?? false,
 					OpenToConversation = ride.RidePreferences?.OpenToConversation ?? false,
 					PetsWelcomed = ride.RidePreferences?.PetsWelcomed ?? false
-					
+
 				}).ToList();
 
 				var totalPages = (int)Math.Ceiling((double)count / request.PageSize);
@@ -195,7 +206,6 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<PaginatedResponse<DriverUpcomingRidesResponse>>.Failure("Unexpected error happened while getting upcoming rides");
 			}
 		}
-
 		public async Task<Result<PaginatedResponse<RideSearchResponseDto>>> SearchForRides(RideSearchRequestDto requestDto, string userId)
 		{
 			if (requestDto == null)
@@ -229,5 +239,82 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<PaginatedResponse<RideSearchResponseDto>>.Failure("Unexpected error happened while searching for rides");
 			}
 		}
+
+		public async Task<Result> ArriveAtStartLocation(CheckInRequestDto model, int rideId)
+		{
+			var rideFound = await _unitOfWork.Rides.FirstOrDefaultAsync(x => x.Id == rideId, x => x.RideBookings);
+
+			if (rideFound == null)
+				return Result.Failure("Invalid ride id");
+
+			if (rideFound.Status != RideStatus.Scheduled)
+				return Result.Failure("Invalid operation");
+
+			if (rideFound.Status == RideStatus.CheckedIn)
+				return Result.Failure("Driver already checked in");
+
+
+			var isValidLocation = LocationHelper.IsWithinRadius(
+				rideFound.StartLocation,
+				model.Latitude,
+				model.Longitude,
+				RidePolicies.ArrivalRadiusMeters);
+
+			if (!isValidLocation)
+				return Result.Failure("You are too far from the pickup point");
+
+			int driverWaitingTimeMinutes = (int)rideFound.WaitingTime.TotalMinutes;
+
+			var arrivalStatus = GetStatus(
+				DateTimeOffset.UtcNow,
+				rideFound.DepartureTime,
+				driverWaitingTimeMinutes,
+				RidePolicies.ArrivalGracePeriodMinutes);
+
+			if (arrivalStatus == ArrivalStatus.Early)
+			{
+				return Result.Failure("You arrived too early. Wait couple of minutes");
+			}
+
+			if (arrivalStatus == ArrivalStatus.Late)
+			{
+				// TODO: Call Strike Service here
+			}
+
+			rideFound.Status = RideStatus.CheckedIn;
+			_unitOfWork.Rides.Update(rideFound);
+			await _unitOfWork.SaveChangesAsync();
+
+			string successMessage = arrivalStatus == ArrivalStatus.Late
+				? "Check-in successful, but you've received a Strike for being late. Please stick to the schedule next time."
+				: "Check-in successful. You are right on time!";
+
+			return Result.Success(successMessage);
+		}
+
+		private ArrivalStatus GetStatus(DateTimeOffset currentTime, DateTimeOffset departureTime, int driverWaitingTime, int gracePeriod)
+		{
+			//the right time
+			var idealArrival = departureTime.AddMinutes(-driverWaitingTime);
+
+			// rn - the right time
+			var diff = (currentTime - idealArrival).TotalMinutes;
+
+			// too early
+			if (diff < -gracePeriod)
+			{
+				return ArrivalStatus.Early;
+			}
+
+			// on time
+			if (Math.Abs(diff) <= gracePeriod)
+			{
+				return ArrivalStatus.OnTime;
+			}
+
+			//late
+			return ArrivalStatus.Late;
+		}
+		
 	}
 }

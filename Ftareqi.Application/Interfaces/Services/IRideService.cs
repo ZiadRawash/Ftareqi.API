@@ -1,6 +1,7 @@
 ﻿using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Rides;
+using Ftareqi.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,5 +16,7 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result<PaginatedResponse<DriverPastRidesResponse>>> GetDriverPastRides(GenericQueryReq request, string userId);
 		Task<Result<PaginatedResponse<DriverUpcomingRidesResponse>>> GetDriverUpcomingRides(GenericQueryReq request, string userId);
 		Task<Result<PaginatedResponse<RideSearchResponseDto>>> SearchForRides(RideSearchRequestDto requestDto, string userId);
+
+		Task<Result> ArriveAtStartLocation(CheckInRequestDto model,int  rideId);
 	}
 }

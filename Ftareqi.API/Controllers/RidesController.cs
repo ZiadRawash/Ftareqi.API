@@ -201,5 +201,36 @@ namespace Ftareqi.API.Controllers
 				Errors = result.Errors
 			});
 		}
+
+		[Authorize(Policy = "DriverOnly")]
+		[HttpPost("{rideId:int}/check-in")]
+		public async Task<ActionResult<ApiResponse>> CheckIn(int rideId, [FromBody] CheckInRequestDto model)
+		{
+			if (!ModelState.IsValid)
+				return BadRequest(ModelState.ToApiResponse());
+
+			var userId = User.GetUserId();
+			if (string.IsNullOrWhiteSpace(userId))
+				return Unauthorized(new ApiResponse { Success = false, Message = "Unauthorized" });
+
+			var result = await _rideService.ArriveAtStartLocation(model, rideId);
+			if (result.IsFailure)
+			{
+				return BadRequest(new ApiResponse
+				{
+					Success = false,
+					Message = result.Message,
+					Errors = result.Errors
+				});
+			}
+
+			return Ok(new ApiResponse
+			{
+				Success = true,
+				Message = result.Message,
+				Errors = result.Errors
+			});
+		}
 	}
+
 }

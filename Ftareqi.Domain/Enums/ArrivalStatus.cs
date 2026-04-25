@@ -6,12 +6,10 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Domain.Enums
 {
-	public enum RideStatus
+	public enum ArrivalStatus
 	{
-		Scheduled,
-		CheckedIn,
-		InProgress,
-		Completed,
-		Cancelled
+		Early,   
+		OnTime,  
+		Late     
 	}
 }

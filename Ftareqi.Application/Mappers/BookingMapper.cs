@@ -19,10 +19,8 @@ namespace Ftareqi.Application.Mappers
 				Status = booking.Status,
 				RequestedAt = booking.BookedAt,
 				DepartureTime = booking.Ride?.DepartureTime ?? booking.BookedAt,
-				StartLatitude = booking.Ride?.StartLocation?.Y ?? 0,
-				StartLongitude = booking.Ride?.StartLocation?.X ?? 0,
-				EndLatitude = booking.Ride?.EndLocation?.Y ?? 0,
-				EndLongitude = booking.Ride?.EndLocation?.X ?? 0
+				StartAddress=booking?.Ride?.StartAddress??"",
+				EndAddress= booking?.Ride?.EndAddress ?? "",
 			};
 		}
 

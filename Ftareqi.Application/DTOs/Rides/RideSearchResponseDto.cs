@@ -20,6 +20,10 @@ namespace Ftareqi.Application.DTOs.Rides
 		public double? DriverRate { get; set; }
 		public string DriverName { get; set; }= string.Empty;
 		public string DriverImgUrl { get; set; }= string.Empty;
-		
+		public bool MusicAllowed { get; set; }
+		public bool NoSmoking { get; set; }
+		public bool PetsWelcomed { get; set; }
+		public bool OpenToConversation { get; set; }
+
 	}
 }

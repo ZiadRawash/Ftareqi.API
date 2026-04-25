@@ -22,5 +22,9 @@ namespace Ftareqi.Application.DTOs.Rides
 		public RideStatus Status { get; set; }
 		public int WaitingTimeMinutes { get; set; }
 		public DateTime DepartureTime { get; set; }
+		public bool MusicAllowed { get; set; }
+		public bool NoSmoking { get; set; }
+		public bool PetsWelcomed { get; set; }
+		public bool OpenToConversation { get; set; }
 	}
 }

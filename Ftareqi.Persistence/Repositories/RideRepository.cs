@@ -91,6 +91,10 @@ namespace Ftareqi.Persistence.Repositories
 					DriverName = x.DriverProfile.User!.FullName,
 					EndAddress = x.EndAddress,
 					StartAddress= x.StartAddress,
+					MusicAllowed = x.RidePreferences != null ? x.RidePreferences.MusicAllowed : false,
+					NoSmoking = x.RidePreferences != null ? x.RidePreferences.NoSmoking : false,
+					OpenToConversation = x.RidePreferences != null ? x.RidePreferences.OpenToConversation : false,
+					PetsWelcomed = x.RidePreferences != null ? x.RidePreferences.PetsWelcomed : false
 				})
 				.Skip((requestDto.Page - 1) * requestDto.PageSize)
 				.Take(requestDto.PageSize)

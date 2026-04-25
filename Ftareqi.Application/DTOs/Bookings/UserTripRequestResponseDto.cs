@@ -20,5 +20,9 @@ namespace Ftareqi.Application.DTOs.Bookings
 		public double EndLongitude { get; set; }
 		public string EndAddress { get; set; } = string.Empty;
 		public string? DriverImg { get; set; }
+		public bool MusicAllowed { get; set; }
+		public bool NoSmoking { get; set; }
+		public bool PetsWelcomed { get; set; }
+		public bool OpenToConversation { get; set; }
 	}
 }

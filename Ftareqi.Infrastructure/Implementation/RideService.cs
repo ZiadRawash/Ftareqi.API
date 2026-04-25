@@ -148,7 +148,8 @@ namespace Ftareqi.Infrastructure.Implementation
 					x => x.DriverProfileId == profileFound.Id &&
 						 x.DepartureTime > now &&
 						 x.Status == RideStatus.Scheduled,
-					true);
+					true,
+					x=>x.RidePreferences);
 				_logger.LogInformation("Successfully retrieved {Count} total upcoming rides ({CurrentBatchCount} in current page) for driver {ProfileId}.",
 					count, rides.Count(), profileFound.Id);
 
@@ -166,7 +167,12 @@ namespace Ftareqi.Infrastructure.Implementation
 					PricePerSeat = ride.PricePerSeat,
 					Status = ride.Status,
 					WaitingTimeMinutes = (int)ride.WaitingTime.TotalMinutes,
-					DepartureTime = ride.DepartureTime
+					DepartureTime = ride.DepartureTime,
+					MusicAllowed = ride.RidePreferences?.MusicAllowed ?? false,
+					NoSmoking = ride.RidePreferences?.NoSmoking ?? false,
+					OpenToConversation = ride.RidePreferences?.OpenToConversation ?? false,
+					PetsWelcomed = ride.RidePreferences?.PetsWelcomed ?? false
+					
 				}).ToList();
 
 				var totalPages = (int)Math.Ceiling((double)count / request.PageSize);

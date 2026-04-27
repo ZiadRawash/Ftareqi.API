@@ -3,6 +3,7 @@ using FirebaseAdmin;
 using FluentValidation;
 using Ftareqi.API.Configurations;
 using Ftareqi.API.Filters;
+using Ftareqi.API.Middlewares;
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Consts;
 using Ftareqi.Application.Common.Settings;
@@ -359,6 +360,7 @@ namespace Ftareqi.API
 			app.UseCors("FlexiblePolicy");
 			app.UseAuthentication();
 			app.UseMiddleware<TokenBucketMiddleware>();
+			app.UseMiddleware<IdempotencyMiddleware>();
 			app.UseAuthorization();
 
 			app.MapHub<NotificationHub>("/notificationHub");

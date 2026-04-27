@@ -1,4 +1,4 @@
-﻿namespace Ftareqi.API
+﻿namespace Ftareqi.API.Configurations
 {
 	public class TokenBucketOptions
 	{

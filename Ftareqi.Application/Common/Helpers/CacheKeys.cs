@@ -80,6 +80,9 @@ namespace Ftareqi.Application.Common.Helpers
 		public static string ActiveBroadcastFcmTokens()
 			=> $"notifications:broadcast:fcm-tokens:active";
 
+		public static string IdempotencyResponse(string key)
+			=> $"idempotency:requests:{key}";
+
 		private static string BuildQueryKey(params object?[] values)
 			=> ComputeHash(string.Join('|', values.Select(Normalize)));
 

@@ -16,7 +16,7 @@ using Ftareqi.Domain.Models;
 using Ftareqi.Infrastructure.BackgroundJobs;
 using Ftareqi.Infrastructure.Implementation;
 using Ftareqi.Infrastructure.Services;
-using Ftareqi.Infrastructure.SignalR;
+using Ftareqi.Infrastructure.SignalR.Hubs;
 using Ftareqi.Persistence;
 using Ftareqi.Persistence.Repositories;
 using Google.Apis.Auth.OAuth2;
@@ -362,6 +362,7 @@ namespace Ftareqi.API
 			app.UseAuthorization();
 
 			app.MapHub<NotificationHub>("/notificationHub");
+			app.MapHub<LiveTrackingHub>("/LiveTrackingHub");
 			app.MapControllers();
 
 			app.Run();

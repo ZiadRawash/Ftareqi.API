@@ -44,4 +44,8 @@
 	  <ProjectReference Include="..\Ftareqi.Persistence\Ftareqi.Persistence.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Logs\" />
+  </ItemGroup>
+
 </Project>

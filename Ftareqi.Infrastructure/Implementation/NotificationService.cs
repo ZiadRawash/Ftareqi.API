@@ -1,6 +1,7 @@
 ﻿using Ftareqi.Application.DTOs.Notification;
+using Ftareqi.Application.Interfaces.Clients;
 using Ftareqi.Application.Interfaces.Services;
-using Ftareqi.Infrastructure.SignalR;
+using Ftareqi.Infrastructure.SignalR.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;

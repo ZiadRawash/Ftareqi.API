@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ftareqi.Infrastructure.SignalR
+namespace Ftareqi.Application.Interfaces.Clients
 {
 	public interface INotificationClient
 	{

@@ -15,6 +15,7 @@ using Ftareqi.Application.Orchestrators;
 using Ftareqi.Application.Validators.Auth;
 using Ftareqi.Domain.Models;
 using Ftareqi.Infrastructure.BackgroundJobs;
+using Ftareqi.Infrastructure.HealthChecks;
 using Ftareqi.Infrastructure.Implementation;
 using Ftareqi.Infrastructure.Services;
 using Ftareqi.Infrastructure.SignalR.Hubs;
@@ -23,11 +24,15 @@ using Ftareqi.Persistence.Repositories;
 using Google.Apis.Auth.OAuth2;
 using Hangfire;
 using Hangfire.SqlServer;
+using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
@@ -268,6 +273,32 @@ namespace Ftareqi.API
 					policy.RequireClaim(CustomClaimTypes.IsDriver, CustomClaimTypes.True);
 				});
 			});
+			builder.Services.AddHealthChecks()
+				.AddCheck<CloudinaryHealthCheck>(
+					"cloudinary-api",
+					failureStatus: HealthStatus.Degraded 
+				)
+				.AddCheck<TwilioHealthCheck>(
+					"twilio-api",
+					failureStatus: HealthStatus.Degraded
+				)
+				.AddCheck<PaymobHealthCheck>(
+					"paymob-api",
+					failureStatus: HealthStatus.Degraded
+				)
+				.AddSqlServer(
+					connectionString: builder.Configuration.GetConnectionString("DefaultConnection")!,
+					name: "SqlServer-db"
+				)
+				.AddSqlServer(
+					connectionString: builder.Configuration.GetConnectionString("HangfireConnection")!,
+					name: "SqlServer-hangfire"
+				)
+				.AddRedis(
+					builder.Configuration.GetConnectionString("RedisConnection")!,
+					name: "redis" 
+				);
+
 			////FCM Configurations 
 			builder.Services.Configure<FirebaseSettings>(builder.Configuration.GetSection("FirebaseSettings"));
 			var firebaseSettings = builder.Configuration
@@ -362,9 +393,15 @@ namespace Ftareqi.API
 			app.UseMiddleware<TokenBucketMiddleware>();
 			app.UseMiddleware<IdempotencyMiddleware>();
 			app.UseAuthorization();
-
+			
 			app.MapHub<NotificationHub>("/notificationHub");
 			app.MapHub<LiveTrackingHub>("/LiveTrackingHub");
+
+			app.MapHealthChecks("/health", new HealthCheckOptions
+			{
+				ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+
+			});
 			app.MapControllers();
 
 			app.Run();

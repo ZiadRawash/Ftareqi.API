@@ -1,5 +1,6 @@
 ﻿using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Bookings;
+using Ftareqi.Application.DTOs.Rides;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
 using Ftareqi.Domain.ValueObjects;
@@ -57,5 +58,7 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		/// <param name="driverId">Authenticated driver user id.</param>
 		/// <returns>A result indicating whether the cancel workflow succeeded.</returns>
 		public Task<Result> CancelRide(int rideId, string driverId);
+		Task<Result> ArriveAtStartLocation(CheckInRequestDto model, int rideId);
+
 	}
 }

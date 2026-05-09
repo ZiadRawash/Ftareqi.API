@@ -216,7 +216,7 @@ namespace Ftareqi.API.Controllers
 			if (string.IsNullOrWhiteSpace(userId))
 				return Unauthorized(new ApiResponse { Success = false, Message = "Unauthorized" });
 
-			var result = await _rideService.ArriveAtStartLocation(model, rideId);
+			var result = await _rideOrchestrator.ArriveAtStartLocation(model, rideId);
 			if (result.IsFailure)
 			{
 				return BadRequest(new ApiResponse

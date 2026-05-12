@@ -460,7 +460,6 @@ namespace Ftareqi.Application.Orchestrators
 				return Result.Failure("An internal error occurred.");
 			}
 		}
-
 		public async Task<Result> ArriveAtStartLocation(CheckInRequestDto model, int rideId)
 		{
 			_logger.LogInformation("Check-in attempt for ride {RideId} at location Latitude: {Latitude}, Longitude: {Longitude}",
@@ -479,12 +478,6 @@ namespace Ftareqi.Application.Orchestrators
 				_logger.LogWarning("Check-in failed for ride {RideId}: Invalid ride status. Current status: {Status}",
 					rideId, rideFound.Status);
 				return Result.Failure("Invalid operation");
-			}
-
-			if (rideFound.Status == RideStatus.CheckedIn)
-			{
-				_logger.LogWarning("Check-in failed for ride {RideId}: Driver already checked in", rideId);
-				return Result.Failure("Driver already checked in");
 			}
 
 			var isValidLocation = LocationHelper.IsWithinRadius(
@@ -545,6 +538,56 @@ namespace Ftareqi.Application.Orchestrators
 				rideId, successMessage);
 
 			return Result.Success(successMessage);
+		}
+		public async Task<Result> StartRide(StartRideDto model, int rideId) {
+			var rideFound = await _unitOfWork.Rides.FirstOrDefaultAsync(x => x.Id == rideId, x => x.RideBookings);
+
+			if (rideFound == null)
+			{
+				_logger.LogWarning("Check-in failed: Ride {RideId} not found", rideId);
+				return Result.Failure("Invalid ride id");
+			}
+			if (rideFound.Status != RideStatus.Cancelled)
+			{
+				_logger.LogWarning("starting ride failed for ride {RideId}: Ride is canceled : {Status}",
+					rideId, rideFound.Status);
+				return Result.Failure("Ride is Canceled");
+			}
+			if (rideFound.Status != RideStatus.Scheduled)
+			{
+				_logger.LogWarning("starting ride failed for ride {RideId}: driver Didn't checkIn at first. Current status: {Status}",
+					rideId, rideFound.Status);
+				return Result.Failure("Invalid operation");
+			}
+			if (rideFound.Status == RideStatus.InProgress)
+			{
+				_logger.LogWarning("Check-in failed for ride {RideId}: Driver already InProgress", rideId);
+				return Result.Failure("Driver already Started");
+			}
+			
+			var isValidLocation = LocationHelper.IsWithinRadius(
+				rideFound.StartLocation,
+				model.Latitude,
+				model.Longitude,
+				RidePolicies.ArrivalRadiusMeters);
+
+			if (!isValidLocation)
+			{
+				_logger.LogWarning("Starting ride failed for ride {RideId}: Location validation failed. Driver position Latitude: {Latitude}, Longitude: {Longitude} is {DistanceMeters}m from pickup point",
+					rideId, model.Latitude, model.Longitude, RidePolicies.ArrivalRadiusMeters);
+				return Result.Failure("You are too far from the Starting point");
+			}
+			var isValidTime = DateTime.UtcNow < (rideFound.DepartureTime.AddMinutes(RidePolicies.AutoCancellationDeadlineMinutes));
+			if (!isValidTime) {
+				return Result.Failure("ride cancelled automatically due to late appearance");
+			}
+			rideFound.Status= RideStatus.InProgress;
+			rideFound.UpdatedAt= DateTime.UtcNow;
+			_unitOfWork.Rides.Update(rideFound);
+			await _unitOfWork.SaveChangesAsync();
+			var ids = rideFound.RideBookings.Select(x => x.UserId).ToList();
+			await RideStartedNotification(rideFound.Id, ids);
+			return Result.Success("ride started Successfully");
 		}
 		private async Task SendRideCancellationNotifications(IEnumerable<(string UserId, int BookingId)> cancellations)
 		{
@@ -685,6 +728,32 @@ namespace Ftareqi.Application.Orchestrators
 			{
 				_logger.LogError(ex, "Error sending check-in notification for ride {RideId}", rideId);
 				return Result.Failure("Failed to send notifications");
+			}
+		}
+		private async Task RideStartedNotification(int rideId, List<string> ids)
+		{
+			try
+			{
+				var metadata = new NotificationMetadata
+				{
+					Preview = "driver has started the ride"
+				};
+
+				var notificationTasks = ids.Select(userId =>
+					_notificationOrchestrator.NotifyAsync(new NotificationInput(
+						userId,
+						NotificationCategory.Ride,
+						NotificationEventCode.RideStarted,
+						rideId.ToString(),
+						metadata))
+				).ToList();
+
+				await Task.WhenAll(notificationTasks);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning("error happened with sending RideStartedNotifications ");
+				throw;
 			}
 		}
 	}

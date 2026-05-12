@@ -58,7 +58,8 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		/// <param name="driverId">Authenticated driver user id.</param>
 		/// <returns>A result indicating whether the cancel workflow succeeded.</returns>
 		public Task<Result> CancelRide(int rideId, string driverId);
-		Task<Result> ArriveAtStartLocation(CheckInRequestDto model, int rideId);
+		public Task<Result> ArriveAtStartLocation(CheckInRequestDto model, int rideId);
+		public Task<Result> StartRide(StartRideDto model, int rideId);
 
 	}
 }

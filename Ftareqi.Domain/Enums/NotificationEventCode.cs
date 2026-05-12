@@ -13,6 +13,9 @@ namespace Ftareqi.Domain.Enums
 		bookingDeclined = 103,
 		bookingCanceled = 104,
 		DriveCheckedIn =105,
+		RideStarted = 106,
+
+
 		//Wallet
 		WalletCharged = 200,
 		WalletWithdrawn = 201,
@@ -26,6 +29,7 @@ namespace Ftareqi.Domain.Enums
 
 		//Review
 		ReviewAdded=500
+		
 
 	}
 }

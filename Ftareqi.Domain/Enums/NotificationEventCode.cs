@@ -14,6 +14,7 @@ namespace Ftareqi.Domain.Enums
 		bookingCanceled = 104,
 		DriveCheckedIn =105,
 		RideStarted = 106,
+		RideCancelled=107,
 
 
 		//Wallet

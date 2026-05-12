@@ -3,6 +3,7 @@ using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.DTOs.Rides;
+using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
@@ -26,11 +27,13 @@ namespace Ftareqi.Infrastructure.Implementation
 
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<RideService> _logger;
+		private readonly IBackgroundJobService _backgroundJobService;
 
-		public RideService(IUnitOfWork unitOfWork, ILogger<RideService> logger)
+		public RideService(IUnitOfWork unitOfWork, ILogger<RideService> logger, IBackgroundJobService backgroundJobService)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
+			_backgroundJobService = backgroundJobService;
 		}
 
 		public async Task<Result> CreateRide(CreateRideRequestDto model, string userId)
@@ -55,7 +58,19 @@ namespace Ftareqi.Infrastructure.Implementation
 				await _unitOfWork.Rides.AddAsync(ride);
 				await _unitOfWork.SaveChangesAsync();
 
-				_logger.LogInformation("Ride {RideId} created successfully for user {UserId}", ride.Id, userId);
+				// Schedule background job to handle rides not started on time
+				var scheduledTime = ride.DepartureTime.AddMinutes(RidePolicies.AutoCancellationDeadlineMinutes);
+				var delay = scheduledTime - DateTime.UtcNow;
+				if (delay < TimeSpan.Zero)
+				{
+					delay = TimeSpan.Zero;
+				}
+
+				var jobId = await _backgroundJobService.ScheduleAsync<IRideJobs>(
+					x => x.HandleNotStartedRidesAsync(ride.Id),
+					delay);
+
+				_logger.LogInformation("Ride {RideId} created successfully for user {UserId}. Background job {JobId} scheduled to check ride status at {ScheduledTime}", ride.Id, userId, jobId, scheduledTime);
 				return Result.Success("Ride created successfully");
 			}
 			catch (Exception ex)

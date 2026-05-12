@@ -49,7 +49,6 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		/// <param name="riderId">Authenticated rider user id.</param>
 		/// <returns>A result indicating whether the cancel workflow succeeded.</returns>
 		public Task<Result> CancelRideBookingByRider(int bookingId, string riderId);
-		public Task<Result> HandleExpiredBookings();
 
 		/// <summary>
 		/// Cancels a driver's own ride and cancel related ride requests.

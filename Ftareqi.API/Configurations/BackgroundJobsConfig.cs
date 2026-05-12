@@ -19,11 +19,6 @@ namespace Ftareqi.API.Configurations
 				methodCall: job => job.DeactivateExpiredDriversAsync(),
 				cronExpression: "40 19 * * *"
 			);
-			recurringJobManager.AddOrUpdate<IRideOrchestrator>(
-				recurringJobId: "expire-pending-bookings",
-				methodCall: job => job.HandleExpiredBookings(),
-				cronExpression: "*/2 * * * *"
-			);
 			return Task.CompletedTask;
 		}
 	}

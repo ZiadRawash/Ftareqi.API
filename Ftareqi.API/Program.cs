@@ -253,10 +253,11 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<IReviewService, ReviewService>();
 			builder.Services.AddScoped<INotificationOrchestrator, NotificationOrchestrator>();
 			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
+			builder.Services.AddScoped<IBookingJobs, BookingJobs>();
 			builder.Services.AddScoped<ICarJobs, CarJobs>();
 			builder.Services.AddScoped<IUserJobs, UserJobs>();
 			builder.Services.AddScoped<IDriverJobs, DriverJobs>();
-			builder.Services.AddScoped<DriverJobs>();
+			builder.Services.AddScoped<IRideJobs, RideJobs>();
 			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 			builder.Services.AddScoped<INotificationBuilder, NotificationBuilder>();

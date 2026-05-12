@@ -3,6 +3,7 @@ using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Bookings;
 using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.DTOs.Rides;
+using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
@@ -27,12 +28,13 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly IWalletService _walletService;
 		private readonly IDistributedCachingService _cache;
 		private readonly IBookingService _bookingService;
+		private readonly IBackgroundJobService _backgroundJobService;
 		private readonly INotificationOrchestrator _notificationOrchestrator;
-		private const int ExpiredBookingsBatchSize = 200;
 		public RideOrchestrator(ILogger<RideOrchestrator> logger, IUnitOfWork unitOfWork,
 			IRideService rideService, IWalletService walletService,
 			 IDistributedCachingService cache,
 			 IBookingService bookingService,
+			 IBackgroundJobService backgroundJobService,
 			 INotificationOrchestrator notificationOrchestrator
 			 )
 		{
@@ -43,6 +45,7 @@ namespace Ftareqi.Application.Orchestrators
 			_walletService = walletService;
 			_cache = cache;
 			_bookingService = bookingService;
+			_backgroundJobService = backgroundJobService;
 			_notificationOrchestrator = notificationOrchestrator;
 
 		}
@@ -93,9 +96,20 @@ namespace Ftareqi.Application.Orchestrators
 				await _unitOfWork.SaveChangesAsync();
 				await tx.CommitAsync();
 
+				var delay = reservedBooking.Data.ExpiresAt - DateTime.UtcNow;
+				if (delay < TimeSpan.Zero)
+				{
+					delay = TimeSpan.Zero;
+				}
+
+				var jobId = await _backgroundJobService.ScheduleAsync<IBookingJobs>(
+					job => job.ExpireBookingAsync(reservedBooking.Data.Id),
+					delay);
+
 				await SendWalletAmountReservedNotification(userId, moneyLocked.Data.UserWalletId, totalMoney);
 				await _cache.RemoveWalletCachesAsync(userId);
 				await SendRequestNotification(driverProfile.UserId, reservedBooking.Data.Id);
+				_logger.LogInformation("Booking {BookingId} created for user {UserId}. Expiration job {JobId} scheduled to run at {ExpiresAt}", reservedBooking.Data.Id, userId, jobId, reservedBooking.Data.ExpiresAt);
 
 				return Result.Success("Booking Created successfully");
 			}
@@ -264,95 +278,6 @@ namespace Ftareqi.Application.Orchestrators
 				await tx.RollbackAsync();
 				return Result.Failure("Unexpected error happened while cancelling booking");
 			}
-		}
-		public async Task<Result> HandleExpiredBookings()
-		{
-			var now = DateTime.UtcNow;
-			var bookings = await _unitOfWork.RideBookings.FindAllAsTrackingAsync(
-				x => x.ExpiresAt <= now && x.Status == BookingStatus.Pending);
-			if (!bookings.Any())
-			{
-				_logger.LogInformation("HandleExpiredBookings: no pending bookings to expire at {Now}", now);
-				return Result.Success("No expired bookings to process");
-			}
-
-			int successCount = 0;
-			int failureCount = 0;
-			foreach (var booking in bookings)
-			{
-				await using var tx = await _unitOfWork.BeginTransactionAsync();
-				try
-				{
-					var expireResult = await _bookingService.ExpireBooking(booking.Id);
-					if (expireResult.IsFailure)
-					{
-						await tx.RollbackAsync();
-						_logger.LogError("HandleExpiredBookings: failed to expire booking {BookingId}. Error: {Error}", booking.Id, expireResult.Message);
-						failureCount++;
-						continue;
-					}
-
-					var lockTransactions = await _unitOfWork.WalletTransactions.FindAllAsTrackingAsync(
-						x => x.RideBookingId == booking.Id && x.Type == TransactionType.locked,
-						x => x.UserWallet);
-
-					var totalLockedAmount = lockTransactions.Sum(x => x.Amount);
-					if (totalLockedAmount <= 0)
-					{
-						await _unitOfWork.SaveChangesAsync();
-						await tx.CommitAsync();
-						_logger.LogInformation("HandleExpiredBookings: booking {BookingId} expired with no locked amount to release", booking.Id);
-						successCount++;
-						continue;
-					}
-
-					var walletUserId = lockTransactions
-						.Select(x => x.UserWallet?.UserId)
-						.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-					if (string.IsNullOrWhiteSpace(walletUserId))
-					{
-						await tx.RollbackAsync();
-						_logger.LogError("HandleExpiredBookings: failed to resolve wallet user for booking {BookingId}", booking.Id);
-						failureCount++;
-						continue;
-					}
-
-					var releaseResult = await _walletService.ReleaseLockedAmountAsync(walletUserId, totalLockedAmount);
-					if (releaseResult.IsFailure)
-					{
-						await tx.RollbackAsync();
-						_logger.LogWarning("HandleExpiredBookings: failed to release locked amount for booking {BookingId}. Error: {Error}", booking.Id, releaseResult.Message);
-						failureCount++;
-						continue;
-					}
-
-					await _unitOfWork.SaveChangesAsync();
-					await tx.CommitAsync();
-
-					var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == walletUserId);
-					if (wallet != null)
-					{
-						await SendWalletAmountReleasedNotification(walletUserId, wallet.Id, totalLockedAmount);
-						await _cache.RemoveWalletCachesAsync(walletUserId);
-					}
-
-					_logger.LogInformation("HandleExpiredBookings: successfully expired booking {BookingId} and released {Amount} for user {UserId}", booking.Id, totalLockedAmount, walletUserId);
-					successCount++;
-				}
-				catch (Exception ex)
-				{
-					failureCount++;
-					_logger.LogError(ex, "HandleExpiredBookings: failed during processing for booking {BookingId}", booking.Id);
-					await tx.RollbackAsync();
-				}
-			}
-
-			if (failureCount == 0)
-			{
-				return Result.Success($"Successfully processed {successCount} expired bookings");
-			}
-
-			return Result.Failure($"Processed {successCount} expired bookings with {failureCount} failures");
 		}
 		public async Task<Result> CancelRide(int rideId, string driverId)
 		{
@@ -750,7 +675,7 @@ namespace Ftareqi.Application.Orchestrators
 
 				await Task.WhenAll(notificationTasks);
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
 				_logger.LogWarning("error happened with sending RideStartedNotifications ");
 				throw;

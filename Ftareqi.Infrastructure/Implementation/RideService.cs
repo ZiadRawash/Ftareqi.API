@@ -41,9 +41,11 @@ namespace Ftareqi.Infrastructure.Implementation
 			if (model == null)
 				return Result.Failure("Ride data is required");
 
+			
 			var profileFound = await _unitOfWork.DriverProfiles.FirstOrDefaultAsNoTrackingAsync(
 				x => x.UserId == userId && x.Status == Domain.Enums.DriverStatus.Active);
-
+			if (model.DepartureTime <= DateTime.UtcNow)
+				return Result.Failure("Invalid Departure time");
 			if (profileFound == null)
 			{
 				_logger.LogInformation("Could not create ride for user {UserId}: active driver profile not found", userId);

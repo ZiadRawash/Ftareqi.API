@@ -465,24 +465,26 @@ namespace Ftareqi.Application.Orchestrators
 				_logger.LogWarning("Check-in failed: Ride {RideId} not found", rideId);
 				return Result.Failure("Invalid ride id");
 			}
-			if (rideFound.Status != RideStatus.Cancelled)
+			if (rideFound.Status == RideStatus.Cancelled)
 			{
 				_logger.LogWarning("starting ride failed for ride {RideId}: Ride is canceled : {Status}",
 					rideId, rideFound.Status);
 				return Result.Failure("Ride is Canceled");
-			}
-			if (rideFound.Status != RideStatus.Scheduled)
-			{
-				_logger.LogWarning("starting ride failed for ride {RideId}: driver Didn't checkIn at first. Current status: {Status}",
-					rideId, rideFound.Status);
-				return Result.Failure("Invalid operation");
 			}
 			if (rideFound.Status == RideStatus.InProgress)
 			{
 				_logger.LogWarning("Check-in failed for ride {RideId}: Driver already InProgress", rideId);
 				return Result.Failure("Driver already Started");
 			}
-			
+			if (rideFound.Status != RideStatus.CheckedIn)
+			{
+				_logger.LogWarning("starting ride failed for ride {RideId}: driver Didn't checkIn at first. Current status: {Status}",
+					rideId, rideFound.Status);
+				return Result.Failure("Invalid operation");
+			}
+
+
+
 			var isValidLocation = LocationHelper.IsWithinRadius(
 				rideFound.StartLocation,
 				model.Latitude,

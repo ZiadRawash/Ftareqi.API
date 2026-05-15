@@ -39,17 +39,27 @@ namespace Ftareqi.Persistence.Repositories
 
 			if (criteria != null)
 			{
-				var minDate = criteria.DepartureTime!.Value.AddDays(-2);
-				var maxDate = criteria.DepartureTime!.Value.AddDays(3);
 				var startPoint = new Point(criteria.StartLongitude!.Value, criteria.StartLatitude!.Value) { SRID = 4326 };
 				var endPoint = new Point(criteria.EndLongitude!.Value, criteria.EndLatitude!.Value) { SRID = 4326 };
 
-				baseQuery = baseQuery.Where(x =>
-					x.DepartureTime >= minDate &&
-					x.DepartureTime < maxDate &&
-					x.AvailableSeats >= criteria.Seats!.Value &&
-					x.StartLocation.Distance(startPoint) <= maxStartDistanceInMeters &&
-					x.EndLocation.Distance(endPoint) <= maxEndDistanceInMeters);
+				if (criteria.DepartureTime != null)
+				{
+					var minDate = criteria.DepartureTime.Value.AddDays(-2);
+					var maxDate = criteria.DepartureTime.Value.AddDays(3);
+					baseQuery = baseQuery.Where(x =>
+						x.DepartureTime >= minDate &&
+						x.DepartureTime < maxDate &&
+						x.AvailableSeats >= criteria.Seats!.Value &&
+						x.StartLocation.Distance(startPoint) <= maxStartDistanceInMeters &&
+						x.EndLocation.Distance(endPoint) <= maxEndDistanceInMeters);
+				}
+				else
+				{
+					baseQuery = baseQuery.Where(x =>
+						x.AvailableSeats >= criteria.Seats!.Value &&
+						x.StartLocation.Distance(startPoint) <= maxStartDistanceInMeters &&
+						x.EndLocation.Distance(endPoint) <= maxEndDistanceInMeters);
+				}
 			}
 
 			if (criteria?.Gender != null)

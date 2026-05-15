@@ -37,10 +37,10 @@ namespace Ftareqi.Application.Validators.Rides
 				.NotNull().WithMessage("Seats are required.")
 				.Must(x => x >= 1 && x <= 5).WithMessage("Seats must be between 1 and 5.");
 
-			RuleFor(x => x.DepartureTime)
-				.NotNull().WithMessage("Departure time is required.")
-				.Must(x => x != default)
-				.WithMessage("Departure time is required.");
+			//RuleFor(x => x.DepartureTime)
+			//	.NotNull().WithMessage("Departure time is required.")
+			//	.Must(x => x != default)
+			//	.WithMessage("Departure time is required.");
 		}
 	}
 }

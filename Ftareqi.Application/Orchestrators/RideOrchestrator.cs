@@ -26,13 +26,11 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IRideService _rideService;
 		private readonly IWalletService _walletService;
-		private readonly IDistributedCachingService _cache;
 		private readonly IBookingService _bookingService;
 		private readonly IBackgroundJobService _backgroundJobService;
 		private readonly INotificationOrchestrator _notificationOrchestrator;
 		public RideOrchestrator(ILogger<RideOrchestrator> logger, IUnitOfWork unitOfWork,
 			IRideService rideService, IWalletService walletService,
-			 IDistributedCachingService cache,
 			 IBookingService bookingService,
 			 IBackgroundJobService backgroundJobService,
 			 INotificationOrchestrator notificationOrchestrator
@@ -43,7 +41,6 @@ namespace Ftareqi.Application.Orchestrators
 			_unitOfWork = unitOfWork;
 			_rideService = rideService;
 			_walletService = walletService;
-			_cache = cache;
 			_bookingService = bookingService;
 			_backgroundJobService = backgroundJobService;
 			_notificationOrchestrator = notificationOrchestrator;
@@ -107,7 +104,6 @@ namespace Ftareqi.Application.Orchestrators
 					delay);
 
 				await SendWalletAmountReservedNotification(userId, moneyLocked.Data.UserWalletId, totalMoney);
-				await _cache.RemoveWalletCachesAsync(userId);
 				await SendRequestNotification(driverProfile.UserId, reservedBooking.Data.Id);
 				_logger.LogInformation("Booking {BookingId} created for user {UserId}. Expiration job {JobId} scheduled to run at {ExpiresAt}", reservedBooking.Data.Id, userId, jobId, reservedBooking.Data.ExpiresAt);
 
@@ -198,7 +194,6 @@ namespace Ftareqi.Application.Orchestrators
 					if (bookingWallet != null)
 					{
 						await SendWalletAmountReleasedNotification(booking.UserId, bookingWallet.Id, releaseResult.Data);
-						await _cache.RemoveWalletCachesAsync(booking.UserId);
 					}
 				}
 
@@ -266,7 +261,6 @@ namespace Ftareqi.Application.Orchestrators
 					if (riderWallet != null)
 					{
 						await SendWalletAmountReleasedNotification(riderId, riderWallet.Id, releaseResult.Data);
-						await _cache.RemoveWalletCachesAsync(riderId);
 					}
 				}
 
@@ -368,7 +362,6 @@ namespace Ftareqi.Application.Orchestrators
 				foreach (var (userId, walletId, amount) in walletReleasesToNotify)
 				{
 					await SendWalletAmountReleasedNotification(userId, walletId, amount);
-					await _cache.RemoveWalletCachesAsync(userId);
 				}
 
 				if (cancellationsToNotify.Any())

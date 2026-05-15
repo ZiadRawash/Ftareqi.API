@@ -2,7 +2,7 @@
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.Paymob;
-using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
+using Ftareqi.Domain.Enums.PaymentEnums;
 using Ftareqi.Domain.Models;
 using System;
 using System.Collections.Generic;
@@ -20,16 +20,8 @@ namespace Ftareqi.Application.Interfaces.Services
 		public Task CreateWalletAsync(string userId);
 		Task<Result<WalletTransaction>> LockAmountAsync(string userId, decimal amount);
 		Task<Result> ReleaseLockedAmountAsync(string userId, decimal amount);
-		Task<Result<PaymentResponseDto>> TopUpWithCardAsync(
-			string userId,
-			decimal amount,
-			Func<Task<PaymentInitiationResult>>  initiateCardPayment);
-
-		Task<Result<PaymentResponseDto>> TopUpWithWalletAsync(
-			string userId,
-			decimal amount,
-			Func<Task<PaymentInitiationResult>> initiateWalletPayment);
-
-		Task ProcessPaymentCallBack(string hmac, PaymobCallbackDto callback);
+		Task<Result<PaymentResponseDto>> RecordPendingTopUpAsync(string userId, decimal amount, PaymentMethod method, string reference);
+		Task<Result<(string userId, WalletTransaction walletTrnx, PaymentTransaction paymentTrnx)>> CreditWalletAsync(string merchantReference);
+		Task<Result<(string userId, WalletTransaction walletTrnx, PaymentTransaction paymentTrnx)>> FailWalletTransactionAsync(string merchantReference);
 	}
 }

@@ -1,4 +1,3 @@
-using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.Interfaces.BackgroundJobs;
 using Ftareqi.Application.Interfaces.Orchestrators;
@@ -20,23 +19,17 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IBookingService _bookingService;
 		private readonly IWalletService _walletService;
-		private readonly IDistributedCachingService _cache;
-		private readonly INotificationOrchestrator _notificationOrchestrator;
 		private readonly ILogger<BookingJobs> _logger;
 
 		public BookingJobs(
 			IUnitOfWork unitOfWork,
 			IBookingService bookingService,
 			IWalletService walletService,
-			IDistributedCachingService cache,
-			INotificationOrchestrator notificationOrchestrator,
 			ILogger<BookingJobs> logger)
 		{
 			_unitOfWork = unitOfWork;
 			_bookingService = bookingService;
 			_walletService = walletService;
-			_cache = cache;
-			_notificationOrchestrator = notificationOrchestrator;
 			_logger = logger;
 		}
 
@@ -104,13 +97,6 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 
 				await _unitOfWork.SaveChangesAsync();
 				await tx.CommitAsync();
-
-				var wallet = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == walletUserId);
-				if (wallet != null)
-				{
-					await _cache.RemoveWalletCachesAsync(walletUserId);
-					await _cache.RemoveWalletCachesAsync(walletUserId);
-				}
 
 				_logger.LogInformation("ExpireBookingAsync: successfully expired booking {BookingId} and released {Amount} for user {UserId}", bookingId, totalLockedAmount, walletUserId);
 			}

@@ -4,6 +4,7 @@ using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -21,15 +22,15 @@ namespace Ftareqi.API.Controllers
 		private readonly ILogger<WalletController> _logger; 
 		
 		private readonly IWalletService _walletService;
-		private readonly IPaymentGateway _paymentGateway;
+		private readonly IWalletOrchestrator _walletOrchestrator;
 
 		public WalletController(
 			ILogger<WalletController> logger,
 			IWalletService walletService,
-			IPaymentGateway paymentGateway)
+			IWalletOrchestrator walletOrchestrator)
 		{
 			_walletService = walletService;
-			_paymentGateway = paymentGateway;
+			_walletOrchestrator = walletOrchestrator;
 			_logger = logger;
 		}
 		[HttpGet()]
@@ -94,17 +95,7 @@ namespace Ftareqi.API.Controllers
 				});
 			}
 			
-			var result = await _walletService.TopUpWithWalletAsync(
-				userId,
-				model.Amount,
-				() => _paymentGateway.InitiateWalletPaymentAsync(
-					new PaymentWalletRequestDto
-					{
-						Amount = model.Amount,
-						UserId = userId,
-						WalletNumber = model.WalletNumber,
-					})
-				);
+			var result = await _walletOrchestrator.TopUpWithWalletAsync(userId, model);
 			if (!result.IsSuccess){
 				return BadRequest(new ApiResponse
 				{
@@ -137,16 +128,7 @@ namespace Ftareqi.API.Controllers
 					Success = false,
 				});
 			}
-			var result = await _walletService.TopUpWithCardAsync(
-				userId,
-				model.Amount,
-				() => _paymentGateway.InitiateCardPaymentAsync(
-					new PaymentCardRequestDto
-					{
-						Amount = model.Amount,
-						UserId = userId,
-					})
-				);
+			var result = await _walletOrchestrator.TopUpWithCardAsync(userId, model);
 			if (!result.IsSuccess)
 			{
 				return BadRequest(new ApiResponse
@@ -191,7 +173,7 @@ namespace Ftareqi.API.Controllers
 				return Ok();
 			}
 
-			await _walletService.ProcessPaymentCallBack(hmac, callback);
+			await _walletOrchestrator.HandleCallbackAsync(hmac, callback);
 			return Ok();
 		}
 

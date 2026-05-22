@@ -23,5 +23,6 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result<PaymentResponseDto>> RecordPendingTopUpAsync(string userId, decimal amount, PaymentMethod method, string reference);
 		Task<Result<(string userId, WalletTransaction walletTrnx, PaymentTransaction paymentTrnx)>> CreditWalletAsync(string merchantReference);
 		Task<Result<(string userId, WalletTransaction walletTrnx, PaymentTransaction paymentTrnx)>> FailWalletTransactionAsync(string merchantReference);
+		Task<Result<decimal>> TransferMoneyBatch(string receiverId, IEnumerable<int> bookingIds);
 	}
 }

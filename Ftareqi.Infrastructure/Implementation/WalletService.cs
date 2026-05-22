@@ -287,6 +287,89 @@ namespace Ftareqi.Infrastructure.Implementation
 		{
 			return await UpdateWalletTransactionStatusAsync(merchantReference, PaymentStatus.Failed, TransactionStatus.Failed, false);
 		}
+		public async Task<Result<decimal>> TransferMoneyBatch(string receiverId, IEnumerable<int> bookingIds)
+		{
+			if (string.IsNullOrWhiteSpace(receiverId))
+				return Result<decimal>.Failure("Receiver is required");
+
+			var bookingsList = bookingIds?.ToList();
+			if (bookingsList == null || !bookingsList.Any())
+				return Result<decimal>.Failure("No booking ids provided");
+
+			var lockedTxns = (await _unitOfWork.WalletTransactions.FindAllAsTrackingAsync(
+				x => bookingsList.Contains(x.RideBookingId ?? 0) && x.Type == TransactionType.locked,
+				x => x.UserWallet))
+				.ToList();
+
+			if (!lockedTxns.Any())
+			{
+				_logger.LogInformation("No locked transactions found for bookings: {BookingIds}", string.Join(',', bookingsList));
+				return Result<decimal>.Success(0, "No locked amounts to transfer");
+			}
+
+			var receiverWallet = await _unitOfWork.UserWallets
+				.FirstOrDefaultAsync(x => x.UserId == receiverId, x => x.WalletTransactions);
+
+			if (receiverWallet == null)
+				return Result<decimal>.Failure("Receiver wallet not found");
+
+			await using var tx = await _unitOfWork.BeginTransactionAsync();
+			try
+			{
+				var now = DateTime.UtcNow;
+				var totalAmount = 0m;
+
+				foreach (var txn in lockedTxns)
+				{
+					var senderWallet = txn.UserWallet;
+
+					if (senderWallet.LockedBalance < txn.Amount)
+					{
+						await tx.RollbackAsync();
+						return Result<decimal>.Failure($"Insufficient locked balance for user {senderWallet.UserId}");
+					}
+
+					senderWallet.LockedBalance -= txn.Amount;
+					senderWallet.UpdatedAt = now;
+					_unitOfWork.UserWallets.Update(senderWallet);
+
+					txn.Type = TransactionType.RidePayment;
+					txn.Status = TransactionStatus.Completed;
+					txn.UpdatedAt = now;
+
+					totalAmount += txn.Amount;
+				}
+
+				var balanceBefore = receiverWallet.Balance;
+				receiverWallet.Balance += totalAmount;
+				receiverWallet.UpdatedAt = now;
+				_unitOfWork.UserWallets.Update(receiverWallet);
+
+				await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
+				{
+					Type = TransactionType.Earnings,
+					Status = TransactionStatus.Completed,
+					Amount = totalAmount,
+					BalanceBefore = balanceBefore,
+					BalanceAfter = receiverWallet.Balance,
+					UserWalletId = receiverWallet.Id,
+					CreatedAt = now,
+					UpdatedAt = now
+				});
+
+				await _unitOfWork.SaveChangesAsync();
+				await tx.CommitAsync();
+
+				_logger.LogInformation("Batch transfer completed to {Receiver} for bookings {Bookings}", receiverId, string.Join(',', bookingsList));
+				return Result<decimal>.Success(totalAmount, "Batch transfer completed successfully");
+			}
+			catch (Exception ex)
+			{
+				await tx.RollbackAsync();
+				_logger.LogError(ex, "TransferMoneyBatch failed for bookings {Bookings}", string.Join(',', bookingsList));
+				return Result<decimal>.Failure("Batch transfer failed");
+			}
+		}
 
 		private async Task<Result<(string userId, WalletTransaction walletTrnx, PaymentTransaction paymentTrnx)>> UpdateWalletTransactionStatusAsync(
 			string merchantReference,

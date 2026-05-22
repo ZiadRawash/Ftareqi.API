@@ -80,6 +80,25 @@ namespace Ftareqi.API.Controllers
 				Success = transactions.IsSuccess,
 			});
 		}
+
+		[HttpGet("transactions/export")]
+		[Authorize]
+		public async Task<ActionResult> ExportWalletTransactions()
+		{
+			var userId = User.GetUserId();
+			var exportResult = await _walletOrchestrator.ExportWalletTransactionsCsvAsync(userId);
+			if (exportResult.IsFailure || exportResult.Data == null)
+			{
+				return BadRequest(new ApiResponse
+				{
+					Errors = exportResult.Errors,
+					Message = exportResult.Message,
+					Success = exportResult.IsSuccess,
+				});
+			}
+
+			return File(exportResult.Data.Content, exportResult.Data.ContentType, exportResult.Data.FileName);
+		}
 		[Authorize]
 		[HttpPost("top-up/mobile-wallet")]
 		public async Task<ActionResult<ApiResponse<PaymentResponseDto>>> TopUpWithWallet(TopUpWithWalletReqDto model)

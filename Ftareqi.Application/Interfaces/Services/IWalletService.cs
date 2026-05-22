@@ -17,6 +17,7 @@ namespace Ftareqi.Application.Interfaces.Services
 	{
 		public Task<Result<WalletResDto>> GetWallet(string userId);
 		public Task<Result<PaginatedResponse<TransactionDto>>> GetWalletTransactionsPaginated(string userId, GenericQueryReq queryReq);
+		Task<Result<List<WalletTransaction>>> GetWalletTransactionsForExportAsync(string userId);
 		public Task CreateWalletAsync(string userId);
 		Task<Result<WalletTransaction>> LockAmountAsync(string userId, decimal amount);
 		Task<Result> ReleaseLockedAmountAsync(string userId, decimal amount);

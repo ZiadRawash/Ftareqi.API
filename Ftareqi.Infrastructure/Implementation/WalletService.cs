@@ -119,6 +119,25 @@ namespace Ftareqi.Infrastructure.Implementation
 			return Result<PaginatedResponse<TransactionDto>>.Success(response);
 		}
 
+		public async Task<Result<List<WalletTransaction>>> GetWalletTransactionsForExportAsync(string userId)
+		{
+			if (string.IsNullOrWhiteSpace(userId))
+				return Result<List<WalletTransaction>>.Failure("No user is found");
+
+			var walletFound = await _unitOfWork.UserWallets.FirstOrDefaultAsNoTrackingAsync(x => x.UserId == userId);
+			if (walletFound == null)
+				return Result<List<WalletTransaction>>.Failure("No wallet is found");
+
+			var transactions = await _unitOfWork.WalletTransactions.FindAllAsNoTrackingAsync(
+				x => x.UserWalletId == walletFound.Id);
+
+			var ordered = transactions
+				.OrderByDescending(x => x.CreatedAt)
+				.ToList();
+
+			return Result<List<WalletTransaction>>.Success(ordered);
+		}
+
 		public async Task<Result<WalletTransaction>> LockAmountAsync(string userId, decimal amount)
 		{
 			if (string.IsNullOrWhiteSpace(userId))

@@ -5,12 +5,16 @@ using Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Services;
+using Ftareqi.Application.DTOs;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Enums.PaymentEnums;
 using Ftareqi.Domain.Models;
 using Ftareqi.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Ftareqi.Application.Orchestrators
@@ -22,19 +26,22 @@ namespace Ftareqi.Application.Orchestrators
 		private readonly IDistributedCachingService _cache;
 		private readonly INotificationOrchestrator _notificationOrchestrator;
 		private readonly ILogger<WalletOrchestrator> _logger;
+		private readonly ICsvExportService _csvExportService;
 
 		public WalletOrchestrator(
 			IWalletService walletService,
 			IPaymentGateway paymentGateway,
 			IDistributedCachingService cache,
 			INotificationOrchestrator notificationOrchestrator,
-			ILogger<WalletOrchestrator> logger)
+			ILogger<WalletOrchestrator> logger,
+			ICsvExportService csvExportService)
 		{
 			_walletService = walletService;
 			_paymentGateway = paymentGateway;
 			_cache = cache;
 			_notificationOrchestrator = notificationOrchestrator;
 			_logger = logger;
+			_csvExportService = csvExportService;
 		}
 
 		public async Task<Result<PaymentResponseDto>> TopUpWithCardAsync(string userId, TopUpWithCardReqDto model)
@@ -143,6 +150,37 @@ namespace Ftareqi.Application.Orchestrators
 
 			await _notificationOrchestrator.NotifyAsync(notification);
 			await _cache.RemoveWalletCachesAsync(walletResult.Data.userId);
+		}
+
+		public async Task<Result<ExportFileDto>> ExportWalletTransactionsCsvAsync(string userId)
+		{
+			var transactionsResult = await _walletService.GetWalletTransactionsForExportAsync(userId);
+			if (transactionsResult.IsFailure)
+				return Result<ExportFileDto>.Failure(transactionsResult.Errors, transactionsResult.Message);
+
+			var rows = transactionsResult.Data?.Select(t => new WalletTransactionCsvRow
+			{
+				Id = t.Id,
+				Type = t.Type.ToString(),
+				Status = t.Status.ToString(),
+				Amount = t.Amount,
+				BalanceBefore = t.BalanceBefore,
+				BalanceAfter = t.BalanceAfter,
+				CreatedAt = "'" + t.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+				UpdatedAt = t.UpdatedAt == null
+					? null
+					: "'" + t.UpdatedAt.Value.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+			}).ToList() ?? new List<WalletTransactionCsvRow>();
+
+			var content = await _csvExportService.ExportAsync(rows, CultureInfo.InvariantCulture);
+			var fileName = $"wallet-transactions-{DateTime.UtcNow:yyyyMMdd}.csv";
+
+			return Result<ExportFileDto>.Success(new ExportFileDto
+			{
+				Content = content,
+				ContentType = "text/csv",
+				FileName = fileName
+			});
 		}
 
 	}

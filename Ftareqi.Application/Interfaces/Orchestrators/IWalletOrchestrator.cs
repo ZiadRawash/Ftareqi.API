@@ -1,4 +1,5 @@
 using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs;
 using Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Application.DTOs.Paymob.Ftareqi.Application.DTOs.Paymob;
 using Ftareqi.Domain.Models;
@@ -15,5 +16,6 @@ namespace Ftareqi.Application.Interfaces.Orchestrators
 		Task<Result<PaymentResponseDto>> TopUpWithCardAsync(string userId, TopUpWithCardReqDto model);
 		Task<Result<PaymentResponseDto>> TopUpWithWalletAsync(string userId, TopUpWithWalletReqDto model);
 		Task HandleCallbackAsync(string hmac, PaymobCallbackDto callback);
+		Task<Result<ExportFileDto>> ExportWalletTransactionsCsvAsync(string userId);
 	}
 }

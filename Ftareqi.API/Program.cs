@@ -244,6 +244,7 @@ namespace Ftareqi.API
 			builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 			builder.Services.AddScoped<IFileMapper, FileMapper>();
 			builder.Services.AddScoped<IWalletService, WalletService>();
+			builder.Services.AddScoped<ICsvExportService, CsvExportService>();
 			builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
 			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
 			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();

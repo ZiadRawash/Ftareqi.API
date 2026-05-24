@@ -37,6 +37,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Prometheus;
 using Serilog;
 using StackExchange.Redis;
 using System.Reflection;
@@ -376,7 +377,6 @@ namespace Ftareqi.API
 					}
 				});
 			});
-
 			var app = builder.Build();
 			BackgroundJobsConfig.RegisterJobs(app);
 			app.UseSerilogRequestLogging();
@@ -386,7 +386,7 @@ namespace Ftareqi.API
 				app.UseSwagger();
 				app.UseSwaggerUI();
 			}
-
+			app.UseHttpMetrics();
 			app.UseExceptionHandler();
 			app.UseHangfireDashboard("/hangfire");
 			app.UseHttpsRedirection();
@@ -405,6 +405,7 @@ namespace Ftareqi.API
 				ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 
 			});
+			 app.MapMetrics("/metrics");
 			app.MapControllers();
 
 			app.Run();

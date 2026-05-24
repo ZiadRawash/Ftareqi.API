@@ -92,7 +92,14 @@ services:
     restart: unless-stopped
     networks:
       - ftareqi-network
-
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: Jaeger-Container
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+    networks:
+      - ftareqi-network
 volumes:
   sqlserverdata:
   seq-data:

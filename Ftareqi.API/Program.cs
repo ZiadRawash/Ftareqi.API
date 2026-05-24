@@ -37,6 +37,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Prometheus;
 using Serilog;
 using StackExchange.Redis;
@@ -209,17 +211,25 @@ namespace Ftareqi.API
 			});
 
 			//
-			//Redis Service
+			// Redis Service
 			//
+			var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection");
+			if (string.IsNullOrWhiteSpace(redisConnectionString))
+			{
+				throw new InvalidOperationException("RedisConnection is missing or empty.");
+			}
 
 			builder.Services.AddStackExchangeRedisCache(options =>
 			{
-				options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
+				options.Configuration = redisConnectionString;
 				options.InstanceName = "Ftareqi:";
 			});
-			builder.Services.AddSingleton<IConnectionMultiplexer>(
-				ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("RedisConnection")!)
-			);
+			builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+			{
+				var options = ConfigurationOptions.Parse(redisConnectionString);
+				options.AbortOnConnectFail = false;
+				return ConnectionMultiplexer.Connect(options);
+			});
 
 			// Rate Limit Options
 			builder.Services.AddSingleton<AuthTokenBucketOptions>(new AuthTokenBucketOptions
@@ -343,6 +353,19 @@ namespace Ftareqi.API
 			{
 				Console.WriteLine(" Firebase configuration not found");
 			}
+
+
+			builder.Services.AddOpenTelemetry()
+				.WithTracing(tracing => tracing
+					.SetResourceBuilder(OpenTelemetry.Resources.ResourceBuilder.CreateDefault().AddService("ftareqi-backend"))
+					.AddAspNetCoreInstrumentation()
+					.AddHttpClientInstrumentation()
+					.AddSqlClientInstrumentation()
+					.AddRedisInstrumentation()
+					.AddOtlpExporter(options =>
+					{
+						options.Endpoint = new Uri("http://localhost:4317");
+					}));
 
 			// ---------------------
 			// Swagger

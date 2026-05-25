@@ -28,5 +28,7 @@ namespace Ftareqi.Domain.Models
 		public List<Notification> Notifications { get; set; }= new List<Notification>();
 		public ICollection<FcmToken> FcmTokens { get; set; } = new List<FcmToken>();
 		public ICollection<RideBooking> RideBookings { get; set; } = new List<RideBooking>();
+		public ICollection<Report> ReportsMade { get; set; } = new List<Report>();
+		public ICollection<Report> ReportsReceived { get; set; } = new List<Report>();
 	}
 }

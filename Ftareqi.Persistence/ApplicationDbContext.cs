@@ -23,6 +23,7 @@ namespace Ftareqi.Persistence
 		public DbSet<RideBooking> RideBookings { get; set; }
 		public DbSet<RidePreferences> RidePreferences { get; set; }
 		public DbSet<Review> Reviews { get; set; }
+		public DbSet<Report> Reports { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
@@ -141,6 +142,18 @@ namespace Ftareqi.Persistence
 				.HasForeignKey(x => x.RideId)
 				.OnDelete(DeleteBehavior.NoAction);
 
+			builder.Entity<Report>()
+				.HasOne(r => r.ReporterUser)
+				.WithMany(u => u.ReportsMade)
+				.HasForeignKey(r => r.ReporterUserId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			builder.Entity<Report>()
+				.HasOne(r => r.ReportedUser)
+				.WithMany(u => u.ReportsReceived)
+				.HasForeignKey(r => r.ReportedUserId)
+				.OnDelete(DeleteBehavior.Restrict);
+				
 			builder.Entity<IdentityUserRole<string>>().HasData(
 				new IdentityUserRole<string>
 				{

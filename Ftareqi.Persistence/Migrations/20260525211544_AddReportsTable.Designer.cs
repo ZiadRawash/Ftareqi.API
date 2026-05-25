@@ -4,6 +4,7 @@ using Ftareqi.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 
@@ -12,9 +13,11 @@ using NetTopologySuite.Geometries;
 namespace Ftareqi.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260525211544_AddReportsTable")]
+    partial class AddReportsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -66,7 +69,7 @@ namespace Ftareqi.Persistence.Migrations
                     b.HasIndex("DriverProfileId")
                         .IsUnique();
 
-                    b.ToTable("Car", (string)null);
+                    b.ToTable("Car");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.DriverProfile", b =>
@@ -107,7 +110,7 @@ namespace Ftareqi.Persistence.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("DriverProfile", (string)null);
+                    b.ToTable("DriverProfile");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.FcmToken", b =>
@@ -139,7 +142,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("FcmToken", (string)null);
+                    b.ToTable("FcmToken");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.Image", b =>
@@ -183,7 +186,7 @@ namespace Ftareqi.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[UserId] IS NOT NULL");
 
-                    b.ToTable("Image", (string)null);
+                    b.ToTable("Image");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.Notification", b =>
@@ -227,7 +230,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Notifications", (string)null);
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.OTP", b =>
@@ -265,7 +268,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("OTPs", (string)null);
+                    b.ToTable("OTPs");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.PaymentTransaction", b =>
@@ -307,7 +310,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("PaymentTransactions", (string)null);
+                    b.ToTable("PaymentTransactions");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.RefreshToken", b =>
@@ -339,7 +342,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.Report", b =>
@@ -379,7 +382,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("ReporterUserId");
 
-                    b.ToTable("Reports", (string)null);
+                    b.ToTable("Reports");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.Review", b =>
@@ -415,7 +418,7 @@ namespace Ftareqi.Persistence.Migrations
                     b.HasIndex("RideBookingId")
                         .IsUnique();
 
-                    b.ToTable("Reviews", (string)null);
+                    b.ToTable("Reviews");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.Ride", b =>
@@ -488,7 +491,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("DriverProfileId");
 
-                    b.ToTable("Rides", (string)null);
+                    b.ToTable("Rides");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.RideBooking", b =>
@@ -536,7 +539,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RideBookings", (string)null);
+                    b.ToTable("RideBookings");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.RidePreferences", b =>
@@ -567,7 +570,7 @@ namespace Ftareqi.Persistence.Migrations
                     b.HasIndex("RideId")
                         .IsUnique();
 
-                    b.ToTable("RidePreferences", (string)null);
+                    b.ToTable("RidePreferences");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.User", b =>
@@ -716,7 +719,7 @@ namespace Ftareqi.Persistence.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("UserWallet", (string)null);
+                    b.ToTable("UserWallet");
                 });
 
             modelBuilder.Entity("Ftareqi.Domain.Models.WalletTransaction", b =>
@@ -768,7 +771,7 @@ namespace Ftareqi.Persistence.Migrations
 
                     b.HasIndex("UserWalletId");
 
-                    b.ToTable("WalletTransactions", (string)null);
+                    b.ToTable("WalletTransactions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

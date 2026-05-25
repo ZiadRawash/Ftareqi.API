@@ -20,6 +20,10 @@ namespace Ftareqi.Domain.Models
 		public int AvailableSeats { get; set; }
 		public decimal PricePerSeat { get; set; }
 		public TimeSpan WaitingTime { get; set; }
+		public DateTime? CheckedInAt { get; set; }
+		public DateTime? StartedAt { get; set; }
+		public DateTime? EndedAt { get; set; }
+		public DateTime? CancelledAt { get; set; }
 		public RideStatus Status { get; set; } = RideStatus.Scheduled;
 		public DateTime CreatedAt { get; set; }
 		public DateTime UpdatedAt { get; set; }

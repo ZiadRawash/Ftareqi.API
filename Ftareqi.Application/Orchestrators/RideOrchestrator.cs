@@ -351,6 +351,7 @@ namespace Ftareqi.Application.Orchestrators
 				}
 
 				rideFound.Status = RideStatus.Cancelled;
+				rideFound.CancelledAt = DateTime.UtcNow;
 				rideFound.UpdatedAt = DateTime.UtcNow;
 				_unitOfWork.Rides.Update(rideFound);
 
@@ -439,6 +440,8 @@ namespace Ftareqi.Application.Orchestrators
 			}
 
 			rideFound.Status = RideStatus.CheckedIn;
+			rideFound.CheckedInAt = DateTime.UtcNow;
+			rideFound.UpdatedAt = DateTime.UtcNow;
 			_unitOfWork.Rides.Update(rideFound);
 			await _unitOfWork.SaveChangesAsync();
 
@@ -517,6 +520,7 @@ namespace Ftareqi.Application.Orchestrators
 				return Result.Failure("ride cancelled automatically due to late appearance");
 			}
 			rideFound.Status= RideStatus.InProgress;
+			rideFound.StartedAt = DateTime.UtcNow;
 			rideFound.UpdatedAt= DateTime.UtcNow;
 			_unitOfWork.Rides.Update(rideFound);
 			await _unitOfWork.SaveChangesAsync();
@@ -547,6 +551,7 @@ namespace Ftareqi.Application.Orchestrators
 			if (!bookingIds.Any())
 			{
 				rideFound.Status = RideStatus.Completed;
+				rideFound.EndedAt = DateTime.UtcNow;
 				rideFound.UpdatedAt = DateTime.UtcNow;
 				_unitOfWork.Rides.Update(rideFound);
 				await _unitOfWork.SaveChangesAsync();
@@ -561,6 +566,7 @@ namespace Ftareqi.Application.Orchestrators
 			}
 
 			rideFound.Status = RideStatus.Completed;
+			rideFound.EndedAt = DateTime.UtcNow;
 			rideFound.UpdatedAt = DateTime.UtcNow;
 			_unitOfWork.Rides.Update(rideFound);
 			await _unitOfWork.SaveChangesAsync();

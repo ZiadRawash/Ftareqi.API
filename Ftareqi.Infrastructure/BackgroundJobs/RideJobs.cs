@@ -44,8 +44,9 @@ namespace Ftareqi.Infrastructure.BackgroundJobs
 			}
 
 			ride.Status = RideStatus.Cancelled;
+			ride.CancelledAt = DateTime.UtcNow;
 			_unitOfWork.Rides.Update(ride);
-
+			ride.UpdatedAt= DateTime.UtcNow;
 			//penalize driver
 			int failureCount = 0;
 			foreach (var booking in ride.RideBookings)

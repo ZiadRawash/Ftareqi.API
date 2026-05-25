@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 
 namespace Ftareqi.Application.DTOs.Rides
 {
-	public class CheckInRequestDto
+	public class LocationDto
 	{
-
 		[Required]
 		public double Latitude { get; set; }
 

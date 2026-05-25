@@ -1,9 +1,10 @@
+using FluentValidation;
+using Ftareqi.API.CustomedAttributes;
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.DTOs.Rides;
 using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Services;
-using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -207,7 +208,7 @@ namespace Ftareqi.API.Controllers
 		/// </summary>
 		[Authorize(Policy = "DriverOnly")]
 		[HttpPost("{rideId:int}/check-in")]
-		public async Task<ActionResult<ApiResponse>> CheckIn(int rideId, [FromBody] CheckInRequestDto model)
+		public async Task<ActionResult<ApiResponse>> CheckIn(int rideId, [FromBody] LocationDto model)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
@@ -216,7 +217,7 @@ namespace Ftareqi.API.Controllers
 			if (string.IsNullOrWhiteSpace(userId))
 				return Unauthorized(new ApiResponse { Success = false, Message = "Unauthorized" });
 
-			var result = await _rideOrchestrator.ArriveAtStartLocation(model, rideId);
+			var result = await _rideOrchestrator.ArriveAtStartLocation(model, rideId, userId);
 			if (result.IsFailure)
 			{
 				return BadRequest(new ApiResponse
@@ -240,7 +241,7 @@ namespace Ftareqi.API.Controllers
 		/// </summary>
 		[Authorize(Policy = "DriverOnly")]
 		[HttpPost("{rideId:int}/start")]
-		public async Task<ActionResult<ApiResponse>> StartRide(int rideId, [FromBody] StartRideDto model)
+		public async Task<ActionResult<ApiResponse>> StartRide(int rideId, [FromBody] LocationDto model)
 		{
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState.ToApiResponse());
@@ -249,7 +250,40 @@ namespace Ftareqi.API.Controllers
 			if (string.IsNullOrWhiteSpace(userId))
 				return Unauthorized(new ApiResponse { Success = false, Message = "Unauthorized" });
 
-			var result = await _rideOrchestrator.StartRide(model, rideId);
+			var result = await _rideOrchestrator.StartRide(model, rideId, userId);
+			if (result.IsFailure)
+			{
+				return BadRequest(new ApiResponse
+				{
+					Success = false,
+					Message = result.Message,
+					Errors = result.Errors
+				});
+			}
+
+			return Ok(new ApiResponse
+			{
+				Success = true,
+				Message = result.Message,
+				Errors = result.Errors
+			});
+		}
+
+		/// <summary>
+		/// Driver ends an in-progress ride and transfers payments.
+		/// </summary>
+		[Authorize(Policy = "DriverOnly")]
+		[HttpPost("{rideId:int}/end")]
+		public async Task<ActionResult<ApiResponse>> EndRide(int rideId, [FromBody] LocationDto model)
+		{
+			if (!ModelState.IsValid)
+				return BadRequest(ModelState.ToApiResponse());
+
+			var userId = User.GetUserId();
+			if (string.IsNullOrWhiteSpace(userId))
+				return Unauthorized(new ApiResponse { Success = false, Message = "Unauthorized" });
+
+			var result = await _rideOrchestrator.EndRide(model, rideId, userId);
 			if (result.IsFailure)
 			{
 				return BadRequest(new ApiResponse

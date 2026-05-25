@@ -46,8 +46,6 @@ namespace Ftareqi.Application.Orchestrators
 			_notificationOrchestrator = notificationOrchestrator;
 
 		}
-		// create rideBookingRequest
-		//1-validateMoney 2- validate the bookingParam against the ride 3- look money 3- create request 4-send notifications of looking money and the request for driver
 		public async Task<Result> CreateRideBookingRequest(CreateBookingRequestDto model, string userId)
 		{
 			var userFound = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -378,17 +376,26 @@ namespace Ftareqi.Application.Orchestrators
 				return Result.Failure("An internal error occurred.");
 			}
 		}
-		public async Task<Result> ArriveAtStartLocation(CheckInRequestDto model, int rideId)
+		public async Task<Result> ArriveAtStartLocation(LocationDto model, int rideId, string driverId)
 		{
 			_logger.LogInformation("Check-in attempt for ride {RideId} at location Latitude: {Latitude}, Longitude: {Longitude}",
 				rideId, model.Latitude, model.Longitude);
 
-			var rideFound = await _unitOfWork.Rides.FirstOrDefaultAsync(x => x.Id == rideId, x => x.RideBookings);
+			var rideFound = await _unitOfWork.Rides.FirstOrDefaultAsync(
+				x => x.Id == rideId,
+				x => x.RideBookings,
+				x => x.DriverProfile);
 
 			if (rideFound == null)
 			{
 				_logger.LogWarning("Check-in failed: Ride {RideId} not found", rideId);
 				return Result.Failure("Invalid ride id");
+			}
+
+			if (rideFound.DriverProfile == null || rideFound.DriverProfile.UserId != driverId)
+			{
+				_logger.LogWarning("Check-in failed for ride {RideId}: Driver mismatch", rideId);
+				return Result.Failure("Unauthorized");
 			}
 
 			if (rideFound.Status != RideStatus.Scheduled)
@@ -457,13 +464,21 @@ namespace Ftareqi.Application.Orchestrators
 
 			return Result.Success(successMessage);
 		}
-		public async Task<Result> StartRide(StartRideDto model, int rideId) {
-			var rideFound = await _unitOfWork.Rides.FirstOrDefaultAsync(x => x.Id == rideId, x => x.RideBookings);
+		public async Task<Result> StartRide(LocationDto model, int rideId, string driverId) {
+			var rideFound = await _unitOfWork.Rides.FirstOrDefaultAsync(
+				x => x.Id == rideId,
+				x => x.RideBookings,
+				x => x.DriverProfile);
 
 			if (rideFound == null)
 			{
 				_logger.LogWarning("Check-in failed: Ride {RideId} not found", rideId);
 				return Result.Failure("Invalid ride id");
+			}
+			if (rideFound.DriverProfile == null || rideFound.DriverProfile.UserId != driverId)
+			{
+				_logger.LogWarning("Starting ride failed for ride {RideId}: Driver mismatch", rideId);
+				return Result.Failure("Unauthorized");
 			}
 			if (rideFound.Status == RideStatus.Cancelled)
 			{
@@ -508,6 +523,66 @@ namespace Ftareqi.Application.Orchestrators
 			var ids = rideFound.RideBookings.Select(x => x.UserId).ToList();
 			await RideStartedNotification(rideFound.Id, ids);
 			return Result.Success("ride started Successfully");
+		}
+		public async Task<Result> EndRide(LocationDto model, int rideId, string driverId)
+		{
+			var rideFound = await _unitOfWork.Rides.FirstOrDefaultAsync(
+				x => x.Id == rideId && x.Status==RideStatus.InProgress,
+				x => x.RideBookings,
+				x => x.DriverProfile);
+			if (rideFound == null)
+				return Result.Failure("Invalid rideId");
+
+			if (rideFound.DriverProfile == null)
+				return Result.Failure("Driver profile not found for this ride");
+
+			if (rideFound.DriverProfile.UserId != driverId)
+				return Result.Failure("Unauthorized");
+
+			var bookingIds = rideFound.RideBookings
+				.Where(b => !b.IsDeleted && b.Status != BookingStatus.Accepted)
+				.Select(b => b.Id)
+				.ToList();
+
+			if (!bookingIds.Any())
+			{
+				rideFound.Status = RideStatus.Completed;
+				rideFound.UpdatedAt = DateTime.UtcNow;
+				_unitOfWork.Rides.Update(rideFound);
+				await _unitOfWork.SaveChangesAsync();
+				return Result.Success("Ride ended with no transfers");
+			}
+
+			var transferResult = await _walletService.TransferMoneyBatch(rideFound.DriverProfile.UserId, bookingIds);
+			if (transferResult.IsFailure)
+			{
+				_logger.LogError("EndRide: batch transfer failed for ride {RideId}. Error: {Error}", rideId, transferResult.Message);
+				return Result.Failure("Failed to transfer payments for ride");
+			}
+
+			rideFound.Status = RideStatus.Completed;
+			rideFound.UpdatedAt = DateTime.UtcNow;
+			_unitOfWork.Rides.Update(rideFound);
+			await _unitOfWork.SaveChangesAsync();
+
+			// notify driver and riders that ride ended
+			var passengerIds = rideFound.RideBookings.Select(b => b.UserId).ToList();
+			await MoneyTransferredToDriver(rideFound.Id, rideFound.DriverProfile.UserId);
+
+			return Result.Success("Ride ended and payments transferred successfully");
+		}
+
+		private async Task MoneyTransferredToDriver(int rideId,string DriverId )
+		{
+			try
+			{
+				var metadata = new NotificationMetadata { Preview = "your ride earnings have been successfully deposited into your wallet" };
+				await _notificationOrchestrator.NotifyAsync(new NotificationInput(DriverId, NotificationCategory.Wallet, NotificationEventCode.AmountTransferred, rideId.ToString(), metadata));
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Error sending ride ended notifications for ride {RideId}", rideId);
+			}
 		}
 		private async Task SendRideCancellationNotifications(IEnumerable<(string UserId, int BookingId)> cancellations)
 		{

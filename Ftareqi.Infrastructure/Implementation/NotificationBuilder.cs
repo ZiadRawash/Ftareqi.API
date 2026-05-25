@@ -109,6 +109,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				NotificationEventCode.DriveCheckedIn => "Driver Checked In",
 				NotificationEventCode.RideStarted => "Ride Started",
 				NotificationEventCode.RideCancelled => "Ride Cancelled",
+				NotificationEventCode.AmountTransferred => "Amount Transferred ",
 
 				_ => "Notification"
 			};

@@ -22,6 +22,7 @@ namespace Ftareqi.Domain.Enums
 		WalletWithdrawn = 201,
 		AmountReserved = 203,
 		AmountReleased = 204,
+		AmountTransferred= 205,
 
 		//DriverRegistration
 		Approved = 301,

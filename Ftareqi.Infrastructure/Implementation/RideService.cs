@@ -96,13 +96,12 @@ namespace Ftareqi.Infrastructure.Implementation
 					return Result<PaginatedResponse<DriverPastRidesResponse>>.Failure("No driver profile is found");
 				}
 
-				var now = DateTime.UtcNow;
 				var (rides, count) = await _unitOfWork.Rides.GetPagedAsync(
 					request.Page,
 					request.PageSize,
 					x => x.CreatedAt,
 					x => x.DriverProfileId == profileFound.Id &&
-						 (x.DepartureTime <= now || x.Status == RideStatus.Completed || x.Status == RideStatus.Cancelled),
+						 (x.Status == RideStatus.Completed || x.Status == RideStatus.Cancelled),
 					true);
 
 				_logger.LogInformation("Successfully retrieved {Count} total past rides ({CurrentBatchCount} in current page) for Driver {ProfileId}.",
@@ -165,15 +164,12 @@ namespace Ftareqi.Infrastructure.Implementation
 					return Result<PaginatedResponse<DriverUpcomingRidesResponse>>.Failure("No driver profile is found");
 				}
 
-				var now = DateTime.UtcNow;
-
 				var (rides, count) = await _unitOfWork.Rides.GetPagedAsync(
 					request.Page,
 					request.PageSize,
 					x => x.CreatedAt,
 					x => x.DriverProfileId == profileFound.Id &&
-						 x.DepartureTime > now &&
-						 x.Status == RideStatus.Scheduled,
+						 (x.Status == RideStatus.Scheduled || x.Status == RideStatus.CheckedIn || x.Status == RideStatus.InProgress),
 					true,
 					x => x.RidePreferences);
 				_logger.LogInformation("Successfully retrieved {Count} total upcoming rides ({CurrentBatchCount} in current page) for driver {ProfileId}.",

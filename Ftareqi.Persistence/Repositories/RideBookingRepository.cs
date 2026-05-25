@@ -26,11 +26,11 @@ namespace Ftareqi.Persistence.Repositories
 		}
 
 		public async Task<(IReadOnlyList<UserTripRequestResponseDto> Items, int TotalCount)> GetUserUpcomingTripRequestsAsync(
-			GetUpcomingTripsRequestsDto request, string userId, BookingStatus? statusFilter, DateTime now)
+			GetUpcomingTripsRequestsDto request, string userId, BookingStatus? statusFilter)
 		{
 			var query = BaseQuery().Where(x =>
 				x.UserId == userId &&
-				x.Ride.DepartureTime >= now &&
+				(x.Ride.Status==RideStatus.Scheduled || x.Ride.Status == RideStatus.InProgress|| x.Ride.Status == RideStatus.CheckedIn) &&
 				(x.Status == BookingStatus.Pending || x.Status == BookingStatus.Accepted) &&
 				(!statusFilter.HasValue || x.Status == statusFilter.Value));
 
@@ -38,12 +38,12 @@ namespace Ftareqi.Persistence.Repositories
 		}
 
 		public async Task<(IReadOnlyList<UserTripRequestResponseDto> Items, int TotalCount)> GetUserPastTripRequestsAsync(
-			GenericQueryReq request, string userId, DateTime now)
+			GenericQueryReq request, string userId)
 		{
 			var query = BaseQuery().Where(x =>
 				x.UserId == userId &&
-				x.Ride.DepartureTime < now &&
-				(x.Status == BookingStatus.Accepted || x.Status == BookingStatus.CancelledByDriver));
+				(x.Ride.Status == RideStatus.Cancelled || x.Ride.Status == RideStatus.Completed ) &&
+				(x.Status == BookingStatus.Accepted || x.Status == BookingStatus.CancelledByDriver ) );
 
 			return await ToPagedResult(query, request);
 		}

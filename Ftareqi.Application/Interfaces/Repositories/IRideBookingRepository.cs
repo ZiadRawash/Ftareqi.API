@@ -12,12 +12,10 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		Task<(IReadOnlyList<UserTripRequestResponseDto> Items, int TotalCount)> GetUserUpcomingTripRequestsAsync(
 			GetUpcomingTripsRequestsDto request,
 			string userId,
-			BookingStatus? statusFilter,
-			DateTime now);
+			BookingStatus? statusFilter);
 
 		Task<(IReadOnlyList<UserTripRequestResponseDto> Items, int TotalCount)> GetUserPastTripRequestsAsync(
 			GenericQueryReq request,
-			string userId,
-			DateTime now);
+			string userId);
 	}
 }

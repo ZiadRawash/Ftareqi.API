@@ -215,12 +215,10 @@ namespace Ftareqi.Infrastructure.Implementation
 			try
 			{
 				var statusFilter = MapUpcomingQueryStatus(request.FilterBy);
-				var now = DateTime.UtcNow;
 				var (items, totalCount) = await _unitOfWork.RideBookings.GetUserUpcomingTripRequestsAsync(
 					request,
 					userId,
-					statusFilter,
-					now);
+					statusFilter);
 				var response = BuildPaginatedResponse(items.ToList(), request.Page, request.PageSize, totalCount);
 
 				return Result<PaginatedResponse<UserTripRequestResponseDto>>.Success(response);
@@ -241,11 +239,9 @@ namespace Ftareqi.Infrastructure.Implementation
 			}
 			try
 			{
-				var now = DateTime.UtcNow;
 				var (items, totalCount) = await _unitOfWork.RideBookings.GetUserPastTripRequestsAsync(
 					request,
-					userId,
-					now);
+					userId);
 				var response = BuildPaginatedResponse(items.ToList(), request.Page, request.PageSize, totalCount);
 
 				return Result<PaginatedResponse<UserTripRequestResponseDto>>.Success(response);

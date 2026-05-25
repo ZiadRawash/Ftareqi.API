@@ -70,7 +70,7 @@ namespace Ftareqi.API.Middlewares
 			{
 				await _next(context);
 
-				if (context.Response.StatusCode < 500)
+				if (context.Response.StatusCode < 300 && context.Response.StatusCode >=200)
 				{
 					memoryStream.Position = 0;
 					var responseBody = await new StreamReader(memoryStream).ReadToEndAsync();

@@ -44,6 +44,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 
 		// Helpers
 		Task<int> CountAsync(Expression<Func<T, bool>> predicate);
+		Task<int> CountDistinctAsync<TProperty>(Expression<Func<T, TProperty>> selector, Expression<Func<T, bool>>? predicate = null);
 		Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
 
 		// Update

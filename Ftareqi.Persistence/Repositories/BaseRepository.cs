@@ -35,6 +35,19 @@ namespace Ftareqi.Persistence.Repositories
 			return await _dbSet.CountAsync(predicate);
 		}
 
+		public async Task<int> CountDistinctAsync<TProperty>(Expression<Func<T, TProperty>> selector, Expression<Func<T, bool>>? predicate = null)
+		{
+			IQueryable<T> query = _dbSet;
+
+			if (predicate != null)
+			{
+				query = query.Where(predicate);
+			}
+
+			var projected = query.Select(selector).Distinct();
+			return await projected.CountAsync();
+		}
+
 		public void Delete(T entity)
 		{
 			_dbSet.Remove(entity);
@@ -76,6 +89,19 @@ namespace Ftareqi.Persistence.Repositories
 		public async Task<T?> FirstOrDefaultAsNoTrackingAsync(Expression<Func<T, bool>> predicate)
 		{
 			return await _context.Set<T>().AsNoTracking().FirstOrDefaultAsync(predicate);
+		}
+		public async Task<T?> FirstOrDefaultAsNoTrackingAsync(
+			Expression<Func<T, bool>> predicate,
+			params Expression<Func<T, object>>[] includes)
+		{
+			IQueryable<T> query = _dbSet.AsNoTracking();
+
+			foreach (var include in includes)
+			{
+				query = query.Include(include);
+			}
+
+			return await query.FirstOrDefaultAsync(predicate);
 		}
 
 		public async Task<IEnumerable<T>> FindAllAsNoTrackingAsync(

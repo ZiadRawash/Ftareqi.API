@@ -3,6 +3,8 @@ namespace Ftareqi.Application.QueryEnums
 	public enum UpcomingTripStatusQueryEnum
 	{
 		Pending,
-		Accepted
+		Accepted,
+		CheckedIn,
+		Started
 	}
 }

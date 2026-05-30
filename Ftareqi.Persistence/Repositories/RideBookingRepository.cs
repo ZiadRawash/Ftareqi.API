@@ -28,10 +28,17 @@ namespace Ftareqi.Persistence.Repositories
 		public async Task<(IReadOnlyList<UserTripRequestResponseDto> Items, int TotalCount)> GetUserUpcomingTripRequestsAsync(
 			GetUpcomingTripsRequestsDto request, string userId, BookingStatus? statusFilter)
 		{
+			// Upcoming trips now span the full in-progress booking lifecycle, not just Pending/Accepted.
+			// This keeps check-in/start progress visible after bookings move to CheckedIn and Started.
 			var query = BaseQuery().Where(x =>
 				x.UserId == userId &&
 				(x.Ride.Status==RideStatus.Scheduled || x.Ride.Status == RideStatus.InProgress|| x.Ride.Status == RideStatus.CheckedIn) &&
-				(x.Status == BookingStatus.Pending || x.Status == BookingStatus.Accepted) &&
+				(
+					x.Status == BookingStatus.Pending ||
+					x.Status == BookingStatus.Accepted ||
+					x.Status == BookingStatus.CheckedIn ||
+					x.Status == BookingStatus.Started
+				) &&
 				(!statusFilter.HasValue || x.Status == statusFilter.Value));
 
 			return await ToPagedResult(query, request, includePreferences: true);
@@ -40,10 +47,16 @@ namespace Ftareqi.Persistence.Repositories
 		public async Task<(IReadOnlyList<UserTripRequestResponseDto> Items, int TotalCount)> GetUserPastTripRequestsAsync(
 			GenericQueryReq request, string userId)
 		{
+			// Past trips should include completed rides and driver-cancelled rides so they remain visible
+			// for user follow-up or reporting, and completed rides now end in BookingStatus.Ended.
 			var query = BaseQuery().Where(x =>
 				x.UserId == userId &&
-				(x.Ride.Status == RideStatus.Cancelled || x.Ride.Status == RideStatus.Completed ) &&
-				(x.Status == BookingStatus.Accepted || x.Status == BookingStatus.CancelledByDriver ) );
+				(x.Ride.Status == RideStatus.Cancelled || x.Ride.Status == RideStatus.Completed) &&
+				(
+					x.Status == BookingStatus.Ended ||
+					x.Status == BookingStatus.CancelledByDriver ||
+					x.Status == BookingStatus.CancelledByRider
+				));
 
 			return await ToPagedResult(query, request);
 		}

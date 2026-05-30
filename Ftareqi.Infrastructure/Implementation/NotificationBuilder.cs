@@ -106,7 +106,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				NotificationEventCode.bookingRequest => "New Ride Request",
 				NotificationEventCode.bookingCanceled => "Ride Canceled",
 				NotificationEventCode.ReviewAdded => "New Review",
-				NotificationEventCode.DriveCheckedIn => "Driver Checked In",
+				NotificationEventCode.DriverCheckedIn => "Driver Checked In",
 				NotificationEventCode.RideStarted => "Ride Started",
 				NotificationEventCode.RideCancelled => "Ride Cancelled",
 				NotificationEventCode.AmountTransferred => "Amount Transferred ",

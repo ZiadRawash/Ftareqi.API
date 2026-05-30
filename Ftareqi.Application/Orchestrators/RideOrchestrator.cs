@@ -440,6 +440,11 @@ namespace Ftareqi.Application.Orchestrators
 			}
 
 			rideFound.Status = RideStatus.CheckedIn;
+			foreach (var booking in rideFound.RideBookings.Where(b => !b.IsDeleted && b.Status == BookingStatus.Accepted))
+			{
+				booking.Status = BookingStatus.CheckedIn;
+				booking.UpdatedAt = DateTime.UtcNow;
+			}
 			rideFound.CheckedInAt = DateTime.UtcNow;
 			rideFound.UpdatedAt = DateTime.UtcNow;
 			_unitOfWork.Rides.Update(rideFound);
@@ -520,6 +525,11 @@ namespace Ftareqi.Application.Orchestrators
 				return Result.Failure("ride cancelled automatically due to late appearance");
 			}
 			rideFound.Status= RideStatus.InProgress;
+			foreach (var booking in rideFound.RideBookings.Where(b => !b.IsDeleted && b.Status == BookingStatus.CheckedIn))
+			{
+				booking.Status = BookingStatus.Started;
+				booking.UpdatedAt = DateTime.UtcNow;
+			}
 			rideFound.StartedAt = DateTime.UtcNow;
 			rideFound.UpdatedAt= DateTime.UtcNow;
 			_unitOfWork.Rides.Update(rideFound);
@@ -544,7 +554,7 @@ namespace Ftareqi.Application.Orchestrators
 				return Result.Failure("Unauthorized");
 
 			var bookingIds = rideFound.RideBookings
-				.Where(b => !b.IsDeleted && b.Status != BookingStatus.Accepted)
+				.Where(b => !b.IsDeleted && b.Status == BookingStatus.Started)
 				.Select(b => b.Id)
 				.ToList();
 
@@ -563,6 +573,12 @@ namespace Ftareqi.Application.Orchestrators
 			{
 				_logger.LogError("EndRide: batch transfer failed for ride {RideId}. Error: {Error}", rideId, transferResult.Message);
 				return Result.Failure("Failed to transfer payments for ride");
+			}
+
+			foreach (var booking in rideFound.RideBookings.Where(b => !b.IsDeleted && b.Status == BookingStatus.Started))
+			{
+				booking.Status = BookingStatus.Ended;
+				booking.UpdatedAt = DateTime.UtcNow;
 			}
 
 			rideFound.Status = RideStatus.Completed;
@@ -708,6 +724,9 @@ namespace Ftareqi.Application.Orchestrators
 		{
 			try
 			{
+				_logger.LogInformation("Attempting to send check-in notification for ride {RideId} to User IDs: [{UserIds}]",
+					rideId, string.Join(", ", ids));
+
 				var metadata = new NotificationMetadata
 				{
 					Preview = "driver has arrived at the starting point"
@@ -717,17 +736,22 @@ namespace Ftareqi.Application.Orchestrators
 					_notificationOrchestrator.NotifyAsync(new NotificationInput(
 						userId,
 						NotificationCategory.Ride,
-						NotificationEventCode.DriveCheckedIn,
+						NotificationEventCode.DriverCheckedIn, 
 						rideId.ToString(),
 						metadata))
 				).ToList();
 
 				await Task.WhenAll(notificationTasks);
+
+				_logger.LogInformation("Successfully sent check-in notifications for ride {RideId} to User IDs: [{UserIds}]",
+					rideId, string.Join(", ", ids));
+
 				return Result.Success("Notifications sent");
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error sending check-in notification for ride {RideId}", rideId);
+				_logger.LogError(ex, "Error sending check-in notification for ride {RideId} to User IDs: [{UserIds}]",
+					rideId, string.Join(", ", ids));
 				return Result.Failure("Failed to send notifications");
 			}
 		}

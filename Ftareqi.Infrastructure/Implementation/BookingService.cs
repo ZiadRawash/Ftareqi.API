@@ -491,6 +491,8 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				UpcomingTripStatusQueryEnum.Pending => BookingStatus.Pending,
 				UpcomingTripStatusQueryEnum.Accepted => BookingStatus.Accepted,
+				UpcomingTripStatusQueryEnum.CheckedIn => BookingStatus.CheckedIn,
+				UpcomingTripStatusQueryEnum.Started => BookingStatus.Started,
 				_ => null
 			};
 		}

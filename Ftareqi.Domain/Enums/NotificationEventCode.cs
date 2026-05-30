@@ -12,7 +12,7 @@ namespace Ftareqi.Domain.Enums
 		bookingAccepted= 102,
 		bookingDeclined = 103,
 		bookingCanceled = 104,
-		DriveCheckedIn =105,
+		DriverCheckedIn =105,
 		RideStarted = 106,
 		RideCancelled=107,
 

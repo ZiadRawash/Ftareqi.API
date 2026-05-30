@@ -12,6 +12,9 @@ namespace Ftareqi.Domain.Enums
 		CancelledByRider,
 		CancelledByDriver,
 		Accepted,
-		Expired
+		Expired,
+		CheckedIn,
+		Started, 
+		Ended,
 	}
 }

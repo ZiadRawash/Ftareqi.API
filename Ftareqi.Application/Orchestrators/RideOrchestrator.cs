@@ -724,34 +724,42 @@ namespace Ftareqi.Application.Orchestrators
 		{
 			try
 			{
-				_logger.LogInformation("Attempting to send check-in notification for ride {RideId} to User IDs: [{UserIds}]",
-					rideId, string.Join(", ", ids));
+				_logger.LogInformation(
+					"Attempting to send check-in notification for ride {RideId} to User IDs: [{UserIds}]",
+					rideId,
+					string.Join(", ", ids));
 
 				var metadata = new NotificationMetadata
 				{
 					Preview = "driver has arrived at the starting point"
 				};
 
-				var notificationTasks = ids.Select(userId =>
-					_notificationOrchestrator.NotifyAsync(new NotificationInput(
-						userId,
-						NotificationCategory.Ride,
-						NotificationEventCode.DriverCheckedIn, 
-						rideId.ToString(),
-						metadata))
-				).ToList();
+				foreach (var userId in ids)
+				{
+					await _notificationOrchestrator.NotifyAsync(
+						new NotificationInput(
+							userId,
+							NotificationCategory.Ride,
+							NotificationEventCode.DriverCheckedIn,
+							rideId.ToString(),
+							metadata));
+				}
 
-				await Task.WhenAll(notificationTasks);
-
-				_logger.LogInformation("Successfully sent check-in notifications for ride {RideId} to User IDs: [{UserIds}]",
-					rideId, string.Join(", ", ids));
+				_logger.LogInformation(
+					"Successfully sent check-in notifications for ride {RideId} to User IDs: [{UserIds}]",
+					rideId,
+					string.Join(", ", ids));
 
 				return Result.Success("Notifications sent");
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error sending check-in notification for ride {RideId} to User IDs: [{UserIds}]",
-					rideId, string.Join(", ", ids));
+				_logger.LogError(
+					ex,
+					"Error sending check-in notification for ride {RideId} to User IDs: [{UserIds}]",
+					rideId,
+					string.Join(", ", ids));
+
 				return Result.Failure("Failed to send notifications");
 			}
 		}
@@ -764,20 +772,22 @@ namespace Ftareqi.Application.Orchestrators
 					Preview = "driver has started the ride"
 				};
 
-				var notificationTasks = ids.Select(userId =>
-					_notificationOrchestrator.NotifyAsync(new NotificationInput(
-						userId,
-						NotificationCategory.Ride,
-						NotificationEventCode.RideStarted,
-						rideId.ToString(),
-						metadata))
-				).ToList();
-
-				await Task.WhenAll(notificationTasks);
+				foreach (var userId in ids)
+				{
+					await _notificationOrchestrator.NotifyAsync(
+						new NotificationInput(
+							userId,
+							NotificationCategory.Ride,
+							NotificationEventCode.RideStarted,
+							rideId.ToString(),
+							metadata));
+				}
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
-				_logger.LogWarning("error happened with sending RideStartedNotifications ");
+				_logger.LogWarning(ex,
+					"Error happened while sending RideStartedNotifications");
+
 				throw;
 			}
 		}

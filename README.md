@@ -15,9 +15,9 @@ Ftareqi handles secure authentication, driver onboarding and moderation, wallet 
 - [Architecture](#architecture)
 - [Technology Stack](#technology-stack)
 - [API Endpoint Groups](#api-endpoint-groups)
-- [Configuration](#configuration)
 - [Runtime Notes](#runtime-notes)
 - [Observability](#observability)
+- [Configuration](#configuration)
 - [How to Run](#how-to-run)
 - [Contributing](#contributing)
 - [Contact](#contact)
@@ -31,16 +31,19 @@ Ftareqi handles secure authentication, driver onboarding and moderation, wallet 
 - **User Profiles** — Profile management with image upload/update
 - **Driver Onboarding** — Driver profile, car registration, and document image upload
 - **Moderation Workflow** — Approve or reject driver requests
-- **Ride Management** — Create, search, and cancel rides
+- **Ride Management** — Create, search, cancel, and full lifecycle (check-in, start, end)
+- **Live Tracking** — Real-time driver location broadcasts via SignalR (`/LiveTrackingHub`)
 - **Booking Lifecycle** — Request, accept/decline, cancel, and history
 - **Reviews & Reputation** — Ride reviews with driver rating aggregation
-- **Wallet & Payments** — Paymob card and mobile-wallet top-ups
+- **Wallet & Payments** — Paymob card and mobile-wallet top-ups with CSV export
+- **Reports** — Submit, view, and moderate user reports
 - **Notifications** — Real-time via SignalR, push via FCM, with read/unread management
 - **Background Jobs** — Driver expiry and booking expiry handlers via Hangfire
 - **Admin Operations** — Paginated user management with role assignment and removal
-- **Rate Limiting** — Redis-backed token-bucket per user ID or client IP
+- **Rate Limiting** — Redis-backed token-bucket middleware per user ID or client IP
+- **Idempotency** — Middleware to prevent duplicate request processing
 - **Distributed Caching** — Redis-backed distributed caching service
-- **Structured Logging** — Serilog + Seq
+- **Observability** — Prometheus metrics, OpenTelemetry/Jaeger tracing, and Serilog + Seq logging
 
 ---
 
@@ -70,20 +73,55 @@ Ftareqi handles secure authentication, driver onboarding and moderation, wallet 
 - Create driver profile with license info and document images
 - Add car details with documents and license expiry
 - Update profiles with re-submission for review
-- Driver status workflow: Pending -> Active / Rejected / Expired
+- Driver status workflow: Pending → Active / Rejected / Expired
 - Moderator approval and rejection with notifications
 - Automatic driver claim assignment on approval
 - Scheduled license expiry checks and deactivation
 - Event notifications for registration status changes
 
+### Rides
+
+- Create rides (driver-only)
+- Search available rides with geospatial filtering
+- View upcoming and past rides per driver
+- Cancel a ride before it starts
+- Driver check-in at the pickup location to begin the trip
+- Driver start and end ride with automatic payment transfers on completion
+- Scheduled pending-booking expiration with automatic wallet release
+
+### Bookings
+
+- Request a seat on an available ride
+- View booking details, upcoming trips, and full history
+- Driver accept or decline incoming booking requests
+- Cancel a booking with appropriate wallet lock/release transitions
+- Scheduled auto-expiry of unanswered booking requests
+
+### Reviews & Reputation
+
+- Submit a review after a completed ride
+- Update or delete your own review
+- View all reviews for a driver or a specific ride
+- Get a review linked to a specific booking
+- Driver ratings are aggregated automatically on review actions
+
 ### Wallet & Payments
 
 - Wallet balance tracking and management
 - Transaction history with pagination and filtering
+- Export wallet transactions as a CSV file
 - Top-up via mobile wallet and card payments (Paymob integration)
 - Payment callback processing with signature verification
 - Transaction status tracking (pending, success, failed)
 - Booking workflow integration with wallet amount lock/release transitions
+
+### Reports
+
+- Submit a report against another user
+- View report details (accessible to moderators or involved parties)
+- Paginated report list and summary dashboard for moderators
+- View all reports for a specific reported user
+- Update report status (Admin/Moderator)
 
 ### Notifications
 
@@ -149,6 +187,8 @@ Ftareqi.sln
 | Payments | Paymob |
 | Geospatial Support | EF Core NetTopologySuite |
 | Logging | Serilog + Seq |
+| Metrics | Prometheus (`prometheus-net`) |
+| Tracing | OpenTelemetry (OTLP) + Jaeger |
 | API Docs | Swagger / OpenAPI |
 | Containerization | Docker + Docker Compose |
 
@@ -203,11 +243,14 @@ Ftareqi.sln
 
 | Method | Endpoint |
 |---|---|
-| POST | `/api/rides` (DriverOnly) |
+| POST | `/api/rides` |
 | GET | `/api/rides/search` |
 | GET | `/api/rides/driver/upcoming` |
 | GET | `/api/rides/driver/past` |
-| POST | `/api/rides/{rideId}/cancel` (DriverOnly) |
+| POST | `/api/rides/{rideId}/cancel` |
+| POST | `/api/rides/{rideId}/check-in` |
+| POST | `/api/rides/{rideId}/start` |
+| POST | `/api/rides/{rideId}/end` |
 </details>
 
 <details>
@@ -220,8 +263,8 @@ Ftareqi.sln
 | GET | `/api/ride-bookings/driver/requests` |
 | GET | `/api/ride-bookings/user/upcoming` |
 | GET | `/api/ride-bookings/user/history` |
-| POST | `/api/ride-bookings/{bookingId}/accept` (DriverOnly) |
-| POST | `/api/ride-bookings/{bookingId}/decline` (DriverOnly) |
+| POST | `/api/ride-bookings/{bookingId}/accept` |
+| POST | `/api/ride-bookings/{bookingId}/decline` |
 | POST | `/api/ride-bookings/{bookingId}/cancel` |
 </details>
 
@@ -245,9 +288,23 @@ Ftareqi.sln
 |---|---|
 | GET | `/api/wallet` |
 | GET | `/api/wallet/transactions` |
+| GET | `/api/wallet/transactions/export` |
 | POST | `/api/wallet/top-up/mobile-wallet` |
 | POST | `/api/wallet/top-up/card` |
 | POST | `/api/wallet/callback` |
+</details>
+
+<details>
+<summary><strong>Reports</strong> — <code>/api/reports</code></summary>
+
+| Method | Endpoint |
+|---|---|
+| POST | `/api/reports` |
+| GET | `/api/reports/{reportId}` |
+| GET | `/api/reports/moderation/reports` |
+| GET | `/api/reports/moderation/reports/summary` |
+| GET | `/api/reports/moderation/reported-user/{reportedUserId}` |
+| PUT | `/api/reports/{reportId}/status` |
 </details>
 
 <details>
@@ -289,6 +346,51 @@ Ftareqi.sln
 
 ---
 
+## Runtime Notes
+
+### Rate Limiting
+
+- Redis-backed token-bucket middleware applies to all requests.
+- Authenticated users are throttled by **user ID**; unauthenticated by **client IP**.
+- Default buckets are configured separately for authenticated and unauthenticated traffic.
+- Exceeded limits return `HTTP 429` with a `Retry-After` header.
+
+### Idempotency
+
+- Custom middleware intercepts requests carrying an `Idempotency-Key` header.
+- Responses for already-processed keys are served from Redis cache, preventing duplicate side-effects on retries.
+- Particularly relevant for payment top-up and booking creation endpoints.
+
+### SignalR Hubs
+
+- **Notification hub** path: `/notificationHub` — requires authentication; accepts JWT via `access_token` query string for WebSocket upgrade scenarios.
+- **Live-tracking hub** path: `/LiveTrackingHub` — driver location broadcasts; use `rideId` query parameter to join `trip_{rideId}` groups.
+
+### Background Jobs (Hangfire)
+
+| Job | Schedule |
+|---|---|
+| `deactivate-expired-drivers` | Daily |
+
+### Request Pipeline Notes
+
+- Global exception handling via `GlobalErrorHandler` with standardized problem details responses.
+- Rate limiting middleware applied before routing — Redis-backed, per user ID or IP.
+- Idempotency middleware intercepts mutating requests with an `Idempotency-Key` header.
+- CORS uses `FlexiblePolicy` to allow credentials with dynamic origins.
+- Serilog request logging middleware enabled for request/response diagnostics.
+
+---
+
+## Observability
+
+- Structured logging with **Serilog**
+- Centralized log aggregation via **Seq** (`http://localhost:5300`)
+- Rolling file logs at `Ftareqi.API/Logs`
+- Hangfire dashboard at `/hangfire`
+- Prometheus metrics exposed at `/metrics` — Prometheus server available at port `9090` in Docker Compose
+- OpenTelemetry tracing (OTLP) — Jaeger compatible; collector at `http://jaeger:4317`, UI at `http://localhost:16686` in Docker Compose
+
 ## Configuration
 
 Configure via `appsettings.*`, environment variables, or user secrets.
@@ -300,6 +402,9 @@ Configure via `appsettings.*`, environment variables, or user secrets.
 ConnectionStrings__DefaultConnection
 ConnectionStrings__HangfireConnection
 ConnectionStrings__RedisConnection
+
+OTEL_EXPORTER_OTLP_ENDPOINT
+SEQ_PASSWORD
 
 JWTSettings__SignInKey
 JWTSettings__Audience
@@ -333,44 +438,14 @@ FirebaseSettings__ClientX509CertUrl
 ```
 </details>
 
----
+## Infrastructure Services (Docker Compose)
 
-## Runtime Notes
-
-### Rate Limiting
-
-- Redis-backed token-bucket middleware applies to all requests.
-- Authenticated users are throttled by **user ID**; unauthenticated by **client IP**.
-- Default buckets are configured separately for authenticated and unauthenticated traffic.
-- Exceeded limits return `HTTP 429` with a `Retry-After` header.
-
-### SignalR Notifications
-
-- Hub path: `/notificationHub`
-- Requires authentication.
-- Accepts JWT via `access_token` query string for WebSocket upgrade scenarios.
-
-### Background Jobs (Hangfire)
-
-| Job | Schedule |
-|---|---|
-| `deactivate-expired-drivers` | Daily |
-| `expire-pending-bookings` | Every 2 minutes |
-
-### Request Pipeline Notes
-
-- Global exception handling is enabled through `GlobalErrorHandler` with standardized problem details responses.
-- CORS uses `FlexiblePolicy` to allow credentials with dynamic origins.
-- Serilog request logging middleware is enabled for request/response diagnostics.
-
----
-
-## Observability
-
-- Structured logging with **Serilog**
-- Centralized log aggregation via **Seq** (`http://localhost:5300`)
-- Rolling file logs at `Ftareqi.API/Logs`
-- Hangfire dashboard at `/hangfire`
+- **sqlserver** — SQL Server 2022 (database), port `1433`
+- **redis** — Redis (cache, rate-limiting, idempotency, distributed cache), port `6379`
+- **ftareqi.api** — API container, port `5342` (container listens on `8080`)
+- **seq** — Seq (log aggregation), port `5300` (container port `80`)
+- **prometheus** — Prometheus (metrics), port `9090`
+- **jaeger** — Jaeger all-in-one (tracing & collector), UI `16686`, OTLP `4317`
 
 ---
 
@@ -420,6 +495,8 @@ FIREBASE_AUTH_URI=your-auth-uri
 FIREBASE_TOKEN_URI=your-token-uri
 FIREBASE_AUTH_PROVIDER_X509_CERT_URL=your-auth-provider-cert-url
 FIREBASE_CLIENT_X509_CERT_URL=your-client-cert-url
+SEQ_PASSWORD=your-seq-password
+OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
 ```
 
 **2. Build and start containers:**
@@ -435,6 +512,8 @@ docker compose up -d --build
 | Swagger | [http://localhost:5342/swagger](http://localhost:5342/swagger) |
 | Hangfire Dashboard | [http://localhost:5342/hangfire](http://localhost:5342/hangfire) |
 | Seq | [http://localhost:5300](http://localhost:5300) |
+| Prometheus | [http://localhost:9090](http://localhost:9090) |
+| Jaeger UI | [http://localhost:16686](http://localhost:16686) |
 
 ---
 

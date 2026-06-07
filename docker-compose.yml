@@ -14,6 +14,12 @@ services:
     restart: unless-stopped
     networks:
       - ftareqi-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"${DB_PASSWORD}\" -Q 'SELECT 1' -No"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   redis:
     image: redis:latest
@@ -32,8 +38,8 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;
-      - ConnectionStrings__HangfireConnection=Server=sqlserver;Database=${HANGFIRE_DB_NAME};User Id=${HANGFIRE_DB_USER};Password=${HANGFIRE_DB_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=${DB_NAME};User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;
+      - ConnectionStrings__HangfireConnection=Server=sqlserver;Database=${HANGFIRE_DB_NAME};User Id=sa;Password=${HANGFIRE_DB_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;
       - ConnectionStrings__RedisConnection=${REDIS_CONNECTION}
       - JWTSettings__SignInKey=${JWT_SIGNIN_KEY}
       - JWTSettings__Audience=${JWT_AUDIENCE}
@@ -57,13 +63,20 @@ services:
       - FirebaseSettings__TokenUri=${FIREBASE_TOKEN_URI}
       - FirebaseSettings__AuthProviderX509CertUrl=${FIREBASE_AUTH_PROVIDER_X509_CERT_URL}
       - FirebaseSettings__ClientX509CertUrl=${FIREBASE_CLIENT_X509_CERT_URL}
-      - Serilog__WriteTo__3__Args__serverUrl=http://seq:80
+      - Serilog__WriteTo__2__Args__configure__0__Args__serverUrl=http://seq:80
+      - TwilioSettings__AccountSID=${TWILIO_ACCOUNT_SID}
+      - TwilioSettings__AuthToken=${TWILIO_AuthToken}
+      - TwilioSettings__PhoneNumber=${TWILIO_PHONE_NUMBER}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
     ports:
       - "5342:8080"
     depends_on:
-      - sqlserver
-      - seq
-      - redis
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      seq:
+        condition: service_started
     networks:
       - ftareqi-network
     restart: on-failure
@@ -92,6 +105,7 @@ services:
     restart: unless-stopped
     networks:
       - ftareqi-network
+
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: Jaeger-Container
@@ -100,6 +114,7 @@ services:
       - "4317:4317"
     networks:
       - ftareqi-network
+
 volumes:
   sqlserverdata:
   seq-data:

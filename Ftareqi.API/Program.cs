@@ -30,6 +30,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient; 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -49,390 +50,446 @@ using static TokenBucketMiddleware;
 
 namespace Ftareqi.API
 {
-	public class Program
-	{
-		public static void Main(string[] args)
-		{
-			var builder = WebApplication.CreateBuilder(args);
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
 
-			// ---------------------
-			// Logging (Serilog)
-			// ---------------------
-			builder.Host.UseSerilog((context, services, configuration) =>
-				configuration.ReadFrom.Configuration(context.Configuration)
-							 .ReadFrom.Services(services));
+            // ---------------------
+            // Logging (Serilog)
+            // ---------------------
+            builder.Host.UseSerilog((context, services, configuration) =>
+                configuration.ReadFrom.Configuration(context.Configuration)
+                             .ReadFrom.Services(services));
 
-			// ---------------------
-			//Controllers 
-			// ---------------------
-			builder.Services.AddControllers()
-				.AddNewtonsoftJson(options =>
-				{
-					options.SerializerSettings.TypeNameHandling = TypeNameHandling.Auto;
-					options.SerializerSettings.MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead;
-					options.SerializerSettings.Converters.Add(new StringEnumConverter());
-					options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
-					options.SerializerSettings.NullValueHandling = NullValueHandling.Include;
-				});
+            // ---------------------
+            // Controllers
+            // ---------------------
+            builder.Services.AddControllers()
+                .AddNewtonsoftJson(options =>
+                {
+                    options.SerializerSettings.TypeNameHandling = TypeNameHandling.Auto;
+                    options.SerializerSettings.MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead;
+                    options.SerializerSettings.Converters.Add(new StringEnumConverter());
+                    options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+                    options.SerializerSettings.NullValueHandling = NullValueHandling.Include;
+                });
 
-			builder.Services.Configure<ApiBehaviorOptions>(o =>
-			{
-				o.SuppressModelStateInvalidFilter = true;
-			});
+            builder.Services.Configure<ApiBehaviorOptions>(o =>
+            {
+                o.SuppressModelStateInvalidFilter = true;
+            });
 
-			// ---------------------
-			// SignalR Configuration 
-			// ---------------------
-			builder.Services.AddSignalR(options =>
-			{
-				options.HandshakeTimeout = TimeSpan.FromSeconds(15);
-				options.KeepAliveInterval = TimeSpan.FromSeconds(30);
-			})
-			.AddNewtonsoftJsonProtocol(options =>
-			{
-				options.PayloadSerializerSettings.TypeNameHandling = TypeNameHandling.Auto;
-				options.PayloadSerializerSettings.MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead;
-				options.PayloadSerializerSettings.Converters.Add(new StringEnumConverter());
-				options.PayloadSerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
-				options.PayloadSerializerSettings.NullValueHandling = NullValueHandling.Ignore;
-			});
+            // ---------------------
+            // SignalR Configuration
+            // ---------------------
+            builder.Services.AddSignalR(options =>
+            {
+                options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+                options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+            })
+            .AddNewtonsoftJsonProtocol(options =>
+            {
+                options.PayloadSerializerSettings.TypeNameHandling = TypeNameHandling.Auto;
+                options.PayloadSerializerSettings.MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead;
+                options.PayloadSerializerSettings.Converters.Add(new StringEnumConverter());
+                options.PayloadSerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+                options.PayloadSerializerSettings.NullValueHandling = NullValueHandling.Ignore;
+            });
 
-			// ---------------------
-			// Settings & Configuration
-			// ---------------------
-			builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
-			builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
-			builder.Services.Configure<PaymobSettings>(builder.Configuration.GetSection("PaymobSettings"));
-			builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("TwilioSettings"));
-			builder.Services.AddSingleton<ITwilioRestClient>(sp =>
-			{
-				var twilioOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TwilioSettings>>().Value;
+            // ---------------------
+            // Settings & Configuration
+            // ---------------------
+            builder.Services.Configure<JWTSettings>(builder.Configuration.GetSection("JWTSettings"));
+            builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+            builder.Services.Configure<PaymobSettings>(builder.Configuration.GetSection("PaymobSettings"));
+            builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("TwilioSettings"));
+            builder.Services.AddSingleton<ITwilioRestClient>(sp =>
+            {
+                var twilioOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TwilioSettings>>().Value;
 
-				if (string.IsNullOrWhiteSpace(twilioOptions.AccountSID) || string.IsNullOrWhiteSpace(twilioOptions.AuthToken))
-				{
-					throw new InvalidOperationException("TwilioSettings must include AccountSID and AuthToken.");
-				}
+                if (string.IsNullOrWhiteSpace(twilioOptions.AccountSID) || string.IsNullOrWhiteSpace(twilioOptions.AuthToken))
+                {
+                    throw new InvalidOperationException("TwilioSettings must include AccountSID and AuthToken.");
+                }
 
-				return new TwilioRestClient(twilioOptions.AccountSID, twilioOptions.AuthToken);
-			});
-			
+                return new TwilioRestClient(twilioOptions.AccountSID, twilioOptions.AuthToken);
+            });
 
-			// In "Application Services" section:
-			builder.Services.AddScoped<IFcmService, FcmService>();
-			// ---------------------
-			// Database Context
-			// ---------------------
-			builder.Services.AddDbContext<ApplicationDbContext>(options =>
-				options.UseSqlServer(
-					builder.Configuration.GetConnectionString("DefaultConnection"),
-					x=>x.UseNetTopologySuite())
-				);
+            builder.Services.AddScoped<IFcmService, FcmService>();
 
-			// ---------------------
-			// Identity & Authentication
-			// ---------------------
-			builder.Services.AddIdentity<User, IdentityRole>(options =>
-			{
-				options.Password.RequireDigit = true;
-				options.Password.RequireLowercase = true;
-				options.Password.RequireUppercase = true;
-				options.Password.RequireNonAlphanumeric = true;
-				options.Password.RequiredLength = 8;
-				options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-				options.Lockout.MaxFailedAccessAttempts = 5;
-				options.Lockout.AllowedForNewUsers = true;
-			})
-			.AddEntityFrameworkStores<ApplicationDbContext>()
-			.AddDefaultTokenProviders();
+            // ---------------------
+            // Database Context
+            // ---------------------
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseSqlServer(
+                    builder.Configuration.GetConnectionString("DefaultConnection"),
+                    x => x.UseNetTopologySuite())
+                );
 
-			builder.Services.AddAuthentication(options =>
-			{
-				options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-				options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-			})
-			.AddJwtBearer(options =>
-			{
-				options.RequireHttpsMetadata = true;
-				options.SaveToken = true;
-				options.TokenValidationParameters = new TokenValidationParameters
-				{
-					ValidateIssuer = true,
-					ValidIssuer = builder.Configuration["JWTSettings:Issuer"],
-					ValidateAudience = true,
-					ValidAudience = builder.Configuration["JWTSettings:Audience"],
-					ValidateIssuerSigningKey = true,
-					IssuerSigningKey = new SymmetricSecurityKey(
-						Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:SignInKey"]!)
-					),
-					ValidateLifetime = true,
-					ClockSkew = TimeSpan.Zero
-				};
+            // ---------------------
+            // Identity & Authentication
+            // ---------------------
+            builder.Services.AddIdentity<User, IdentityRole>(options =>
+            {
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequiredLength = 8;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = true;
+            })
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
 
-				options.Events = new JwtBearerEvents
-				{
-					OnMessageReceived = context =>
-					{
-						var accessToken = context.Request.Query["access_token"];
-						if (!string.IsNullOrEmpty(accessToken) &&
-							(context.HttpContext.WebSockets.IsWebSocketRequest || context.Request.Headers["Connection"] == "Upgrade"))
-						{
-							context.Token = accessToken;
-						}
-						return Task.CompletedTask;
-					}
-				};
-			});
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.RequireHttpsMetadata = false;
+                options.SaveToken = true;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = builder.Configuration["JWTSettings:Issuer"],
+                    ValidateAudience = true,
+                    ValidAudience = builder.Configuration["JWTSettings:Audience"],
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:SignInKey"]!)
+                    ),
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                };
 
-			// ---------------------
-			// Background Jobs (Hangfire)
-			// ---------------------
-			builder.Services.AddHangfire(config =>
-			{
-				config.UseSqlServerStorage(builder.Configuration.GetConnectionString("HangfireConnection"));
-			});
-			builder.Services.AddHangfireServer();
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            (context.HttpContext.WebSockets.IsWebSocketRequest || context.Request.Headers["Connection"] == "Upgrade"))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
+                };
+            });
 
-			// ---------------------
-			// Validators, Exception Handling, CORS
-			// ---------------------
-			builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestDtoValidator>();
-			builder.Services.AddExceptionHandler<GlobalErrorHandler>();
-			builder.Services.AddProblemDetails();
+            // -----------------------------------------------------------------
+            // Automated Provisioning: hangfire
+            // -----------------------------------------------------------------
+            var hangfireConnString = builder.Configuration.GetConnectionString("HangfireConnection");
+            if (!string.IsNullOrWhiteSpace(hangfireConnString))
+            {
+                try
+                {
+                    var dbBuilder = new SqlConnectionStringBuilder(hangfireConnString);
+                    var dbName = dbBuilder.InitialCatalog;
 
-			builder.Services.AddCors(options =>
-			{
-				options.AddPolicy("FlexiblePolicy", policy =>
-				{
-					policy.SetIsOriginAllowed(_ => true)
-						  .AllowAnyHeader()
-						  .AllowAnyMethod()
-						  .AllowCredentials();
-				});
-			});
+                    dbBuilder.InitialCatalog = "master";
 
-			//
-			// Redis Service
-			//
-			var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection");
-			if (string.IsNullOrWhiteSpace(redisConnectionString))
-			{
-				throw new InvalidOperationException("RedisConnection is missing or empty.");
-			}
+                    using (var connection = new SqlConnection(dbBuilder.ConnectionString))
+                    {
+                        connection.Open();
+                        using (var command = connection.CreateCommand())
+                        {
+                            command.CommandText = $@"
+                                IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{dbName}')
+                                BEGIN
+                                    CREATE DATABASE [{dbName}];
+                                END";
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                    Console.WriteLine($"[Hangfire Setup]: Verified or created database '{dbName}' successfully.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Hangfire Setup Error]: Could not pre-create database. Reason: {ex.Message}");
+                }
+            }
 
-			builder.Services.AddStackExchangeRedisCache(options =>
-			{
-				options.Configuration = redisConnectionString;
-				options.InstanceName = "Ftareqi:";
-			});
-			builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
-			{
-				var options = ConfigurationOptions.Parse(redisConnectionString);
-				options.AbortOnConnectFail = false;
-				return ConnectionMultiplexer.Connect(options);
-			});
+            // ---------------------
+            // Background Jobs (Hangfire)
+            // ---------------------
+            builder.Services.AddHangfire(config =>
+            {
+                config.UseSqlServerStorage(builder.Configuration.GetConnectionString("HangfireConnection"),
+                    new SqlServerStorageOptions
+                    {
+                        PrepareSchemaIfNecessary = true,
+                        SchemaName = "HangFire",
+                    });
+            });
+            builder.Services.AddHangfireServer();
 
-			// Rate Limit Options
-			builder.Services.AddSingleton<AuthTokenBucketOptions>(new AuthTokenBucketOptions
-			{
-				Capacity = 20,             
-				RefillRatePerSecond = 5
-			});
+            // ---------------------
+            // Validators, Exception Handling, CORS
+            // ---------------------
+            builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestDtoValidator>();
+            builder.Services.AddExceptionHandler<GlobalErrorHandler>();
+            builder.Services.AddProblemDetails();
 
-			builder.Services.AddSingleton<UnauthTokenBucketOptions>(new UnauthTokenBucketOptions
-			{
-				Capacity = 5,
-				RefillRatePerSecond = 1
-			});
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("FlexiblePolicy", policy =>
+                {
+                    policy.SetIsOriginAllowed(_ => true)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials();
+                });
+            });
 
-			// ---------------------
-			// Application Services
-			// ---------------------
-			builder.Services.AddScoped<ITokensService, TokensService>();
-			builder.Services.AddScoped<IUserService, UserService>();
-			builder.Services.AddScoped<IOtpService, OtpService>();
-			builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
-			builder.Services.AddScoped<IUserClaimsService, UserClaimsService>();
-			builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
-			builder.Services.AddScoped<IFileMapper, FileMapper>();
-			builder.Services.AddScoped<IWalletService, WalletService>();
-			builder.Services.AddScoped<ICsvExportService, CsvExportService>();
-			builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
-			builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
-			builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
-			builder.Services.AddScoped<IUserOrchestrator, UserOrchestrator>();
-			builder.Services.AddScoped<IWalletOrchestrator, WalletOrchestrator>();
-			builder.Services.AddScoped<IRideService, RideService>();
-			builder.Services.AddScoped<IBookingService, BookingService>();
-			builder.Services.AddScoped<IReviewService, ReviewService>();
-			builder.Services.AddScoped<IReportService, ReportService>();
-			builder.Services.AddScoped<INotificationOrchestrator, NotificationOrchestrator>();
-			builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
-			builder.Services.AddScoped<IBookingJobs, BookingJobs>();
-			builder.Services.AddScoped<ICarJobs, CarJobs>();
-			builder.Services.AddScoped<IUserJobs, UserJobs>();
-			builder.Services.AddScoped<IDriverJobs, DriverJobs>();
-			builder.Services.AddScoped<IRideJobs, RideJobs>();
-			builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
-			builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-			builder.Services.AddScoped<INotificationBuilder, NotificationBuilder>();
-			builder.Services.AddScoped<INotificationService, NotificationService>();
-			builder.Services.AddScoped<IFcmService, FcmService>();
-			builder.Services.AddScoped<IFcmTokenService, FcmTokenService>();
-			builder.Services.AddScoped<IDistributedCachingService, RedisCachingService>();
-			builder.Services.AddScoped<IRideOrchestrator, RideOrchestrator>();
-			builder.Services.AddScoped<ISmsService, TwilioSmsService>();
-			builder.Services.AddAuthorization(options =>
-			{
-				options.AddPolicy("DriverOnly", policy =>
-				{
-					policy.RequireClaim(CustomClaimTypes.IsDriver, CustomClaimTypes.True);
-				});
-			});
-			builder.Services.AddHealthChecks()
-				.AddCheck<CloudinaryHealthCheck>(
-					"cloudinary-api",
-					failureStatus: HealthStatus.Degraded 
-				)
-				.AddCheck<TwilioHealthCheck>(
-					"twilio-api",
-					failureStatus: HealthStatus.Degraded
-				)
-				.AddCheck<PaymobHealthCheck>(
-					"paymob-api",
-					failureStatus: HealthStatus.Degraded
-				)
-				.AddSqlServer(
-					connectionString: builder.Configuration.GetConnectionString("DefaultConnection")!,
-					name: "SqlServer-db"
-				)
-				.AddSqlServer(
-					connectionString: builder.Configuration.GetConnectionString("HangfireConnection")!,
-					name: "SqlServer-hangfire"
-				)
-				.AddRedis(
-					builder.Configuration.GetConnectionString("RedisConnection")!,
-					name: "redis" 
-				);
+            // ---------------------
+            // Redis
+            // ---------------------
+            var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection");
+            if (string.IsNullOrWhiteSpace(redisConnectionString))
+            {
+                throw new InvalidOperationException("RedisConnection is not configured.");
+            }
 
-			////FCM Configurations 
-			builder.Services.Configure<FirebaseSettings>(builder.Configuration.GetSection("FirebaseSettings"));
-			var firebaseSettings = builder.Configuration
-			.GetSection("FirebaseSettings")
-			.Get<FirebaseSettings>();
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+                options.InstanceName = "Ftareqi:";
+            });
+            builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+            {
+                var options = ConfigurationOptions.Parse(redisConnectionString);
+                options.AbortOnConnectFail = false;
+                return ConnectionMultiplexer.Connect(options);
+            });
 
-			if (firebaseSettings != null && !string.IsNullOrEmpty(firebaseSettings.ProjectId))
-			{
-				try
-				{
-					var json = JsonConvert.SerializeObject(new
-					{
-						type = "service_account",
-						project_id = firebaseSettings.ProjectId,
-						private_key_id = firebaseSettings.PrivateKeyId,
-						private_key = firebaseSettings.PrivateKey?.Replace("\\n", "\n"),
-						client_email = firebaseSettings.ClientEmail,
-						client_id = firebaseSettings.ClientId,
-						auth_uri = firebaseSettings.AuthUri,
-						token_uri = firebaseSettings.TokenUri,
-						auth_provider_x509_cert_url = firebaseSettings.AuthProviderX509CertUrl,
-						client_x509_cert_url = firebaseSettings.ClientX509CertUrl
-					});
-					FirebaseApp.Create(new AppOptions
-					{
-						Credential = GoogleCredential.FromJson(json)
-					});
+            // ---------------------
+            // Rate Limiting
+            // ---------------------
+            builder.Services.AddSingleton<AuthTokenBucketOptions>(new AuthTokenBucketOptions
+            {
+                Capacity = 20,
+                RefillRatePerSecond = 5
+            });
+            builder.Services.AddSingleton<UnauthTokenBucketOptions>(new UnauthTokenBucketOptions
+            {
+                Capacity = 5,
+                RefillRatePerSecond = 1
+            });
 
-					Console.WriteLine("? Firebase initialized successfully");
-				}
-				catch (Exception ex)
-				{
-					Console.WriteLine($" Firebase initialization failed: {ex.Message}");
-					// Don't throw - let app run without FCM
-				}
-			}
-			else
-			{
-				Console.WriteLine(" Firebase configuration not found");
-			}
+            // ---------------------
+            // Application Services
+            // ---------------------
+            builder.Services.AddScoped<ITokensService, TokensService>();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IOtpService, OtpService>();
+            builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+            builder.Services.AddScoped<IUserClaimsService, UserClaimsService>();
+            builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+            builder.Services.AddScoped<IFileMapper, FileMapper>();
+            builder.Services.AddScoped<IWalletService, WalletService>();
+            builder.Services.AddScoped<ICsvExportService, CsvExportService>();
+            builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
+            builder.Services.AddScoped<IAuthOrchestrator, AuthOrchestrator>();
+            builder.Services.AddScoped<IDriverOrchestrator, DriverOrchestrator>();
+            builder.Services.AddScoped<IUserOrchestrator, UserOrchestrator>();
+            builder.Services.AddScoped<IWalletOrchestrator, WalletOrchestrator>();
+            builder.Services.AddScoped<IRideService, RideService>();
+            builder.Services.AddScoped<IBookingService, BookingService>();
+            builder.Services.AddScoped<IReviewService, ReviewService>();
+            builder.Services.AddScoped<IReportService, ReportService>();
+            builder.Services.AddScoped<INotificationOrchestrator, NotificationOrchestrator>();
+            builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
+            builder.Services.AddScoped<IBookingJobs, BookingJobs>();
+            builder.Services.AddScoped<ICarJobs, CarJobs>();
+            builder.Services.AddScoped<IUserJobs, UserJobs>();
+            builder.Services.AddScoped<IDriverJobs, DriverJobs>();
+            builder.Services.AddScoped<IRideJobs, RideJobs>();
+            builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddScoped<INotificationBuilder, NotificationBuilder>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<IFcmService, FcmService>();
+            builder.Services.AddScoped<IFcmTokenService, FcmTokenService>();
+            builder.Services.AddScoped<IDistributedCachingService, RedisCachingService>();
+            builder.Services.AddScoped<IRideOrchestrator, RideOrchestrator>();
+            builder.Services.AddScoped<ISmsService, TwilioSmsService>();
 
+            builder.Services.AddAuthorization(options =>
+            {
+                options.AddPolicy("DriverOnly", policy =>
+                {
+                    policy.RequireClaim(CustomClaimTypes.IsDriver, CustomClaimTypes.True);
+                });
+            });
 
-			builder.Services.AddOpenTelemetry()
-				.WithTracing(tracing => tracing
-					.SetResourceBuilder(OpenTelemetry.Resources.ResourceBuilder.CreateDefault().AddService("ftareqi-backend"))
-					.AddAspNetCoreInstrumentation()
-					.AddHttpClientInstrumentation()
-					.AddSqlClientInstrumentation()
-					.AddRedisInstrumentation()
-					.AddOtlpExporter(options =>
-					{
-						options.Endpoint = new Uri("http://localhost:4317");
-					}));
+            // ---------------------
+            // Health Checks
+            // ---------------------
+            builder.Services.AddHealthChecks()
+                .AddCheck<CloudinaryHealthCheck>(
+                    "cloudinary-api",
+                    failureStatus: HealthStatus.Degraded
+                )
+                .AddCheck<TwilioHealthCheck>(
+                    "twilio-api",
+                    failureStatus: HealthStatus.Degraded
+                )
+                .AddCheck<PaymobHealthCheck>(
+                    "paymob-api",
+                    failureStatus: HealthStatus.Degraded
+                )
+                .AddSqlServer(
+                    connectionString: builder.Configuration.GetConnectionString("DefaultConnection")!,
+                    name: "SqlServer-db"
+                )
+                .AddSqlServer(
+                    connectionString: builder.Configuration.GetConnectionString("HangfireConnection")!,
+                    name: "SqlServer-hangfire"
+                )
+                .AddRedis(
+                    builder.Configuration.GetConnectionString("RedisConnection")!,
+                    name: "redis"
+                );
 
-			// ---------------------
-			// Swagger
-			// ---------------------
-			builder.Services.AddEndpointsApiExplorer();
-			builder.Services.AddSwaggerGen(options =>
-			{
-				options.SwaggerDoc("v1", new OpenApiInfo { Title = "Ftareqi API", Version = "v1" });
+            // ---------------------
+            // Firebase (FCM)
+            // ---------------------
+            builder.Services.Configure<FirebaseSettings>(builder.Configuration.GetSection("FirebaseSettings"));
+            var firebaseSettings = builder.Configuration
+                .GetSection("FirebaseSettings")
+                .Get<FirebaseSettings>();
 
-				var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-				var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-				if (File.Exists(xmlPath))
-				{
-					options.IncludeXmlComments(xmlPath);
-				}
-				
-				// Configure enums to be displayed as strings in Swagger
-				options.SchemaFilter<EnumSchemaFilter>();
-				
-				options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-				{
-					Name = "Authorization",
-					Type = SecuritySchemeType.Http,
-					Scheme = "Bearer",
-					In = ParameterLocation.Header
-				});
-				options.AddSecurityRequirement(new OpenApiSecurityRequirement {
-					{
-						new OpenApiSecurityScheme {
-							Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-						}, Array.Empty<string>()
-					}
-				});
-			});
-			var app = builder.Build();
-			BackgroundJobsConfig.RegisterJobs(app);
-			app.UseSerilogRequestLogging();
+            if (firebaseSettings != null && !string.IsNullOrEmpty(firebaseSettings.ProjectId))
+            {
+                try
+                {
+                    var json = JsonConvert.SerializeObject(new
+                    {
+                        type = "service_account",
+                        project_id = firebaseSettings.ProjectId,
+                        private_key_id = firebaseSettings.PrivateKeyId,
+                        private_key = firebaseSettings.PrivateKey?.Replace("\\n", "\n"),
+                        client_email = firebaseSettings.ClientEmail,
+                        client_id = firebaseSettings.ClientId,
+                        auth_uri = firebaseSettings.AuthUri,
+                        token_uri = firebaseSettings.TokenUri,
+                        auth_provider_x509_cert_url = firebaseSettings.AuthProviderX509CertUrl,
+                        client_x509_cert_url = firebaseSettings.ClientX509CertUrl
+                    });
+                    FirebaseApp.Create(new AppOptions
+                    {
+                        Credential = GoogleCredential.FromJson(json)
+                    });
 
-			if (app.Environment.IsDevelopment())
-			{
-				app.UseSwagger();
-				app.UseSwaggerUI();
-			}
-			app.UseHttpMetrics();
-			app.UseExceptionHandler();
-			app.UseHangfireDashboard("/hangfire");
-			app.UseHttpsRedirection();
-			app.UseRouting();
-			app.UseCors("FlexiblePolicy");
-			app.UseAuthentication();
-			app.UseMiddleware<TokenBucketMiddleware>();
-			app.UseMiddleware<IdempotencyMiddleware>();
-			app.UseAuthorization();
-			
-			app.MapHub<NotificationHub>("/notificationHub");
-			app.MapHub<LiveTrackingHub>("/LiveTrackingHub");
+                    Console.WriteLine(" Firebase initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($" Firebase initialization failed: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine(" Firebase configuration not found");
+            }
 
-			app.MapHealthChecks("/health", new HealthCheckOptions
-			{
-				ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317";
 
-			});
-			 app.MapMetrics("/metrics");
-			app.MapControllers();
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(tracing => tracing
+                    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("ftareqi-backend"))
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddSqlClientInstrumentation()
+                    .AddRedisInstrumentation()
+                    .AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri(otlpEndpoint);
+                    }));
 
-			app.Run();
-		}
-	}
+            // ---------------------
+            // Swagger
+            // ---------------------
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo { Title = "Ftareqi API", Version = "v1" });
+
+                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                if (File.Exists(xmlPath))
+                {
+                    options.IncludeXmlComments(xmlPath);
+                }
+
+                options.SchemaFilter<EnumSchemaFilter>();
+
+                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    In = ParameterLocation.Header
+                });
+                options.AddSecurityRequirement(new OpenApiSecurityRequirement {
+                    {
+                        new OpenApiSecurityScheme {
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                        }, Array.Empty<string>()
+                    }
+                });
+            });
+
+            // ═════════════════════════════════════════════
+            // Build & configure the middleware pipeline
+            // ═════════════════════════════════════════════
+            var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Database.Migrate();
+            }
+
+            BackgroundJobsConfig.RegisterJobs(app);
+            app.UseSerilogRequestLogging();
+
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
+            app.UseHttpMetrics();
+            app.UseExceptionHandler();
+            app.UseHangfireDashboard("/hangfire");
+
+            app.UseRouting();
+            app.UseCors("FlexiblePolicy");
+            app.UseAuthentication();
+            app.UseMiddleware<TokenBucketMiddleware>();
+            app.UseMiddleware<IdempotencyMiddleware>();
+            app.UseAuthorization();
+
+            app.MapHub<NotificationHub>("/notificationHub");
+            app.MapHub<LiveTrackingHub>("/LiveTrackingHub");
+
+            app.MapHealthChecks("/health", new HealthCheckOptions
+            {
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            });
+
+            app.MapMetrics("/metrics");
+            app.MapControllers();
+
+            app.Run();
+        }
+    }
 }

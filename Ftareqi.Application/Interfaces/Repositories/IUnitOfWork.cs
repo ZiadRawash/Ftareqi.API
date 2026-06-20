@@ -27,6 +27,7 @@ namespace Ftareqi.Application.Interfaces.Repositories
 		IBaseRepository <RidePreferences> RidePreferences { get; }
 		IBaseRepository <Review> Reviews { get; }
 		IBaseRepository <Report> Reports { get; }
+		IBaseRepository <Ban> Bans { get; }
 		Task<IDbContextTransaction> BeginTransactionAsync();
 		Task<int> SaveChangesAsync();
 	}

@@ -24,6 +24,7 @@ namespace Ftareqi.Domain.Models
 		[ForeignKey(nameof(User))]
 		public required string UserId { get; set; }
 		public ICollection<Ride> Rides { get; set; } = new List<Ride>();
+		public ICollection<Ban> Bans { get; set; } = new List<Ban>();
 
 	}
 }

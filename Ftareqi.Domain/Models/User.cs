@@ -30,5 +30,6 @@ namespace Ftareqi.Domain.Models
 		public ICollection<RideBooking> RideBookings { get; set; } = new List<RideBooking>();
 		public ICollection<Report> ReportsMade { get; set; } = new List<Report>();
 		public ICollection<Report> ReportsReceived { get; set; } = new List<Report>();
+		public ICollection<Ban> BansIssued { get; set; } = new List<Ban>();
 	}
 }

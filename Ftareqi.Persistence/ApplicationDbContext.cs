@@ -24,6 +24,7 @@ namespace Ftareqi.Persistence
 		public DbSet<RidePreferences> RidePreferences { get; set; }
 		public DbSet<Review> Reviews { get; set; }
 		public DbSet<Report> Reports { get; set; }
+		public DbSet<Ban> Bans { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
@@ -153,6 +154,18 @@ namespace Ftareqi.Persistence
 				.WithMany(u => u.ReportsReceived)
 				.HasForeignKey(r => r.ReportedUserId)
 				.OnDelete(DeleteBehavior.Restrict);
+
+				builder.Entity<Ban>()
+					.HasOne(b => b.DriverProfile)
+					.WithMany(d => d.Bans)
+					.HasForeignKey(b => b.DriverProfileId)
+					.OnDelete(DeleteBehavior.Restrict);
+
+				builder.Entity<Ban>()
+					.HasOne(b => b.BannedByUser)
+					.WithMany(u => u.BansIssued)
+					.HasForeignKey(b => b.BannedByUserId)
+					.OnDelete(DeleteBehavior.Restrict);
 				
 			builder.Entity<IdentityUserRole<string>>().HasData(
 				new IdentityUserRole<string>

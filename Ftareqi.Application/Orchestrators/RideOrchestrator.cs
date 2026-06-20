@@ -553,6 +553,20 @@ namespace Ftareqi.Application.Orchestrators
 			if (rideFound.DriverProfile.UserId != driverId)
 				return Result.Failure("Unauthorized");
 
+			// validate driver is at (or near) the ride end location
+			var isAtEndLocation = LocationHelper.IsWithinRadius(
+				rideFound.EndLocation,
+				model.Latitude,
+				model.Longitude,
+				RidePolicies.ArrivalRadiusMeters);
+
+			if (!isAtEndLocation)
+			{
+				_logger.LogWarning("EndRide failed for ride {RideId}: Location validation failed. Driver position Latitude: {Latitude}, Longitude: {Longitude} is {DistanceMeters}m from dropoff point",
+					rideId, model.Latitude, model.Longitude, RidePolicies.ArrivalRadiusMeters);
+				return Result.Failure("You are too far from the dropoff point");
+			}
+
 			var bookingIds = rideFound.RideBookings
 				.Where(b => !b.IsDeleted && b.Status == BookingStatus.Started)
 				.Select(b => b.Id)

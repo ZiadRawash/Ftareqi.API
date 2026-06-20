@@ -564,7 +564,7 @@ namespace Ftareqi.Application.Orchestrators
 			{
 				_logger.LogWarning("EndRide failed for ride {RideId}: Location validation failed. Driver position Latitude: {Latitude}, Longitude: {Longitude} is {DistanceMeters}m from dropoff point",
 					rideId, model.Latitude, model.Longitude, RidePolicies.ArrivalRadiusMeters);
-				return Result.Failure("You are too far from the dropoff point");
+				return Result.Failure("You are too far from the drop off point");
 			}
 
 			var bookingIds = rideFound.RideBookings

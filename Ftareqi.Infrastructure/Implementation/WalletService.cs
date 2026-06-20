@@ -337,10 +337,12 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				var now = DateTime.UtcNow;
 				var totalAmount = 0m;
+				var affectedUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { receiverId };
 
 				foreach (var txn in lockedTxns)
 				{
 					var senderWallet = txn.UserWallet;
+					affectedUserIds.Add(senderWallet.UserId);
 
 					if (senderWallet.LockedBalance < txn.Amount)
 					{
@@ -378,6 +380,11 @@ namespace Ftareqi.Infrastructure.Implementation
 
 				await _unitOfWork.SaveChangesAsync();
 				await tx.CommitAsync();
+
+				foreach (var userId in affectedUserIds)
+				{
+					await _cache.RemoveWalletCachesAsync(userId);
+				}
 
 				_logger.LogInformation("Batch transfer completed to {Receiver} for bookings {Bookings}", receiverId, string.Join(',', bookingsList));
 				return Result<decimal>.Success(totalAmount, "Batch transfer completed successfully");

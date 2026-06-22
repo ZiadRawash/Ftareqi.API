@@ -305,6 +305,7 @@ namespace Ftareqi.API
             builder.Services.AddScoped<IBookingService, BookingService>();
             builder.Services.AddScoped<IReviewService, ReviewService>();
             builder.Services.AddScoped<IReportService, ReportService>();
+			builder.Services.AddScoped<IBanService, BanService>();
             builder.Services.AddScoped<INotificationOrchestrator, NotificationOrchestrator>();
             builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
             builder.Services.AddScoped<IBookingJobs, BookingJobs>();

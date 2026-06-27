@@ -1,10 +1,13 @@
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Ban;
+using Ftareqi.Application.DTOs.Notification;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace Ftareqi.Infrastructure.Implementation
@@ -13,11 +16,13 @@ namespace Ftareqi.Infrastructure.Implementation
 	{
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<BanService> _logger;
+		private readonly INotificationOrchestrator _notification;
 
-		public BanService(IUnitOfWork unitOfWork, ILogger<BanService> logger)
+		public BanService(IUnitOfWork unitOfWork, ILogger<BanService> logger , INotificationOrchestrator notification)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
+			_notification = notification;
 		}
 
 		public async Task<Result> BanDriverProfileAsync(string driverUserId, CreateBanDto model, string moderatorUserId)
@@ -93,8 +98,10 @@ namespace Ftareqi.Infrastructure.Implementation
 
 			await _unitOfWork.Bans.AddAsync(ban);
 			await _unitOfWork.SaveChangesAsync();
+			await SendBandNotification(ban.Id, driverUserId);
 
-			_logger.LogInformation(
+
+            _logger.LogInformation(
 				"Ban {BanId} created for driver profile {DriverProfileId} by moderator {ModeratorUserId}",
 				ban.Id,
 				driverProfile.Id,
@@ -233,5 +240,16 @@ namespace Ftareqi.Infrastructure.Implementation
 				History = historyItems
 			});
 		}
-	}
+		private async Task SendBandNotification(int banId, string BannedId)
+		{
+		var notification=	new NotificationInput(
+					BannedId,
+					NotificationCategory.Ban,
+					NotificationEventCode.BanActivated,
+					banId.ToString(),
+					new NotificationMetadata { Preview = "Your account has been temporarily restricted for violating our terms of service" }
+					);
+			await _notification.NotifyAsync(notification);
+		}
+    }
 }

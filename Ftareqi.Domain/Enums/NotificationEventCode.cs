@@ -34,7 +34,9 @@ namespace Ftareqi.Domain.Enums
 
         //Report 
         ReportResolved=600,
-        ReportRejected=601
+        ReportRejected=601,
 
+		//Ban
+		BanActivated=700
     }
 }

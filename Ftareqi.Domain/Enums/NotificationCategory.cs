@@ -14,5 +14,6 @@ namespace Ftareqi.Domain.Enums
 		System = 4,
 		Review = 5,
 		Report=6,
+		Ban=7
 	}
 }

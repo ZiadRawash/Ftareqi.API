@@ -110,6 +110,30 @@ namespace Ftareqi.Infrastructure.Implementation
 			return Result.Success("Driver profile banned successfully");
 		}
 
+		public async Task<Result> UnbanDriverProfileAsync(int banId)
+		{
+			var ban = await _unitOfWork.Bans.FirstOrDefaultAsync(x => x.Id == banId);
+			if (ban == null)
+			{
+				return Result.Failure("Ban not found");
+			}
+
+			if (ban.BannedUntil.HasValue && ban.BannedUntil <= DateTime.UtcNow)
+			{
+				return Result.Failure("Ban has already expired");
+			}
+
+			ban.BannedUntil = DateTime.UtcNow;
+			ban.UpdatedAt = DateTime.UtcNow;
+
+			_unitOfWork.Bans.Update(ban);
+			await _unitOfWork.SaveChangesAsync();
+
+			_logger.LogInformation("Ban {BanId} has been lifted manually", banId);
+
+			return Result.Success("User has been unbanned successfully");
+		}
+
 		public async Task<Result<BanSummaryDto>> GetSummaryAsync()
 		{
 			var now = DateTime.UtcNow;

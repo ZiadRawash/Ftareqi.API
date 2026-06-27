@@ -70,6 +70,32 @@ namespace Ftareqi.API.Controllers
 		}
 
 		/// <summary>
+		/// Lifts a ban for a specific driver profile.
+		/// </summary>
+		[Authorize(Roles = $"{Roles.Admin},{Roles.Moderator}")]
+		[HttpPatch("{banId:int}/unban")]
+		public async Task<ActionResult<ApiResponse>> UnbanDriverProfile(int banId)
+		{
+			var result = await _banService.UnbanDriverProfileAsync(banId);
+			if (result.IsFailure)
+			{
+				return BadRequest(new ApiResponse
+				{
+					Success = false,
+					Message = result.Message,
+					Errors = result.Errors
+				});
+			}
+
+			return Ok(new ApiResponse
+			{
+				Success = true,
+				Message = result.Message,
+				Errors = result.Errors
+			});
+		}
+
+		/// <summary>
 		/// Retrieves a statistical summary of all bans.
 		/// </summary>
 		[Authorize(Roles = $"{Roles.Admin},{Roles.Moderator}")]

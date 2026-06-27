@@ -240,6 +240,26 @@ namespace Ftareqi.Infrastructure.Implementation
 				History = historyItems
 			});
 		}
+		public async Task<Result<bool>> IsUserBannedAsync(string userId)
+		{
+			if (string.IsNullOrEmpty(userId))
+			{
+				return Result<bool>.Failure("User id is required");
+			}
+
+			var userFound = await _unitOfWork.Users.FirstOrDefaultAsNoTrackingAsync(x => x.Id == userId, x => x.DriverProfile!);
+			if (userFound == null || userFound.DriverProfile == null)
+			{
+				return Result<bool>.Failure("Invalid user id or driver profile not found");
+			}
+
+			var now = DateTime.UtcNow;
+			var isBanned = await _unitOfWork.Bans.ExistsAsync(
+				x => x.DriverProfileId == userFound.DriverProfile.Id && (!x.BannedUntil.HasValue || x.BannedUntil > now));
+
+			return Result<bool>.Success(isBanned);
+		}
+
 		private async Task SendBandNotification(int banId, string BannedId)
 		{
 		var notification=	new NotificationInput(

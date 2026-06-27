@@ -10,6 +10,7 @@ namespace Ftareqi.Application.Interfaces.Services
 		Task<Result<BanSummaryDto>> GetSummaryAsync();
 		Task<Result<PaginatedResponse<BannedProfileDto>>> GetBannedProfilesAsync(GenericQueryReq request);
 		Task<Result<DriverBanHistoryDto>> GetDriverBanHistoryAsync(string userId);
+		Task<Result<bool>> IsUserBannedAsync(string userId);
 
 	}
 }

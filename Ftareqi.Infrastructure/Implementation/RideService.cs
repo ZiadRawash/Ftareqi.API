@@ -1,4 +1,4 @@
-﻿using Ftareqi.Application.Common;
+using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Helpers;
 using Ftareqi.Application.Common.Results;
 using Ftareqi.Application.DTOs.Notification;
@@ -28,12 +28,14 @@ namespace Ftareqi.Infrastructure.Implementation
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<RideService> _logger;
 		private readonly IBackgroundJobService _backgroundJobService;
+		private readonly IBanService _banService;
 
-		public RideService(IUnitOfWork unitOfWork, ILogger<RideService> logger, IBackgroundJobService backgroundJobService)
+		public RideService(IUnitOfWork unitOfWork, ILogger<RideService> logger, IBackgroundJobService backgroundJobService, IBanService banService)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
 			_backgroundJobService = backgroundJobService;
+			_banService = banService;
 		}
 
 		public async Task<Result> CreateRide(CreateRideRequestDto model, string userId)
@@ -50,6 +52,13 @@ namespace Ftareqi.Infrastructure.Implementation
 			{
 				_logger.LogInformation("Could not create ride for user {UserId}: active driver profile not found", userId);
 				return Result.Failure("Unable to create ride");
+			}
+
+			var banCheck = await _banService.IsUserBannedAsync(userId);
+			if (banCheck.IsSuccess && banCheck.Data)
+			{
+				_logger.LogInformation("Could not create ride for user {UserId}: user is currently banned", userId);
+				return Result.Failure("Your account is currently banned and cannot create rides");
 			}
 			try
 			{

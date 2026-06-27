@@ -1,11 +1,15 @@
 using Ftareqi.Application.Common;
 using Ftareqi.Application.Common.Results;
+using Ftareqi.Application.DTOs.Notification;
 using Ftareqi.Application.DTOs.Report;
+using Ftareqi.Application.Interfaces.Orchestrators;
 using Ftareqi.Application.Interfaces.Repositories;
 using Ftareqi.Application.Interfaces.Services;
 using Ftareqi.Application.Mappers;
+using Ftareqi.Application.Orchestrators;
 using Ftareqi.Domain.Enums;
 using Ftareqi.Domain.Models;
+using Ftareqi.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace Ftareqi.Infrastructure.Implementation
@@ -14,11 +18,13 @@ namespace Ftareqi.Infrastructure.Implementation
 	{
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly ILogger<ReportService> _logger;
+		private readonly INotificationOrchestrator _notificationService;
 
-		public ReportService(IUnitOfWork unitOfWork, ILogger<ReportService> logger)
+		public ReportService(IUnitOfWork unitOfWork, INotificationOrchestrator notificationService, ILogger<ReportService> logger)
 		{
 			_unitOfWork = unitOfWork;
 			_logger = logger;
+			_notificationService = notificationService;
 		}
 
 		public async Task<Result> CreateReport(CreateReportDto model, string reporterUserId)
@@ -211,7 +217,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result.Failure("Report status cannot be set to pending");
 			}
 
-			var report = await _unitOfWork.Reports.FirstOrDefaultAsync(x => x.Id == reportId);
+			var report = await _unitOfWork.Reports.FirstOrDefaultAsync(x => x.Id == reportId,x=>x.ReporterUserId);
 			if (report == null)
 			{
 				return Result.Failure("Report not found");
@@ -221,8 +227,36 @@ namespace Ftareqi.Infrastructure.Implementation
 			report.UpdatedAt = DateTime.UtcNow;
 			_unitOfWork.Reports.Update(report);
 			await _unitOfWork.SaveChangesAsync();
+			await SendReportNotification(model.Status, report.ReporterUser.Id, report.Id);
 
-			return Result.Success("Report status updated successfully");
+            return Result.Success("Report status updated successfully");
 		}
-	}
+
+        private async Task SendReportNotification(ReportStatus status, string reporterId, int reportId)
+        {
+            NotificationInput notification = status switch
+            {
+                ReportStatus.Rejected => new NotificationInput(
+                    reporterId,
+                    NotificationCategory.Report,
+                    NotificationEventCode.ReportRejected,
+                    reportId.ToString(),
+                    new NotificationMetadata { Preview = "Your report has been reviewed. After investigation, no violation was found" }),
+
+                ReportStatus.Resolved => new NotificationInput(
+                    reporterId,
+                    NotificationCategory.Report,
+                    NotificationEventCode.ReportResolved,
+                    reportId.ToString(),
+                    new NotificationMetadata { Preview = "Action has been taken regarding your recent report. We appreciate your vigilance" }),
+
+                _ => throw new ArgumentOutOfRangeException(nameof(status), status, $"Unsupported report status: {status}")
+            };
+
+            if (notification != null)
+            {
+                await _notificationService.NotifyAsync(notification);
+            }
+        }
+    }
 }

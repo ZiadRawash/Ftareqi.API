@@ -30,8 +30,11 @@ namespace Ftareqi.Domain.Enums
 		Expired=303,
 
 		//Review
-		ReviewAdded=500
-		
+		ReviewAdded=500,
 
-	}
+        //Report 
+        ReportResolved=600,
+        ReportRejected=601
+
+    }
 }

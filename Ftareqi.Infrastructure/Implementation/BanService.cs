@@ -271,7 +271,7 @@ namespace Ftareqi.Infrastructure.Implementation
 				return Result<bool>.Failure("User id is required");
 			}
 
-			var userFound = await _unitOfWork.Users.FirstOrDefaultAsNoTrackingAsync(x => x.Id == userId, x => x.DriverProfile!);
+			var userFound = await _unitOfWork.Users.FirstOrDefaultAsync(x => x.Id == userId, x => x.DriverProfile!);
 			if (userFound == null || userFound.DriverProfile == null)
 			{
 				return Result<bool>.Failure("Invalid user id or driver profile not found");

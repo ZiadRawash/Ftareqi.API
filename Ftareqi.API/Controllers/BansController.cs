@@ -22,57 +22,57 @@ namespace Ftareqi.API.Controllers
 			_banService = banService;
 		}
 
-		/// <summary>
-		/// Bans a specific driver profile.
-		/// </summary>
-		[Authorize(Roles = $"{Roles.Admin},{Roles.Moderator}")]
-		[HttpPost("{driverProfileId:int}")]
-		public async Task<ActionResult<ApiResponse>> BanDriverProfile(string driverUserId, [FromBody] CreateBanDto request)
-		{
-			if (!ModelState.IsValid)
-			{
-				var errors = ModelState.Values
-					.SelectMany(v => v.Errors)
-					.Select(e => e.ErrorMessage)
-					.ToList();
+        /// <summary>
+        /// Bans a specific driver profile.
+        /// </summary>
+        [Authorize(Roles = $"{Roles.Admin},{Roles.Moderator}")]
+        [HttpPost("{driverUserId}")] 
+        public async Task<ActionResult<ApiResponse>> BanDriverProfile([FromRoute] string driverUserId, [FromBody] CreateBanDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
 
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Errors = errors,
-					Message = "Invalid request data"
-				});
-			}
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Errors = errors,
+                    Message = "Invalid request data"
+                });
+            }
 
-			var moderatorUserId = User.GetUserId();
-			if (string.IsNullOrWhiteSpace(moderatorUserId))
-			{
-				return Unauthorized(new ApiResponse { Success = false, Message = "Unauthorized" });
-			}
+            var moderatorUserId = User.GetUserId();
+            if (string.IsNullOrWhiteSpace(moderatorUserId))
+            {
+                return Unauthorized(new ApiResponse { Success = false, Message = "Unauthorized" });
+            }
 
-			var result = await _banService.BanDriverProfileAsync(driverUserId, request, moderatorUserId);
-			if (result.IsFailure)
-			{
-				return BadRequest(new ApiResponse
-				{
-					Success = false,
-					Message = result.Message,
-					Errors = result.Errors
-				});
-			}
+            var result = await _banService.BanDriverProfileAsync(driverUserId, request, moderatorUserId);
+            if (result.IsFailure)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = result.Message,
+                    Errors = result.Errors
+                });
+            }
 
-			return Ok(new ApiResponse
-			{
-				Success = true,
-				Message = result.Message,
-				Errors = result.Errors
-			});
-		}
+            return Ok(new ApiResponse
+            {
+                Success = true,
+                Message = result.Message,
+                Errors = result.Errors
+            });
+        }
 
-		/// <summary>
-		/// Lifts a ban for a specific driver profile.
-		/// </summary>
-		[Authorize(Roles = $"{Roles.Admin},{Roles.Moderator}")]
+        /// <summary>
+        /// Lifts a ban for a specific driver profile.
+        /// </summary>
+        [Authorize(Roles = $"{Roles.Admin},{Roles.Moderator}")]
 		[HttpPatch("{banId:int}/unban")]
 		public async Task<ActionResult<ApiResponse>> UnbanDriverProfile(int banId)
 		{
